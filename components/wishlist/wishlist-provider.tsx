@@ -1,9 +1,9 @@
-"use client";
+﻿"use client";
 
 import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from "react";
 import { addWishlistItem, removeWishlistItem, toggleWishlistItem, type WishlistItem } from "@/features/wishlist/wishlist";
 
-const STORAGE_KEY = "atelier-wishlist-v1";
+const STORAGE_KEY = "elaris-wishlist-v1";
 
 type WishlistContextValue = {
   items: WishlistItem[];

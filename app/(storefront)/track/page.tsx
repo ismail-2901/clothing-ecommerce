@@ -1,9 +1,9 @@
-import type { Metadata } from "next";
+﻿import type { Metadata } from "next";
 import { PackageCheck, PackageOpen, Truck, CheckCircle2, CircleDot } from "lucide-react";
 
 export const metadata: Metadata = {
-  title: "Track Order – Atelier Commerce",
-  description: "Track your Atelier Commerce order status."
+  title: "Track Order – Elaris",
+  description: "Track your Elaris order status."
 };
 
 // Mock order timeline for demonstration

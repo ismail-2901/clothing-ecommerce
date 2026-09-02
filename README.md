@@ -1,4 +1,4 @@
-# Atelier Commerce
+﻿# Elaris
 
 A production-oriented, single-brand clothing e-commerce platform built with
 Next.js, TypeScript, Tailwind CSS, Prisma, PostgreSQL, Better Auth, and a

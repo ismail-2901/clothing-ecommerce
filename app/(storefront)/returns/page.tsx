@@ -1,9 +1,9 @@
-import { returnPolicy } from "@/features/content/policies";
+﻿import { returnPolicy } from "@/features/content/policies";
 import type { Metadata } from "next";
 import Link from "next/link";
 
 export const metadata: Metadata = {
-  title: "Returns & Refunds – Atelier Commerce",
+  title: "Returns & Refunds – Elaris",
   description: "Our 14-day return window, exchange and refund process."
 };
 

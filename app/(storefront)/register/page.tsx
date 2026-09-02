@@ -1,9 +1,9 @@
-import type { Metadata } from "next";
+﻿import type { Metadata } from "next";
 import { RegisterForm } from "@/components/account/register-form";
 
 export const metadata: Metadata = {
-  title: "Create Account – Atelier Commerce",
-  description: "Create your Atelier Commerce account."
+  title: "Create Account – Elaris",
+  description: "Create your Elaris account."
 };
 
 export default function RegisterPage() {

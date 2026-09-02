@@ -1,11 +1,11 @@
-export const dynamic = "force-dynamic";
+﻿export const dynamic = "force-dynamic";
 import { Clock, FileText, Shield, ShoppingCart, Truck } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 
 const logs = [
   {
     id: "al1",
-    actor: "admin@ateliercommerce.com",
+    actor: "admin@elarisstore.com",
     action: "ORDER_STATUS_CHANGED",
     resource: "Order",
     resourceId: "ATC-0002",
@@ -14,7 +14,7 @@ const logs = [
   },
   {
     id: "al2",
-    actor: "admin@ateliercommerce.com",
+    actor: "admin@elarisstore.com",
     action: "PRODUCT_PRICE_CHANGED",
     resource: "Product",
     resourceId: "prod_black_linen_shirt",
@@ -23,16 +23,16 @@ const logs = [
   },
   {
     id: "al3",
-    actor: "superadmin@ateliercommerce.com",
+    actor: "superadmin@elarisstore.com",
     action: "ADMIN_CREATED",
     resource: "User",
     resourceId: "admin_2",
     timestamp: "2024-12-13 09:15:00",
-    meta: { email: "newadmin@ateliercommerce.com", role: "ADMIN" }
+    meta: { email: "newadmin@elarisstore.com", role: "ADMIN" }
   },
   {
     id: "al4",
-    actor: "admin@ateliercommerce.com",
+    actor: "admin@elarisstore.com",
     action: "ORDER_CANCELLED",
     resource: "Order",
     resourceId: "ATC-0005",
@@ -41,7 +41,7 @@ const logs = [
   },
   {
     id: "al5",
-    actor: "admin@ateliercommerce.com",
+    actor: "admin@elarisstore.com",
     action: "INVENTORY_ADJUSTED",
     resource: "Variant",
     resourceId: "ALS-BLK-L",

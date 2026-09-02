@@ -1,14 +1,14 @@
 /**
- * Notification service — provider-agnostic email interface.
+ * Notification service � provider-agnostic email interface.
  *
  * Wire a real provider (Resend, SendGrid, Nodemailer) by implementing
  * sendEmail() in the provider block. The rest of the system uses the
  * typed helper functions below so business logic never touches transport.
  *
  * Required env vars:
- *   EMAIL_FROM        — sender address, e.g. "Atelier <no-reply@yourdomain.com>"
- *   EMAIL_PROVIDER    — "resend" | "console" (default: console in dev)
- *   RESEND_API_KEY    — required when EMAIL_PROVIDER=resend
+ *   EMAIL_FROM        � sender address, e.g. "Elaris <no-reply@yourdomain.com>"
+ *   EMAIL_PROVIDER    � "resend" | "console" (default: console in dev)
+ *   RESEND_API_KEY    � required when EMAIL_PROVIDER=resend
  */
 
 export type EmailPayload = {
@@ -18,11 +18,11 @@ export type EmailPayload = {
   text?: string;
 };
 
-const FROM = process.env.EMAIL_FROM ?? "Atelier <no-reply@ateliercommerce.com>";
+const FROM = process.env.EMAIL_FROM ?? "Elaris <no-reply@elarisstore.com>";
 const PROVIDER = process.env.EMAIL_PROVIDER ?? "console";
 
 /**
- * Core send function — swap provider implementation here.
+ * Core send function � swap provider implementation here.
  */
 async function sendEmail(payload: EmailPayload): Promise<void> {
   if (PROVIDER === "console" || process.env.NODE_ENV === "test") {
@@ -47,12 +47,12 @@ async function sendEmail(payload: EmailPayload): Promise<void> {
   throw new Error(`Unknown EMAIL_PROVIDER: ${PROVIDER}`);
 }
 
-// ─────────────────────────────────────────────
+// ---------------------------------------------
 // HTML template helpers (minimal, brand-aligned)
-// ─────────────────────────────────────────────
+// ---------------------------------------------
 
-const BRAND_NAME = process.env.NEXT_PUBLIC_BRAND_NAME ?? "Atelier";
-const APP_URL = process.env.NEXT_PUBLIC_APP_URL ?? "https://ateliercommerce.com";
+const BRAND_NAME = process.env.NEXT_PUBLIC_BRAND_NAME ?? "Elaris";
+const APP_URL = process.env.NEXT_PUBLIC_APP_URL ?? "https://elarisstore.com";
 
 function layout(content: string): string {
   return `<!DOCTYPE html>
@@ -84,9 +84,9 @@ function layout(content: string): string {
 </html>`;
 }
 
-// ─────────────────────────────────────────────
+// ---------------------------------------------
 // Typed notification helpers
-// ─────────────────────────────────────────────
+// ---------------------------------------------
 
 export async function sendOrderConfirmationEmail(options: {
   to: string;
@@ -102,13 +102,13 @@ export async function sendOrderConfirmationEmail(options: {
 
   await sendEmail({
     to,
-    subject: `Order confirmed — ${orderNumber}`,
+    subject: `Order confirmed � ${orderNumber}`,
     html: layout(`
       <h2>Your order is confirmed</h2>
       <p>Hi ${deliveryName}, thank you for your order.</p>
       <p>
         Order number: <span class="mono">${orderNumber}</span><br/>
-        ${itemCount} item(s) · Total: <strong>${formatted}</strong>
+        ${itemCount} item(s) � Total: <strong>${formatted}</strong>
       </p>
       <p>We'll notify you when your order ships.</p>
       <p><a href="${orderUrl}" class="btn">Track order</a></p>
@@ -129,10 +129,10 @@ export async function sendOrderShippedEmail(options: {
 
   await sendEmail({
     to,
-    subject: `Your order is on its way — ${orderNumber}`,
+    subject: `Your order is on its way � ${orderNumber}`,
     html: layout(`
       <h2>Your order has shipped</h2>
-      <p>Hi ${deliveryName}, great news — <span class="mono">${orderNumber}</span> is on its way.</p>
+      <p>Hi ${deliveryName}, great news � <span class="mono">${orderNumber}</span> is on its way.</p>
       ${trackingNote ? `<p>${trackingNote}</p>` : ""}
       <p><a href="${orderUrl}" class="btn">View order</a></p>
     `),
@@ -151,7 +151,7 @@ export async function sendOrderDeliveredEmail(options: {
 
   await sendEmail({
     to,
-    subject: `Delivered — ${orderNumber}`,
+    subject: `Delivered � ${orderNumber}`,
     html: layout(`
       <h2>Order delivered</h2>
       <p>Hi ${deliveryName}, your order <span class="mono">${orderNumber}</span> has been delivered. We hope you love it.</p>

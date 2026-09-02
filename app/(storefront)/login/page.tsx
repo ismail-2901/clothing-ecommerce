@@ -1,9 +1,9 @@
-import type { Metadata } from "next";
+﻿import type { Metadata } from "next";
 import { LoginForm } from "@/components/account/login-form";
 
 export const metadata: Metadata = {
-  title: "Sign In – Atelier Commerce",
-  description: "Sign in to your Atelier Commerce account."
+  title: "Sign In – Elaris",
+  description: "Sign in to your Elaris account."
 };
 
 export default function LoginPage() {

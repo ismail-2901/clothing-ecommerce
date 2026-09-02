@@ -1,10 +1,10 @@
-import { shippingPolicy } from "@/features/content/policies";
+﻿import { shippingPolicy } from "@/features/content/policies";
 import type { Metadata } from "next";
 import Link from "next/link";
 
 export const metadata: Metadata = {
-  title: "Shipping Policy – Atelier Commerce",
-  description: "Delivery times, fees, and shipping information for Atelier Commerce orders."
+  title: "Shipping Policy – Elaris",
+  description: "Delivery times, fees, and shipping information for Elaris orders."
 };
 
 export default function ShippingPage() {

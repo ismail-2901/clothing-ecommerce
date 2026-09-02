@@ -1,11 +1,11 @@
-import { Search } from "lucide-react";
+﻿import { Search } from "lucide-react";
 import { ProductCard } from "@/components/product/product-card";
 import { getFilteredProducts } from "@/features/catalog/data";
 import type { Metadata } from "next";
 
 export const metadata: Metadata = {
-  title: "Search – Atelier Commerce",
-  description: "Search the Atelier Commerce collection."
+  title: "Search – Elaris",
+  description: "Search the Elaris collection."
 };
 
 type SearchPageProps = {

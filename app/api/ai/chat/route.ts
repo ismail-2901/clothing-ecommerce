@@ -1,4 +1,4 @@
-import { NextRequest, NextResponse } from "next/server";
+﻿import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { detectShoppingIntent } from "@/lib/ai/intent";
 import { matchProducts } from "@/lib/ai/recommendation";
@@ -16,7 +16,7 @@ const storeKnowledge: Record<string, string> = {
   refund: "Refunds are processed within 5–7 business days after we receive and inspect the returned item.",
   size: "Our size guide is available on each product page. We carry XS, S, M, L, and XL. When in doubt, size up for relaxed fits.",
   payment: "We accept Cash on Delivery (COD), bKash, Nagad, SSLCommerz, and card payments.",
-  contact: "Email us at support@ateliercommerce.com or use the Contact page. We respond within 24 hours."
+  contact: "Email us at support@elarisstore.com or use the Contact page. We respond within 24 hours."
 };
 
 function findKnowledge(message: string): string | null {

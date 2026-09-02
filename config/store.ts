@@ -1,5 +1,5 @@
-export const storeConfig = {
-  name: "Atelier Commerce",
+﻿export const storeConfig = {
+  name: "Elaris",
   description:
     "A premium single-brand clothing store with grounded AI shopping assistance.",
   url: process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000",

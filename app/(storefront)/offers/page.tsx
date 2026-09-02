@@ -1,12 +1,12 @@
-import Link from "next/link";
+﻿import Link from "next/link";
 import { ArrowRight, Tag } from "lucide-react";
 import { getCatalogHighlights } from "@/features/catalog/data";
 import { Button } from "@/components/ui/button";
 import type { Metadata } from "next";
 
 export const metadata: Metadata = {
-  title: "Offers & Discounts – Atelier Commerce",
-  description: "Browse active offers and coupon codes at Atelier Commerce."
+  title: "Offers & Discounts – Elaris",
+  description: "Browse active offers and coupon codes at Elaris."
 };
 
 export default function OffersPage() {

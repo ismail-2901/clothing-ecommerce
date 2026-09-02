@@ -1,9 +1,9 @@
-import Link from "next/link";
+﻿import Link from "next/link";
 import { faqItems } from "@/features/content/policies";
 import type { Metadata } from "next";
 
 export const metadata: Metadata = {
-  title: "FAQ – Atelier Commerce",
+  title: "FAQ – Elaris",
   description: "Answers to common questions about orders, delivery, returns, and products."
 };
 

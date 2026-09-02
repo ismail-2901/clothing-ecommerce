@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import {
   createContext,
@@ -18,7 +18,7 @@ import {
 } from "@/features/cart/cart";
 import type { PricingResult } from "@/features/pricing/pricing";
 
-const STORAGE_KEY = "atelier-cart-v1";
+const STORAGE_KEY = "elaris-cart-v1";
 
 type CartContextValue = {
   items: CartItem[];

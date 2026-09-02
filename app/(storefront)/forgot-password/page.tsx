@@ -1,8 +1,8 @@
-import type { Metadata } from "next";
+﻿import type { Metadata } from "next";
 import { ForgotPasswordForm } from "@/components/account/forgot-password-form";
 
 export const metadata: Metadata = {
-  title: "Reset Password – Atelier Commerce",
+  title: "Reset Password – Elaris",
   description: "Request a password reset link."
 };
 
