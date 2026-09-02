@@ -1,11 +1,24 @@
+function getStoreUrl(): string {
+  const envUrl = process.env.NEXT_PUBLIC_APP_URL?.trim();
+  if (envUrl) {
+    return envUrl.startsWith("http://") || envUrl.startsWith("https://")
+      ? envUrl
+      : `https://${envUrl}`;
+  }
+  if (process.env.VERCEL_URL) {
+    return `https://${process.env.VERCEL_URL}`;
+  }
+  return "https://elarisstore.com";
+}
+
 export const storeConfig = {
   name: "Elaris",
   description:
     "A premium single-brand clothing store with grounded AI shopping assistance.",
-  url: process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000",
-  currency: process.env.STORE_CURRENCY ?? "BDT",
-  locale: process.env.STORE_LOCALE ?? "en-BD",
-  orderPrefix: process.env.ORDER_PREFIX ?? "ORD",
+  url: getStoreUrl(),
+  currency: process.env.STORE_CURRENCY || "BDT",
+  locale: process.env.STORE_LOCALE || "en-BD",
+  orderPrefix: process.env.ORDER_PREFIX || "ORD",
   contact: {
     email: "hello@example.com",
     phone: "+8801000000000"
@@ -15,4 +28,3 @@ export const storeConfig = {
     facebook: "https://facebook.com"
   }
 } as const;
-

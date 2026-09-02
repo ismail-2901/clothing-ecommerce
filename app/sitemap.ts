@@ -1,7 +1,9 @@
 import type { MetadataRoute } from "next";
 import { getAllProducts, getCatalogHighlights } from "@/features/catalog/data";
 
-const APP_URL = process.env.NEXT_PUBLIC_APP_URL ?? "https://elarisstore.com";
+const APP_URL =
+  process.env.NEXT_PUBLIC_APP_URL ||
+  (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : "https://elarisstore.com");
 
 export default function sitemap(): MetadataRoute.Sitemap {
   const products = getAllProducts();

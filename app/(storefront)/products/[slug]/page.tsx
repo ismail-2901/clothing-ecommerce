@@ -7,7 +7,9 @@ type ProductPageProps = {
   params: Promise<{ slug: string }>;
 };
 
-const APP_URL = process.env.NEXT_PUBLIC_APP_URL ?? "https://elarisstore.com";
+const APP_URL =
+  process.env.NEXT_PUBLIC_APP_URL ||
+  (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : "https://elarisstore.com");
 const BRAND_NAME = process.env.NEXT_PUBLIC_BRAND_NAME ?? "Elaris";
 
 export async function generateMetadata({ params }: ProductPageProps): Promise<Metadata> {
