@@ -13,7 +13,7 @@ type ButtonProps = ButtonHTMLAttributes<HTMLButtonElement> & {
 type SlottableElement = ReactElement<{ className?: string }>;
 
 const variants: Record<ButtonVariant, string> = {
-  solid: "bg-foreground text-background hover:bg-zinc-800",
+  solid: "bg-foreground text-white hover:bg-zinc-800",
   outline: "border border-border bg-background text-foreground hover:bg-muted",
   ghost: "text-foreground hover:bg-muted"
 };
