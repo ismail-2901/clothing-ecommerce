@@ -1,4 +1,4 @@
-﻿export const dynamic = "force-dynamic";
+export const dynamic = "force-dynamic";
 import { Clock, FileText, Shield, ShoppingCart, Truck } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 

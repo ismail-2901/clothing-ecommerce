@@ -1,4 +1,4 @@
-﻿import Link from "next/link";
+import Link from "next/link";
 import { faqItems } from "@/features/content/policies";
 import type { Metadata } from "next";
 

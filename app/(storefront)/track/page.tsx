@@ -1,4 +1,4 @@
-﻿import type { Metadata } from "next";
+import type { Metadata } from "next";
 import { PackageCheck, PackageOpen, Truck, CheckCircle2, CircleDot } from "lucide-react";
 
 export const metadata: Metadata = {

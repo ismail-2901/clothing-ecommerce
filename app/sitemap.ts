@@ -1,4 +1,4 @@
-﻿import type { MetadataRoute } from "next";
+import type { MetadataRoute } from "next";
 import { getAllProducts, getCatalogHighlights } from "@/features/catalog/data";
 
 const APP_URL = process.env.NEXT_PUBLIC_APP_URL ?? "https://elarisstore.com";

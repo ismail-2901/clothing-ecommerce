@@ -1,4 +1,4 @@
-﻿import { Search } from "lucide-react";
+import { Search } from "lucide-react";
 import { ProductCard } from "@/components/product/product-card";
 import { getFilteredProducts } from "@/features/catalog/data";
 import type { Metadata } from "next";

@@ -1,4 +1,4 @@
-﻿import Link from "next/link";
+import Link from "next/link";
 import { ArrowRight, Tag } from "lucide-react";
 import { getCatalogHighlights } from "@/features/catalog/data";
 import { Button } from "@/components/ui/button";

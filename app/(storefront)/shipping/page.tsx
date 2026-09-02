@@ -1,4 +1,4 @@
-﻿import { shippingPolicy } from "@/features/content/policies";
+import { shippingPolicy } from "@/features/content/policies";
 import type { Metadata } from "next";
 import Link from "next/link";
 

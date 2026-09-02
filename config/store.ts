@@ -1,4 +1,4 @@
-﻿export const storeConfig = {
+export const storeConfig = {
   name: "Elaris",
   description:
     "A premium single-brand clothing store with grounded AI shopping assistance.",

@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 
 import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from "react";
 import { addWishlistItem, removeWishlistItem, toggleWishlistItem, type WishlistItem } from "@/features/wishlist/wishlist";
