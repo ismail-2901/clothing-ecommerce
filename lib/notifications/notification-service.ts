@@ -198,3 +198,22 @@ export async function sendWelcomeEmail(options: {
     text: `Welcome to ${BRAND_NAME}. Shop at ${APP_URL}/shop`
   });
 }
+export async function sendVerificationEmail(options: {
+  to: string;
+  verifyUrl: string;
+}): Promise<void> {
+  const { to, verifyUrl } = options;
+
+  await sendEmail({
+    to,
+    subject: `Verify your ${BRAND_NAME} email`,
+    html: layout(`
+      <h2>Verify your email</h2>
+      <p>Thanks for signing up! Click the button below to verify your email address and activate your account.</p>
+      <p><a href="${verifyUrl}" class="btn">Verify email</a></p>
+      <p>If you didn't create an account, you can safely ignore this email.</p>
+      <p style="font-size:12px;color:#888;">This link expires in 1 hour.</p>
+    `),
+    text: `Verify your email: ${verifyUrl}`
+  });
+}

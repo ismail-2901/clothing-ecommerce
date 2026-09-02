@@ -1,6 +1,13 @@
+import { PrismaPg } from "@prisma/adapter-pg";
 import { PrismaClient, ProductStatus, RoleName } from "@prisma/client";
 
-const prisma = new PrismaClient();
+if (!process.env.DATABASE_URL) {
+  throw new Error("DATABASE_URL must be set before running seed");
+}
+
+const adapter = new PrismaPg({ connectionString: process.env.DATABASE_URL });
+const prisma = new PrismaClient({ adapter });
+
 
 async function main() {
   const roles = await Promise.all(

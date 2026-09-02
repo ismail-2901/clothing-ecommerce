@@ -2,6 +2,10 @@ import { betterAuth } from "better-auth";
 import { prismaAdapter } from "better-auth/adapters/prisma";
 import { nextCookies } from "better-auth/next-js";
 import { prisma } from "@/db/prisma";
+import {
+  sendPasswordResetEmail,
+  sendVerificationEmail
+} from "@/lib/notifications/notification-service";
 
 export const auth = betterAuth({
   database: prismaAdapter(prisma, {
@@ -14,14 +18,22 @@ export const auth = betterAuth({
     enabled: true,
     requireEmailVerification: true,
     revokeSessionsOnPasswordReset: true,
-    async sendResetPassword() {
-      // Replace with the configured email provider before production launch.
+    async sendResetPassword({ user, url }) {
+      if (process.env.EMAIL_PROVIDER === "console" || !process.env.EMAIL_PROVIDER) {
+        console.log(`\n[email] Password reset for ${user.email}\n  URL: ${url}\n`);
+        return;
+      }
+      await sendPasswordResetEmail({ to: user.email, resetUrl: url });
     }
   },
   emailVerification: {
     sendOnSignUp: true,
-    async sendVerificationEmail() {
-      // Replace with the configured email provider before production launch.
+    async sendVerificationEmail({ user, url }) {
+      if (process.env.EMAIL_PROVIDER === "console" || !process.env.EMAIL_PROVIDER) {
+        console.log(`\n[email] Verify account for ${user.email}\n  URL: ${url}\n`);
+        return;
+      }
+      await sendVerificationEmail({ to: user.email, verifyUrl: url });
     }
   },
   session: {
@@ -30,4 +42,3 @@ export const auth = betterAuth({
   },
   plugins: [nextCookies()]
 });
-
