@@ -21,7 +21,7 @@ export default async function SearchPage({ searchParams }: SearchPageProps) {
   const q = readParam(params.q)?.trim() ?? "";
 
   const products = q
-    ? getFilteredProducts({ q })
+    ? await getFilteredProducts({ q })
     : [];
 
   return (

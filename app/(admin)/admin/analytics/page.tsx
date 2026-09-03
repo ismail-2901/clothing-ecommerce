@@ -9,16 +9,25 @@ function subDays(days: number) {
   return new Date(Date.now() - days * 86400000);
 }
 
-export default async function AdminAnalyticsPage() {
-  const session = await getServerSession();
-  if (!session?.userId) redirect("/login");
+import { cookies } from "next/headers";
+import { isValidAdminSession } from "@/lib/auth/admin-auth";
 
-  const userRoles = await prisma.userRole.findMany({
-    where: { userId: session.userId },
-    include: { role: true }
-  });
-  const isAdmin = userRoles.some((ur) => ur.role.name === "ADMIN" || ur.role.name === "SUPER_ADMIN");
-  if (!isAdmin) redirect("/admin");
+export default async function AdminAnalyticsPage() {
+  const cookieStore = await cookies();
+  const token = cookieStore.get("admin_session")?.value;
+  const isMasterAdmin = isValidAdminSession(token);
+
+  if (!isMasterAdmin) {
+    const session = await getServerSession();
+    if (!session?.userId) redirect("/login");
+
+    const userRoles = await prisma.userRole.findMany({
+      where: { userId: session.userId },
+      include: { role: true }
+    });
+    const isAdmin = userRoles.some((ur) => ur.role.name === "ADMIN" || ur.role.name === "SUPER_ADMIN");
+    if (!isAdmin) redirect("/admin");
+  }
 
   // ─── DB aggregations (last 30 days) ───────────────────────
   const [

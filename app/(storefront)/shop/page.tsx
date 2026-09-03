@@ -9,7 +9,7 @@ type ShopPageProps = {
 
 export default async function ShopPage({ searchParams }: ShopPageProps) {
   const params = await searchParams;
-  const products = getFilteredProducts({
+  const products = await getFilteredProducts({
     category: readParam(params.category),
     color: readParam(params.color),
     size: readParam(params.size),
@@ -44,11 +44,18 @@ export default async function ShopPage({ searchParams }: ShopPageProps) {
             <p>{products.length} products</p>
             <p>Sorted by relevance</p>
           </div>
-          <div className="grid gap-5 sm:grid-cols-2 xl:grid-cols-3">
-            {products.map((product) => (
-              <ProductCard key={product.id} product={product} />
-            ))}
-          </div>
+          {products.length === 0 ? (
+            <div className="rounded-lg border border-dashed border-border p-12 text-center text-muted-foreground">
+              <p className="text-base font-medium">No products available</p>
+              <p className="mt-1 text-sm">Products added to this collection will appear here.</p>
+            </div>
+          ) : (
+            <div className="grid gap-5 sm:grid-cols-2 xl:grid-cols-3">
+              {products.map((product) => (
+                <ProductCard key={product.id} product={product} />
+              ))}
+            </div>
+          )}
         </section>
       </div>
     </div>

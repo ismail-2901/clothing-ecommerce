@@ -30,8 +30,10 @@ function findKnowledge(message: string): string | null {
   return null;
 }
 
+type ProductMatches = Awaited<ReturnType<typeof matchProducts>>;
+
 function buildProductCards(
-  matches: ReturnType<typeof matchProducts>
+  matches: ProductMatches
 ): Array<{ id: string; name: string; slug: string; price: string; image: string; available: boolean }> {
   return matches.map(({ product }) => {
     const cheapestVariant = product.variants.reduce((a, b) => (a.price < b.price ? a : b));
@@ -47,11 +49,11 @@ function buildProductCards(
   });
 }
 
-function buildTextResponse(
+async function buildTextResponse(
   intent: string,
   message: string,
-  matches: ReturnType<typeof matchProducts>
-): string {
+  matches: ProductMatches
+): Promise<string> {
   switch (intent) {
     case "ORDER_STATUS":
       return "To check your order status, please sign in and go to Account → Orders, or provide your order number and I can guide you.";
@@ -70,7 +72,7 @@ function buildTextResponse(
     case "PRODUCT_SEARCH":
     default: {
       if (matches.length === 0) {
-        const allProducts = getAllProducts();
+        const allProducts = await getAllProducts();
         const available = allProducts.filter((p) => p.variants.some((v) => v.stock > 0));
         if (available.length === 0) {
           return "I couldn't find products matching that description. Try browsing the full collection.";
@@ -106,7 +108,7 @@ export async function POST(request: NextRequest) {
 
   // For non-product intents, return knowledge base answer
   if (structured.intent !== "PRODUCT_SEARCH" || directKnowledge) {
-    const text = directKnowledge ?? buildTextResponse(structured.intent, message, []);
+    const text = directKnowledge ?? await buildTextResponse(structured.intent, message, []);
     return NextResponse.json({
       intent: structured.intent,
       text,
@@ -115,15 +117,15 @@ export async function POST(request: NextRequest) {
   }
 
   // Product search: run matching engine
-  const matches = matchProducts(structured.filters ?? {}, 4);
+  const matches = await matchProducts(structured.filters ?? {}, 4);
 
   // If no matches, try broader search (no filters, query only)
   const finalMatches = matches.length > 0
     ? matches
-    : matchProducts({ query: message }, 3);
+    : await matchProducts({ query: message }, 3);
 
   const products = buildProductCards(finalMatches);
-  const text = buildTextResponse("PRODUCT_SEARCH", message, finalMatches);
+  const text = await buildTextResponse("PRODUCT_SEARCH", message, finalMatches);
 
   return NextResponse.json({
     intent: "PRODUCT_SEARCH",

@@ -5,9 +5,9 @@ const APP_URL =
   process.env.NEXT_PUBLIC_APP_URL ||
   (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : "https://elarisstore.com");
 
-export default function sitemap(): MetadataRoute.Sitemap {
-  const products = getAllProducts();
-  const { categories } = getCatalogHighlights();
+export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
+  const products = await getAllProducts();
+  const { categories } = await getCatalogHighlights();
 
   const staticPages: MetadataRoute.Sitemap = [
     { url: APP_URL, lastModified: new Date(), changeFrequency: "daily", priority: 1 },

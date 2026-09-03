@@ -3,7 +3,15 @@ import { z } from "zod";
 import { prisma } from "@/db/prisma";
 import { getServerSession } from "@/lib/auth/server";
 
+import { isValidAdminSession } from "@/lib/auth/admin-auth";
+
 async function requireAdmin(request: NextRequest) {
+  // Check master admin password session first
+  const adminCookie = request.cookies.get("admin_session")?.value;
+  if (isValidAdminSession(adminCookie)) {
+    return { error: null, userId: null };
+  }
+
   const session = await getServerSession();
   if (!session?.userId) {
     return { error: NextResponse.json({ error: "Unauthorized" }, { status: 401 }), userId: null };
@@ -49,6 +57,7 @@ const createProductSchema = z.object({
   seoTitle: z.string().max(200).optional(),
   seoDescription: z.string().max(500).optional(),
   tags: z.array(z.string().min(1).max(50)).max(20).default([]),
+  images: z.array(z.string().url()).optional().default([]),
   variants: z.array(variantSchema).min(1)
 });
 
@@ -153,20 +162,30 @@ export async function POST(request: NextRequest) {
         },
         tags: {
           create: data.tags.map((name) => ({ name }))
+        },
+        images: {
+          create: (data.images ?? []).map((url, index) => ({
+            url,
+            alt: data.name,
+            storageKey: url,
+            position: index
+          }))
         }
       },
-      include: { variants: true, tags: true }
+      include: { variants: true, tags: true, images: true }
     });
 
-    await tx.auditLog.create({
-      data: {
-        actorId: userId!,
-        action: "PRODUCT_CREATED",
-        resource: "Product",
-        resourceId: created.id,
-        next: { name: data.name, slug: data.slug, status: data.status }
-      }
-    });
+    if (userId) {
+      await tx.auditLog.create({
+        data: {
+          actorId: userId,
+          action: "PRODUCT_CREATED",
+          resource: "Product",
+          resourceId: created.id,
+          next: { name: data.name, slug: data.slug, status: data.status }
+        }
+      });
+    }
 
     return created;
   });

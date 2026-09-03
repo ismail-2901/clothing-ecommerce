@@ -9,8 +9,8 @@ export const metadata: Metadata = {
   description: "Browse active offers and coupon codes at Elaris."
 };
 
-export default function OffersPage() {
-  const { offers } = getCatalogHighlights();
+export default async function OffersPage() {
+  const { offers } = await getCatalogHighlights();
 
   return (
     <div className="container-shell py-10">

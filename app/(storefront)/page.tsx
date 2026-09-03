@@ -6,8 +6,8 @@ import { Button } from "@/components/ui/button";
 import { getCatalogHighlights } from "@/features/catalog/data";
 import { formatMoney } from "@/lib/utils/money";
 
-export default function HomePage() {
-  const { hero, categories, offers, curatedProducts } = getCatalogHighlights();
+export default async function HomePage() {
+  const { hero, categories, offers, curatedProducts } = await getCatalogHighlights();
 
   return (
     <div>
@@ -87,11 +87,18 @@ export default function HomePage() {
             </Link>
           </Button>
         </div>
-        <div className="mt-8 grid gap-5 sm:grid-cols-2 lg:grid-cols-4">
-          {curatedProducts.map((product) => (
-            <ProductCard key={product.id} product={product} />
-          ))}
-        </div>
+        {curatedProducts.length === 0 ? (
+          <div className="mt-8 rounded-lg border border-dashed border-border p-12 text-center text-muted-foreground">
+            <p className="text-base font-medium">New collection arriving soon</p>
+            <p className="mt-1 text-sm">Products will appear here once published from the admin dashboard.</p>
+          </div>
+        ) : (
+          <div className="mt-8 grid gap-5 sm:grid-cols-2 lg:grid-cols-4">
+            {curatedProducts.map((product) => (
+              <ProductCard key={product.id} product={product} />
+            ))}
+          </div>
+        )}
       </section>
 
       <section className="container-shell grid gap-5 py-10 md:grid-cols-3">

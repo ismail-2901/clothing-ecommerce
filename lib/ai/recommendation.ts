@@ -7,8 +7,9 @@ export type ProductMatch = {
   reasons: string[];
 };
 
-export function matchProducts(filters: ProductFilters, limit = 3): ProductMatch[] {
-  return getAllProducts()
+export async function matchProducts(filters: ProductFilters, limit = 3): Promise<ProductMatch[]> {
+  const products = await getAllProducts();
+  return products
     .map((product) => scoreProduct(product, filters))
     .filter((match) => match.score > 0)
     .sort((a, b) => b.score - a.score)
