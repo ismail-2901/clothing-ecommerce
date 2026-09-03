@@ -87,14 +87,35 @@ export async function getAllProducts(): Promise<CatalogProduct[]> {
         ? p.images.map((img) => ({ src: img.url, alt: img.alt || p.name }))
         : [{ src: "https://images.unsplash.com/photo-1521572163474-6864f9cf17ab?auto=format&fit=crop&w=1200&q=80", alt: p.name }];
 
-      const variants = p.variants.map((v) => ({
+      const rawVariants = p.variants.map((v) => ({
         sku: v.sku,
         color: v.color,
-        size: v.size,
+        size: v.size.trim(),
         price: v.priceOverride ?? p.basePrice,
         compareAtPrice: p.salePrice ?? undefined,
         stock: v.stockQuantity
       }));
+
+      // Expand any legacy comma-combined sizes ("M, L, XL" → 3 entries)
+      const expanded = rawVariants.flatMap((v) => {
+        if (!v.size.includes(",")) return [v];
+        return v.size
+          .split(",")
+          .map((s) => s.trim())
+          .filter(Boolean)
+          .map((size) => ({ ...v, size }));
+      });
+
+      // Deduplicate by color+size — keep highest stock entry
+      const seen = new Map<string, typeof expanded[0]>();
+      for (const v of expanded) {
+        const key = `${v.color}||${v.size}`;
+        const existing = seen.get(key);
+        if (!existing || v.stock > existing.stock) {
+          seen.set(key, v);
+        }
+      }
+      const variants = Array.from(seen.values());
 
       return {
         id: p.id,
