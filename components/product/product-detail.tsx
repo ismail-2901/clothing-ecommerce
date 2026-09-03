@@ -19,15 +19,30 @@ export function ProductDetail({ product }: { product: CatalogProduct }) {
     [product.variants]
   );
 
+  // Expand any variant whose size is a comma-separated string (legacy data)
+  // e.g. size="M, L, XL" becomes 3 virtual variants each with a single size
+  const normalizedVariants = useMemo(
+    () =>
+      product.variants.flatMap((v) => {
+        if (!v.size.includes(",")) return [v];
+        return v.size
+          .split(",")
+          .map((s) => s.trim())
+          .filter(Boolean)
+          .map((size) => ({ ...v, size }));
+      }),
+    [product.variants]
+  );
+
   const availableSizes = useMemo(
-    () => product.variants.filter((variant) => variant.color === selectedColor),
-    [product.variants, selectedColor]
+    () => normalizedVariants.filter((variant) => variant.color === selectedColor),
+    [normalizedVariants, selectedColor]
   );
 
   const activeVariant =
-    product.variants.find(
+    normalizedVariants.find(
       (variant) => variant.color === selectedColor && variant.size === selectedSize
-    ) ?? availableSizes[0] ?? product.variants[0];
+    ) ?? availableSizes[0] ?? normalizedVariants[0];
 
   const handleAddToCart = () => {
     if (!activeVariant) {
@@ -97,7 +112,7 @@ export function ProductDetail({ product }: { product: CatalogProduct }) {
                   type="button"
                   onClick={() => {
                     setSelectedColor(color);
-                    const nextSize = product.variants.find(
+                    const nextSize = normalizedVariants.find(
                       (variant) => variant.color === color && variant.stock > 0
                     )?.size;
                     if (nextSize) {

@@ -32,7 +32,15 @@ export default async function AdminProductEditPage({ params }: Props) {
     if (!groupMap.has(key)) {
       groupMap.set(key, { sizes: [], stockQuantity: v.stockQuantity });
     }
-    groupMap.get(key)!.sizes.push(v.size);
+    // Handle legacy "M, L, XL" combined strings — split into individual sizes
+    const sizeParts = v.size.includes(",")
+      ? v.size.split(",").map((s) => s.trim()).filter(Boolean)
+      : [v.size];
+    for (const s of sizeParts) {
+      if (!groupMap.get(key)!.sizes.includes(s)) {
+        groupMap.get(key)!.sizes.push(s);
+      }
+    }
   }
 
   const variantGroups: ProductFormInitialData["variantGroups"] = Array.from(
