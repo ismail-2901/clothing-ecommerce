@@ -13,65 +13,141 @@ type CategoryOption = {
   slug: string;
 };
 
-type VariantInput = {
+// One row = one color with multiple sizes
+type VariantGroup = {
   id: string;
   color: string;
-  size: string;
-  sku: string;
-  stockQuantity: number;
+  sizes: string[];        // multiple sizes toggled
+  sku: string;            // prefix; auto-suffixed per size
+  stockQuantity: number;  // stock applied per size
   priceOverride?: number;
 };
 
-export function AdminProductForm({ categories }: { categories: CategoryOption[] }) {
-  const router = useRouter();
+export type ProductFormInitialData = {
+  id: string;
+  name: string;
+  slug: string;
+  description: string;
+  categoryId: string;
+  basePrice: number;   // in poisha
+  material?: string | null;
+  careInstructions?: string | null;
+  status: "PUBLISHED" | "DRAFT";
+  imageUrl?: string | null;
+  variantGroups: VariantGroup[];
+};
 
-  const [name, setName] = useState("");
-  const [slug, setSlug] = useState("");
-  const [description, setDescription] = useState("");
-  const [categoryId, setCategoryId] = useState(categories[0]?.id ?? "");
-  const [basePrice, setBasePrice] = useState<number | "">("");
-  const [material, setMaterial] = useState("");
-  const [careInstructions, setCareInstructions] = useState("");
-  const [status, setStatus] = useState<"PUBLISHED" | "DRAFT">("PUBLISHED");
+const SIZE_GROUPS: Record<string, string[]> = {
+  Alpha: ["XS", "S", "M", "L", "XL", "2XL", "3XL", "4XL"],
+  "Numeric (Waist)": ["28", "30", "32", "34", "36", "38", "40", "42"],
+  Shoe: ["EU38", "EU39", "EU40", "EU41", "EU42", "EU43", "EU44", "EU45"],
+  Other: ["One Size", "Free Size"],
+};
+const ALL_SIZES = Object.values(SIZE_GROUPS).flat();
+
+function SizeToggle({
+  selected,
+  onChange,
+}: {
+  selected: string[];
+  onChange: (sizes: string[]) => void;
+}) {
+  function toggle(s: string) {
+    onChange(
+      selected.includes(s) ? selected.filter((x) => x !== s) : [...selected, s]
+    );
+  }
+  return (
+    <div className="flex flex-wrap gap-1.5">
+      {ALL_SIZES.map((s) => {
+        const active = selected.includes(s);
+        return (
+          <button
+            key={s}
+            type="button"
+            onClick={() => toggle(s)}
+            className={`rounded border px-2.5 py-1 text-xs font-medium transition-colors ${
+              active
+                ? "border-foreground bg-foreground text-background"
+                : "border-border bg-background text-muted-foreground hover:border-foreground hover:text-foreground"
+            }`}
+          >
+            {s}
+          </button>
+        );
+      })}
+    </div>
+  );
+}
+
+export function AdminProductForm({
+  categories,
+  initialData,
+}: {
+  categories: CategoryOption[];
+  initialData?: ProductFormInitialData;
+}) {
+  const router = useRouter();
+  const isEdit = !!initialData;
+
+  const [name, setName] = useState(initialData?.name ?? "");
+  const [slug, setSlug] = useState(initialData?.slug ?? "");
+  const [description, setDescription] = useState(initialData?.description ?? "");
+  const [categoryId, setCategoryId] = useState(
+    initialData?.categoryId ?? categories[0]?.id ?? ""
+  );
+  const [basePrice, setBasePrice] = useState<number | "">(
+    initialData ? Math.round(initialData.basePrice / 100) : ""
+  );
+  const [material, setMaterial] = useState(initialData?.material ?? "");
+  const [careInstructions, setCareInstructions] = useState(
+    initialData?.careInstructions ?? ""
+  );
+  const [status, setStatus] = useState<"PUBLISHED" | "DRAFT">(
+    initialData?.status ?? "PUBLISHED"
+  );
+
   const [imageFile, setImageFile] = useState<File | null>(null);
-  const [imagePreview, setImagePreview] = useState<string | null>(null);
+  const [imagePreview, setImagePreview] = useState<string | null>(
+    initialData?.imageUrl ?? null
+  );
   const [imageUploading, setImageUploading] = useState(false);
+  const [existingImageUrl, setExistingImageUrl] = useState<string | null>(
+    initialData?.imageUrl ?? null
+  );
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const [variants, setVariants] = useState<VariantInput[]>([
-    { id: "1", color: "Black", size: "M", sku: "", stockQuantity: 10 },
-    { id: "2", color: "Black", size: "L", sku: "", stockQuantity: 10 },
-  ]);
+  const [groups, setGroups] = useState<VariantGroup[]>(
+    initialData?.variantGroups ?? [
+      { id: "1", color: "Black", sizes: ["M", "L"], sku: "", stockQuantity: 10 },
+    ]
+  );
 
   function handleNameChange(val: string) {
     setName(val);
-    const generatedSlug = val
-      .toLowerCase()
-      .trim()
-      .replace(/[^a-z0-9]+/g, "-")
-      .replace(/^-+|-+$/g, "");
-    setSlug(generatedSlug);
+    if (!isEdit) {
+      setSlug(
+        val.toLowerCase().trim().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "")
+      );
+    }
   }
 
-  function addVariant() {
-    const nextId = String(Date.now());
-    setVariants((prev) => [
+  function addGroup() {
+    setGroups((prev) => [
       ...prev,
-      { id: nextId, color: "Black", size: "M", sku: "", stockQuantity: 5 }
+      { id: String(Date.now()), color: "Black", sizes: ["M"], sku: "", stockQuantity: 5 },
     ]);
   }
 
-  function removeVariant(id: string) {
-    if (variants.length <= 1) return;
-    setVariants((prev) => prev.filter((v) => v.id !== id));
+  function removeGroup(id: string) {
+    if (groups.length <= 1) return;
+    setGroups((prev) => prev.filter((g) => g.id !== id));
   }
 
-  function updateVariant(id: string, field: keyof VariantInput, value: any) {
-    setVariants((prev) =>
-      prev.map((v) => (v.id === id ? { ...v, [field]: value } : v))
-    );
+  function updateGroup(id: string, field: keyof VariantGroup, value: unknown) {
+    setGroups((prev) => prev.map((g) => (g.id === id ? { ...g, [field]: value } : g)));
   }
 
   function handleFileChange(e: ChangeEvent<HTMLInputElement>) {
@@ -79,11 +155,13 @@ export function AdminProductForm({ categories }: { categories: CategoryOption[] 
     if (!file) return;
     setImageFile(file);
     setImagePreview(URL.createObjectURL(file));
+    setExistingImageUrl(null);
   }
 
   function clearImage() {
     setImageFile(null);
     setImagePreview(null);
+    setExistingImageUrl(null);
     if (fileInputRef.current) fileInputRef.current.value = "";
   }
 
@@ -91,20 +169,16 @@ export function AdminProductForm({ categories }: { categories: CategoryOption[] 
     e.preventDefault();
     setError(null);
 
-    if (!categoryId) {
-      setError("Please select a category.");
-      return;
-    }
-
-    if (!basePrice || Number(basePrice) <= 0) {
-      setError("Please specify a valid base price.");
+    if (!categoryId) { setError("Please select a category."); return; }
+    if (!basePrice || Number(basePrice) <= 0) { setError("Please specify a valid base price."); return; }
+    if (groups.some((g) => g.sizes.length === 0)) {
+      setError("Each color variant must have at least one size selected.");
       return;
     }
 
     setLoading(true);
 
-    // Upload image to Cloudinary first
-    let uploadedUrl = "";
+    let uploadedUrl = existingImageUrl ?? "";
     if (imageFile) {
       setImageUploading(true);
       try {
@@ -118,8 +192,7 @@ export function AdminProductForm({ categories }: { categories: CategoryOption[] 
           setImageUploading(false);
           return;
         }
-        const upData = await upRes.json();
-        uploadedUrl = upData.url;
+        uploadedUrl = (await upRes.json()).url;
       } catch {
         setError("Network error during image upload.");
         setLoading(false);
@@ -131,24 +204,28 @@ export function AdminProductForm({ categories }: { categories: CategoryOption[] 
     }
 
     try {
-      // Map base price to poisha/cents (1 BDT = 100 poisha)
       const basePricePoisha = Math.round(Number(basePrice) * 100);
-
-      // Generate SKUs if left empty
       const cleanSlug = slug || name.toLowerCase().replace(/[^a-z0-9]+/g, "-");
-      const mappedVariants = variants.map((v, i) => {
-        const sku =
-          v.sku.trim() ||
-          `${cleanSlug.slice(0, 4).toUpperCase()}-${v.color.slice(0, 3).toUpperCase()}-${v.size.toUpperCase()}-${i + 1}`;
-        return {
-          sku,
-          color: v.color.trim() || "Default",
-          size: v.size.trim() || "Regular",
-          stockQuantity: Number(v.stockQuantity) || 0,
-          isAvailable: Number(v.stockQuantity) > 0,
-          ...(v.priceOverride ? { priceOverride: Math.round(Number(v.priceOverride) * 100) } : {})
-        };
-      });
+
+      // Expand each color group → one DB variant per size
+      const mappedVariants = groups.flatMap((g, gi) =>
+        g.sizes.map((size, si) => {
+          const sku =
+            g.sku.trim()
+              ? `${g.sku.trim()}-${size}`
+              : `${cleanSlug.slice(0, 4).toUpperCase()}-${g.color.slice(0, 3).toUpperCase()}-${size}-${gi + 1}${si + 1}`;
+          return {
+            sku,
+            color: g.color.trim() || "Default",
+            size,
+            stockQuantity: Number(g.stockQuantity) || 0,
+            isAvailable: Number(g.stockQuantity) > 0,
+            ...(g.priceOverride
+              ? { priceOverride: Math.round(Number(g.priceOverride) * 100) }
+              : {}),
+          };
+        })
+      );
 
       const payload = {
         name: name.trim(),
@@ -161,20 +238,25 @@ export function AdminProductForm({ categories }: { categories: CategoryOption[] 
         status,
         tags: [name.toLowerCase(), status.toLowerCase()],
         images: uploadedUrl ? [uploadedUrl] : [],
-        variants: mappedVariants
+        variants: mappedVariants,
       };
 
-      const res = await fetch("/api/admin/products", {
-        method: "POST",
+      const url = isEdit
+        ? `/api/admin/products/${initialData!.id}`
+        : "/api/admin/products";
+      const method = isEdit ? "PUT" : "POST";
+
+      const res = await fetch(url, {
+        method,
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload)
+        body: JSON.stringify(payload),
       });
 
       setLoading(false);
 
       if (!res.ok) {
         const data = await res.json().catch(() => ({}));
-        setError(data.error || "Failed to create product. Check that the slug and SKUs are unique.");
+        setError(data.error || "Failed to save product. Check slug and SKUs are unique.");
         return;
       }
 
@@ -214,10 +296,14 @@ export function AdminProductForm({ categories }: { categories: CategoryOption[] 
                 required
                 placeholder="structured-cotton-blazer"
                 value={slug}
-                onChange={(e) => setSlug(e.target.value.toLowerCase().replace(/[^a-z0-9-]+/g, ""))}
+                onChange={(e) =>
+                  setSlug(e.target.value.toLowerCase().replace(/[^a-z0-9-]+/g, ""))
+                }
                 className="h-11 w-full rounded-md border border-border bg-background px-4 text-sm font-mono focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-foreground focus-visible:ring-offset-1"
               />
-              <p className="text-xs text-muted-foreground">Store URL: /products/{slug || "[slug]"}</p>
+              <p className="text-xs text-muted-foreground">
+                Store URL: /products/{slug || "[slug]"}
+              </p>
             </div>
 
             <div className="grid gap-1.5">
@@ -226,7 +312,7 @@ export function AdminProductForm({ categories }: { categories: CategoryOption[] 
                 id="product-description"
                 rows={4}
                 required
-                placeholder="Crafted from premium heavy cotton with a relaxed silhouette and clean horn buttons."
+                placeholder="Crafted from premium heavy cotton with a relaxed silhouette."
                 value={description}
                 onChange={(e) => setDescription(e.target.value)}
                 className="w-full resize-y rounded-md border border-border bg-background px-4 py-3 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-foreground focus-visible:ring-offset-1"
@@ -260,89 +346,88 @@ export function AdminProductForm({ categories }: { categories: CategoryOption[] 
           </div>
         </div>
 
-        {/* Variants */}
+        {/* Color variant groups */}
         <div className="rounded-lg border border-border bg-background p-5">
           <div className="flex items-center justify-between">
             <div>
-              <h2 className="font-semibold">Variants & Stock</h2>
+              <h2 className="font-semibold">Color Variants & Sizes</h2>
               <p className="mt-1 text-xs text-muted-foreground">
-                Set up sizes, colors, and initial inventory quantities.
+                One row per color — click size buttons to toggle availability.
               </p>
             </div>
-            <Button type="button" variant="outline" size="sm" onClick={addVariant}>
-              <Plus size={14} /> Add variant
+            <Button type="button" variant="outline" size="sm" onClick={addGroup}>
+              <Plus size={14} /> Add color
             </Button>
           </div>
 
-          <div className="mt-4 grid gap-3">
-            {variants.map((v) => (
-              <div key={v.id} className="grid items-end gap-3 rounded-md border border-border p-3 sm:grid-cols-[1fr_1fr_1fr_90px_40px]">
-                <div className="grid gap-1">
-                  <label className="text-xs text-muted-foreground">Color</label>
-                  <input
-                    type="text"
-                    placeholder="e.g. Black"
-                    value={v.color}
-                    onChange={(e) => updateVariant(v.id, "color", e.target.value)}
-                    className="h-9 w-full rounded-md border border-border bg-background px-3 text-xs"
-                  />
-                </div>
-                <div className="grid gap-1">
-                  <label className="text-xs text-muted-foreground">Size</label>
-                  <select
-                    value={v.size}
-                    onChange={(e) => updateVariant(v.id, "size", e.target.value)}
-                    className="h-9 w-full rounded-md border border-border bg-background px-3 text-xs focus-visible:outline-none"
-                  >
-                    <optgroup label="Alpha">
-                      {["XS","S","M","L","XL","2XL","3XL","4XL"].map((s) => (
-                        <option key={s} value={s}>{s}</option>
-                      ))}
-                    </optgroup>
-                    <optgroup label="Numeric (Waist)">
-                      {["28","30","32","34","36","38","40","42"].map((s) => (
-                        <option key={s} value={s}>{s}</option>
-                      ))}
-                    </optgroup>
-                    <optgroup label="Shoe">
-                      {["38","39","40","41","42","43","44","45"].map((s) => (
-                        <option key={`shoe-${s}`} value={`EU${s}`}>EU {s}</option>
-                      ))}
-                    </optgroup>
-                    <option value="One Size">One Size</option>
-                    <option value="Free Size">Free Size</option>
-                  </select>
-                </div>
-                <div className="grid gap-1">
-                  <label className="text-xs text-muted-foreground">SKU (optional)</label>
-                  <input
-                    type="text"
-                    placeholder="Auto-generated"
-                    value={v.sku}
-                    onChange={(e) => updateVariant(v.id, "sku", e.target.value)}
-                    className="h-9 w-full rounded-md border border-border bg-background px-3 font-mono text-xs"
-                  />
-                </div>
-                <div className="grid gap-1">
-                  <label className="text-xs text-muted-foreground">Stock</label>
-                  <input
-                    type="number"
-                    min="0"
-                    placeholder="10"
-                    value={v.stockQuantity}
-                    onChange={(e) => updateVariant(v.id, "stockQuantity", parseInt(e.target.value) || 0)}
-                    className="h-9 w-full rounded-md border border-border bg-background px-3 text-xs"
-                  />
-                </div>
-                <div>
+          <div className="mt-4 grid gap-4">
+            {groups.map((g) => (
+              <div
+                key={g.id}
+                className="grid gap-3 rounded-md border border-border p-4"
+              >
+                {/* Top inputs row */}
+                <div className="flex flex-wrap items-end gap-3">
+                  <div className="grid gap-1 min-w-[120px] flex-1">
+                    <label className="text-xs text-muted-foreground">Color</label>
+                    <input
+                      type="text"
+                      placeholder="e.g. Black"
+                      value={g.color}
+                      onChange={(e) => updateGroup(g.id, "color", e.target.value)}
+                      className="h-9 w-full rounded-md border border-border bg-background px-3 text-xs"
+                    />
+                  </div>
+                  <div className="grid gap-1 w-24">
+                    <label className="text-xs text-muted-foreground">Stock/size</label>
+                    <input
+                      type="number"
+                      min="0"
+                      placeholder="10"
+                      value={g.stockQuantity}
+                      onChange={(e) =>
+                        updateGroup(g.id, "stockQuantity", parseInt(e.target.value) || 0)
+                      }
+                      className="h-9 w-full rounded-md border border-border bg-background px-3 text-xs"
+                    />
+                  </div>
+                  <div className="grid gap-1 min-w-[120px] flex-1">
+                    <label className="text-xs text-muted-foreground">SKU prefix (optional)</label>
+                    <input
+                      type="text"
+                      placeholder="Auto-generated"
+                      value={g.sku}
+                      onChange={(e) => updateGroup(g.id, "sku", e.target.value)}
+                      className="h-9 w-full rounded-md border border-border bg-background px-3 font-mono text-xs"
+                    />
+                  </div>
                   <button
                     type="button"
-                    disabled={variants.length <= 1}
-                    onClick={() => removeVariant(v.id)}
-                    className="flex h-9 w-9 items-center justify-center rounded-md border border-border text-muted-foreground hover:text-danger disabled:opacity-40"
+                    disabled={groups.length <= 1}
+                    onClick={() => removeGroup(g.id)}
+                    className="flex h-9 w-9 shrink-0 items-center justify-center rounded-md border border-border text-muted-foreground hover:text-danger disabled:opacity-40"
                   >
                     <Trash2 size={14} />
                   </button>
+                </div>
+
+                {/* Size toggles */}
+                <div className="grid gap-1.5">
+                  <label className="text-xs text-muted-foreground">
+                    Sizes{" "}
+                    {g.sizes.length > 0 && (
+                      <span className="font-medium text-foreground">
+                        — {g.sizes.join(", ")}
+                      </span>
+                    )}
+                  </label>
+                  <SizeToggle
+                    selected={g.sizes}
+                    onChange={(sizes) => updateGroup(g.id, "sizes", sizes)}
+                  />
+                  {g.sizes.length === 0 && (
+                    <p className="text-xs text-danger">Select at least one size.</p>
+                  )}
                 </div>
               </div>
             ))}
@@ -357,7 +442,13 @@ export function AdminProductForm({ categories }: { categories: CategoryOption[] 
 
         <div className="flex gap-3">
           <Button type="submit" size="lg" disabled={loading}>
-            {loading ? <Spinner size="sm" /> : "Save & Publish Product"}
+            {loading ? (
+              <Spinner size="sm" />
+            ) : isEdit ? (
+              "Save Changes"
+            ) : (
+              "Save & Publish Product"
+            )}
           </Button>
           <Button asChild type="button" variant="outline" size="lg">
             <Link href="/admin/products">Cancel</Link>
@@ -416,7 +507,9 @@ export function AdminProductForm({ categories }: { categories: CategoryOption[] 
                 step="1"
                 placeholder="2450"
                 value={basePrice}
-                onChange={(e) => setBasePrice(e.target.value === "" ? "" : Number(e.target.value))}
+                onChange={(e) =>
+                  setBasePrice(e.target.value === "" ? "" : Number(e.target.value))
+                }
                 className="h-11 w-full rounded-md border border-border bg-background px-4 text-sm font-medium focus-visible:outline-none"
               />
               <p className="text-xs text-muted-foreground">Price in Taka (৳)</p>

@@ -3,9 +3,10 @@ export const dynamic = "force-dynamic";
 import Link from "next/link";
 import { Badge } from "@/components/ui/badge";
 import { formatMoney } from "@/lib/utils/money";
-import { Plus, Search, PackageSearch } from "lucide-react";
+import { Plus, Search, PackageSearch, Pencil } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { prisma } from "@/db/prisma";
+import { DeleteProductButton } from "@/components/admin/delete-product-button";
 
 export default async function AdminProductsPage() {
   const dbProducts = await prisma.product.findMany({
@@ -120,7 +121,7 @@ export default async function AdminProductsPage() {
                       </Badge>
                     </td>
                     <td className="px-4 py-4">
-                      <div className="flex gap-2">
+                      <div className="flex items-center gap-2">
                         <Link
                           href={`/products/${product.slug}`}
                           target="_blank"
@@ -128,6 +129,17 @@ export default async function AdminProductsPage() {
                         >
                           Preview
                         </Link>
+                        <Link
+                          href={`/admin/products/${product.id}/edit`}
+                          className="flex h-8 w-8 items-center justify-center rounded-md border border-border text-muted-foreground hover:bg-muted hover:text-foreground"
+                          title="Edit product"
+                        >
+                          <Pencil size={14} />
+                        </Link>
+                        <DeleteProductButton
+                          productId={product.id}
+                          productName={product.name}
+                        />
                       </div>
                     </td>
                   </tr>

@@ -2,8 +2,14 @@ import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { prisma } from "@/db/prisma";
 import { getServerSession } from "@/lib/auth/server";
+import { isValidAdminSession } from "@/lib/auth/admin-auth";
 
 async function requireAdmin(request: NextRequest) {
+  const adminCookie = request.cookies.get("admin_session")?.value;
+  if (isValidAdminSession(adminCookie)) {
+    return { error: null, userId: null };
+  }
+
   const session = await getServerSession();
   if (!session?.userId) {
     return { error: NextResponse.json({ error: "Unauthorized" }, { status: 401 }), userId: null };
@@ -14,8 +20,8 @@ async function requireAdmin(request: NextRequest) {
     include: { role: true }
   });
 
-  const isAdmin = userRoles.some((ur) =>
-    ur.role.name === "ADMIN" || ur.role.name === "SUPER_ADMIN"
+  const isAdmin = userRoles.some(
+    (ur) => ur.role.name === "ADMIN" || ur.role.name === "SUPER_ADMIN"
   );
 
   if (!isAdmin) {
@@ -27,16 +33,40 @@ async function requireAdmin(request: NextRequest) {
 
 type RouteParams = { params: Promise<{ id: string }> };
 
-const updateProductSchema = z.object({
+const variantSchema = z.object({
+  sku: z.string().min(1).max(100),
+  color: z.string().min(1).max(50),
+  size: z.string().min(1).max(20),
+  priceOverride: z.number().int().min(0).optional(),
+  stockQuantity: z.number().int().min(0),
+  isAvailable: z.boolean().default(true),
+});
+
+const putProductSchema = z.object({
+  name: z.string().min(1).max(200),
+  slug: z.string().min(1).max(200).regex(/^[a-z0-9-]+$/),
+  description: z.string().min(1),
+  categoryId: z.string().min(1),
+  basePrice: z.number().int().min(1),
+  salePrice: z.number().int().min(0).nullable().optional(),
+  material: z.string().max(500).nullable().optional(),
+  careInstructions: z.string().max(500).nullable().optional(),
+  status: z.enum(["DRAFT", "PUBLISHED", "ARCHIVED"]).default("PUBLISHED"),
+  tags: z.array(z.string()).default([]),
+  images: z.array(z.string().url()).default([]),
+  variants: z.array(variantSchema).min(1),
+});
+
+const patchProductSchema = z.object({
   name: z.string().min(1).max(200).optional(),
   description: z.string().min(1).optional(),
-  basePrice: z.int().min(1).optional(),
-  salePrice: z.int().min(0).nullable().optional(),
+  basePrice: z.number().int().min(1).optional(),
+  salePrice: z.number().int().min(0).nullable().optional(),
   material: z.string().max(500).nullable().optional(),
   careInstructions: z.string().max(500).nullable().optional(),
   status: z.enum(["DRAFT", "PUBLISHED", "ARCHIVED"]).optional(),
   seoTitle: z.string().max(200).nullable().optional(),
-  seoDescription: z.string().max(500).nullable().optional()
+  seoDescription: z.string().max(500).nullable().optional(),
 });
 
 // GET /api/admin/products/[id]
@@ -51,10 +81,10 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
     include: {
       category: true,
       collection: true,
-      variants: { orderBy: [{ color: "asc" }, { size: "asc" }] },
+      variants: { where: { deletedAt: null }, orderBy: [{ color: "asc" }, { size: "asc" }] },
       images: { orderBy: { position: "asc" } },
-      tags: true
-    }
+      tags: true,
+    },
   });
 
   if (!product) {
@@ -64,7 +94,112 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
   return NextResponse.json(product);
 }
 
-// PATCH /api/admin/products/[id]
+// PUT /api/admin/products/[id] — full replace (used by edit form)
+export async function PUT(request: NextRequest, { params }: RouteParams) {
+  const { error, userId } = await requireAdmin(request);
+  if (error) return error;
+
+  const { id } = await params;
+
+  let body: unknown;
+  try {
+    body = await request.json();
+  } catch {
+    return NextResponse.json({ error: "Invalid request body" }, { status: 400 });
+  }
+
+  const parsed = putProductSchema.safeParse(body);
+  if (!parsed.success) {
+    return NextResponse.json(
+      { error: "Validation failed", issues: parsed.error.issues },
+      { status: 422 }
+    );
+  }
+
+  const existing = await prisma.product.findUnique({ where: { id, deletedAt: null } });
+  if (!existing) {
+    return NextResponse.json({ error: "Product not found." }, { status: 404 });
+  }
+
+  const data = parsed.data;
+
+  // Check slug uniqueness (allow same product)
+  const slugConflict = await prisma.product.findFirst({
+    where: { slug: data.slug, id: { not: id }, deletedAt: null },
+  });
+  if (slugConflict) {
+    return NextResponse.json({ error: "A product with this slug already exists." }, { status: 409 });
+  }
+
+  const updated = await prisma.$transaction(async (tx) => {
+    // Soft-delete old variants
+    await tx.productVariant.updateMany({
+      where: { productId: id, deletedAt: null },
+      data: { deletedAt: new Date() },
+    });
+
+    // Delete old images
+    await tx.productImage.deleteMany({ where: { productId: id } });
+
+    // Delete old tags
+    await tx.productTag.deleteMany({ where: { productId: id } });
+
+    const result = await tx.product.update({
+      where: { id },
+      data: {
+        name: data.name,
+        slug: data.slug,
+        description: data.description,
+        categoryId: data.categoryId,
+        basePrice: data.basePrice,
+        salePrice: data.salePrice ?? null,
+        material: data.material ?? null,
+        careInstructions: data.careInstructions ?? null,
+        status: data.status,
+        variants: {
+          create: data.variants.map((v) => ({
+            sku: v.sku,
+            color: v.color,
+            size: v.size,
+            priceOverride: v.priceOverride ?? null,
+            stockQuantity: v.stockQuantity,
+            isAvailable: v.isAvailable,
+          })),
+        },
+        tags: {
+          create: data.tags.map((name) => ({ name })),
+        },
+        images: {
+          create: data.images.map((url, index) => ({
+            url,
+            alt: data.name,
+            storageKey: url,
+            position: index,
+          })),
+        },
+      },
+    });
+
+    if (userId) {
+      await tx.auditLog.create({
+        data: {
+          actorId: userId,
+          action: "PRODUCT_UPDATED",
+          resource: "Product",
+          resourceId: id,
+          previous: { name: existing.name, status: existing.status },
+          next: { name: data.name, status: data.status },
+        },
+      });
+    }
+
+    return result;
+  });
+
+  return NextResponse.json({ productId: updated.id });
+}
+
+// PATCH /api/admin/products/[id] — partial field update
 export async function PATCH(request: NextRequest, { params }: RouteParams) {
   const { error, userId } = await requireAdmin(request);
   if (error) return error;
@@ -78,9 +213,12 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
     return NextResponse.json({ error: "Invalid request body" }, { status: 400 });
   }
 
-  const parsed = updateProductSchema.safeParse(body);
+  const parsed = patchProductSchema.safeParse(body);
   if (!parsed.success) {
-    return NextResponse.json({ error: "Validation failed", issues: parsed.error.issues }, { status: 422 });
+    return NextResponse.json(
+      { error: "Validation failed", issues: parsed.error.issues },
+      { status: 422 }
+    );
   }
 
   const existing = await prisma.product.findUnique({ where: { id, deletedAt: null } });
@@ -89,25 +227,20 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
   }
 
   const updated = await prisma.$transaction(async (tx) => {
-    const result = await tx.product.update({
-      where: { id },
-      data: parsed.data
-    });
+    const result = await tx.product.update({ where: { id }, data: parsed.data });
 
-    await tx.auditLog.create({
-      data: {
-        actorId: userId!,
-        action: "PRODUCT_UPDATED",
-        resource: "Product",
-        resourceId: id,
-        previous: {
-          name: existing.name,
-          status: existing.status,
-          basePrice: existing.basePrice
+    if (userId) {
+      await tx.auditLog.create({
+        data: {
+          actorId: userId,
+          action: "PRODUCT_UPDATED",
+          resource: "Product",
+          resourceId: id,
+          previous: { name: existing.name, status: existing.status, basePrice: existing.basePrice },
+          next: parsed.data,
         },
-        next: parsed.data
-      }
-    });
+      });
+    }
 
     return result;
   });
@@ -130,19 +263,21 @@ export async function DELETE(request: NextRequest, { params }: RouteParams) {
   await prisma.$transaction(async (tx) => {
     await tx.product.update({
       where: { id },
-      data: { deletedAt: new Date(), status: "ARCHIVED" }
+      data: { deletedAt: new Date(), status: "ARCHIVED" },
     });
 
-    await tx.auditLog.create({
-      data: {
-        actorId: userId!,
-        action: "PRODUCT_DELETED",
-        resource: "Product",
-        resourceId: id,
-        previous: { name: existing.name, status: existing.status },
-        next: { deletedAt: new Date().toISOString(), status: "ARCHIVED" }
-      }
-    });
+    if (userId) {
+      await tx.auditLog.create({
+        data: {
+          actorId: userId,
+          action: "PRODUCT_DELETED",
+          resource: "Product",
+          resourceId: id,
+          previous: { name: existing.name, status: existing.status },
+          next: { deletedAt: new Date().toISOString(), status: "ARCHIVED" },
+        },
+      });
+    }
   });
 
   return new NextResponse(null, { status: 204 });
