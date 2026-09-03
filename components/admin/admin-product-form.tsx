@@ -1,9 +1,9 @@
 "use client";
 
-import { useState, type FormEvent } from "react";
+import { useState, useRef, type FormEvent, type ChangeEvent } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { Plus, Trash2 } from "lucide-react";
+import { Plus, Trash2, UploadCloud, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Spinner } from "@/components/ui/spinner";
 
@@ -33,7 +33,10 @@ export function AdminProductForm({ categories }: { categories: CategoryOption[] 
   const [material, setMaterial] = useState("");
   const [careInstructions, setCareInstructions] = useState("");
   const [status, setStatus] = useState<"PUBLISHED" | "DRAFT">("PUBLISHED");
-  const [imageUrl, setImageUrl] = useState("");
+  const [imageFile, setImageFile] = useState<File | null>(null);
+  const [imagePreview, setImagePreview] = useState<string | null>(null);
+  const [imageUploading, setImageUploading] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -71,6 +74,19 @@ export function AdminProductForm({ categories }: { categories: CategoryOption[] 
     );
   }
 
+  function handleFileChange(e: ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setImageFile(file);
+    setImagePreview(URL.createObjectURL(file));
+  }
+
+  function clearImage() {
+    setImageFile(null);
+    setImagePreview(null);
+    if (fileInputRef.current) fileInputRef.current.value = "";
+  }
+
   async function handleSubmit(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
     setError(null);
@@ -86,6 +102,33 @@ export function AdminProductForm({ categories }: { categories: CategoryOption[] 
     }
 
     setLoading(true);
+
+    // Upload image to Cloudinary first
+    let uploadedUrl = "";
+    if (imageFile) {
+      setImageUploading(true);
+      try {
+        const fd = new FormData();
+        fd.append("file", imageFile);
+        const upRes = await fetch("/api/admin/upload", { method: "POST", body: fd });
+        if (!upRes.ok) {
+          const upErr = await upRes.json().catch(() => ({}));
+          setError(upErr.error || "Image upload failed.");
+          setLoading(false);
+          setImageUploading(false);
+          return;
+        }
+        const upData = await upRes.json();
+        uploadedUrl = upData.url;
+      } catch {
+        setError("Network error during image upload.");
+        setLoading(false);
+        setImageUploading(false);
+        return;
+      } finally {
+        setImageUploading(false);
+      }
+    }
 
     try {
       // Map base price to poisha/cents (1 BDT = 100 poisha)
@@ -117,7 +160,7 @@ export function AdminProductForm({ categories }: { categories: CategoryOption[] 
         careInstructions: careInstructions.trim() || undefined,
         status,
         tags: [name.toLowerCase(), status.toLowerCase()],
-        images: imageUrl.trim() ? [imageUrl.trim()] : [],
+        images: uploadedUrl ? [uploadedUrl] : [],
         variants: mappedVariants
       };
 
@@ -246,13 +289,29 @@ export function AdminProductForm({ categories }: { categories: CategoryOption[] 
                 </div>
                 <div className="grid gap-1">
                   <label className="text-xs text-muted-foreground">Size</label>
-                  <input
-                    type="text"
-                    placeholder="e.g. M, L, 32"
+                  <select
                     value={v.size}
                     onChange={(e) => updateVariant(v.id, "size", e.target.value)}
-                    className="h-9 w-full rounded-md border border-border bg-background px-3 text-xs"
-                  />
+                    className="h-9 w-full rounded-md border border-border bg-background px-3 text-xs focus-visible:outline-none"
+                  >
+                    <optgroup label="Alpha">
+                      {["XS","S","M","L","XL","2XL","3XL","4XL"].map((s) => (
+                        <option key={s} value={s}>{s}</option>
+                      ))}
+                    </optgroup>
+                    <optgroup label="Numeric (Waist)">
+                      {["28","30","32","34","36","38","40","42"].map((s) => (
+                        <option key={s} value={s}>{s}</option>
+                      ))}
+                    </optgroup>
+                    <optgroup label="Shoe">
+                      {["38","39","40","41","42","43","44","45"].map((s) => (
+                        <option key={`shoe-${s}`} value={`EU${s}`}>EU {s}</option>
+                      ))}
+                    </optgroup>
+                    <option value="One Size">One Size</option>
+                    <option value="Free Size">Free Size</option>
+                  </select>
                 </div>
                 <div className="grid gap-1">
                   <label className="text-xs text-muted-foreground">SKU (optional)</label>
@@ -368,16 +427,49 @@ export function AdminProductForm({ categories }: { categories: CategoryOption[] 
         <div className="rounded-lg border border-border bg-background p-5">
           <h2 className="font-semibold">Product Image</h2>
           <p className="mt-1 text-xs text-muted-foreground">
-            Provide a direct image URL (Unsplash, Cloudinary, etc.) for the product photo.
+            Upload a photo from your device — saved to Cloudinary automatically.
           </p>
           <div className="mt-3">
             <input
-              type="url"
-              placeholder="https://images.unsplash.com/photo-..."
-              value={imageUrl}
-              onChange={(e) => setImageUrl(e.target.value)}
-              className="h-11 w-full rounded-md border border-border bg-background px-4 text-xs focus-visible:outline-none"
+              ref={fileInputRef}
+              id="product-image-file"
+              type="file"
+              accept="image/*"
+              className="sr-only"
+              onChange={handleFileChange}
             />
+            {imagePreview ? (
+              <div className="relative">
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img
+                  src={imagePreview}
+                  alt="Product preview"
+                  className="h-48 w-full rounded-md border border-border object-cover"
+                />
+                <button
+                  type="button"
+                  onClick={clearImage}
+                  className="absolute right-2 top-2 flex h-6 w-6 items-center justify-center rounded-full bg-background/80 border border-border text-muted-foreground hover:text-danger"
+                >
+                  <X size={12} />
+                </button>
+                {imageUploading && (
+                  <div className="absolute inset-0 flex items-center justify-center rounded-md bg-background/60">
+                    <Spinner size="sm" />
+                  </div>
+                )}
+              </div>
+            ) : (
+              <button
+                type="button"
+                onClick={() => fileInputRef.current?.click()}
+                className="flex h-36 w-full flex-col items-center justify-center gap-2 rounded-md border-2 border-dashed border-border text-muted-foreground transition-colors hover:border-foreground hover:text-foreground"
+              >
+                <UploadCloud size={22} />
+                <span className="text-xs font-medium">Click to upload image</span>
+                <span className="text-[11px]">PNG, JPG, WEBP up to 10 MB</span>
+              </button>
+            )}
           </div>
         </div>
       </div>
