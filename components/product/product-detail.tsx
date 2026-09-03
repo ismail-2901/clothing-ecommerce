@@ -19,20 +19,26 @@ export function ProductDetail({ product }: { product: CatalogProduct }) {
     [product.variants]
   );
 
-  // Expand any variant whose size is a comma-separated string (legacy data)
-  // e.g. size="M, L, XL" becomes 3 virtual variants each with a single size
-  const normalizedVariants = useMemo(
-    () =>
-      product.variants.flatMap((v) => {
-        if (!v.size.includes(",")) return [v];
-        return v.size
-          .split(",")
-          .map((s) => s.trim())
-          .filter(Boolean)
-          .map((size) => ({ ...v, size }));
-      }),
-    [product.variants]
-  );
+  // Expand comma-size legacy variants then deduplicate by (color, size).
+  // Prevents duplicate buttons when "M, L, XL" row AND individual M/L/XL rows
+  // both exist in DB simultaneously.
+  const normalizedVariants = useMemo(() => {
+    const expanded = product.variants.flatMap((v) => {
+      if (!v.size.includes(",")) return [v];
+      return v.size
+        .split(",")
+        .map((s) => s.trim())
+        .filter(Boolean)
+        .map((size) => ({ ...v, size }));
+    });
+    const seen = new Set<string>();
+    return expanded.filter((v) => {
+      const key = `${v.color}||${v.size}`;
+      if (seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    });
+  }, [product.variants]);
 
   const availableSizes = useMemo(
     () => normalizedVariants.filter((variant) => variant.color === selectedColor),
