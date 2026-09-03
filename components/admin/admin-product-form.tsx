@@ -121,7 +121,7 @@ export function AdminProductForm({
 
   const [groups, setGroups] = useState<VariantGroup[]>(
     initialData?.variantGroups ?? [
-      { id: "1", color: "Black", sizes: ["M", "L"], sku: "", stockQuantity: 10 },
+      { id: "1", color: "Black", sizes: ["M", "L", "XL"], sku: "", stockQuantity: 10 },
     ]
   );
 

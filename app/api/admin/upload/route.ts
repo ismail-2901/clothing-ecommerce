@@ -1,4 +1,4 @@
-﻿import { createHmac } from "crypto";
+import { createHmac } from "crypto";
 import { NextResponse } from "next/server";
 
 const CLOUD_NAME = process.env.CLOUDINARY_CLOUD_NAME!;
@@ -10,7 +10,7 @@ function sign(params: Record<string, string>): string {
     .sort()
     .map((k) => `${k}=${params[k]}`)
     .join("&");
-  return createHmac("sha256", API_SECRET).update(sorted).digest("hex");
+  return createHmac("sha1", API_SECRET).update(sorted).digest("hex");
 }
 
 export async function POST(req: Request) {
