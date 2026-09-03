@@ -1,6 +1,18 @@
 import { NextResponse, type NextRequest } from "next/server";
 
+import { isValidAdminSession } from "@/lib/auth/admin-auth";
+
 export function proxy(request: NextRequest) {
+  const { pathname } = request.nextUrl;
+
+  // Protect /api/admin/* endpoints (except auth routes like /api/admin/auth/login)
+  if (pathname.startsWith("/api/admin") && !pathname.startsWith("/api/admin/auth")) {
+    const token = request.cookies.get("admin_session")?.value;
+    if (!isValidAdminSession(token)) {
+      return NextResponse.json({ error: "Unauthorized admin access." }, { status: 401 });
+    }
+  }
+
   const response = NextResponse.next();
 
   response.headers.set("X-Content-Type-Options", "nosniff");

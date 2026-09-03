@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { cookies } from "next/headers";
 import {
   Boxes,
   ChartNoAxesCombined,
@@ -16,6 +17,9 @@ import {
   Users
 } from "lucide-react";
 import { storeConfig } from "@/config/store";
+import { isValidAdminSession } from "@/lib/auth/admin-auth";
+import { AdminLockScreen } from "@/components/admin/admin-lock-screen";
+import { AdminLogoutButton } from "@/components/admin/admin-logout-button";
 
 const navGroups = [
   {
@@ -61,9 +65,17 @@ const navGroups = [
   }
 ] as const;
 
-export default function AdminLayout({
+export default async function AdminLayout({
   children
 }: Readonly<{ children: React.ReactNode }>) {
+  const cookieStore = await cookies();
+  const token = cookieStore.get("admin_session")?.value;
+  const isAuthenticated = isValidAdminSession(token);
+
+  if (!isAuthenticated) {
+    return <AdminLockScreen />;
+  }
+
   return (
     <div className="min-h-screen bg-muted/40">
       <aside className="fixed inset-y-0 left-0 hidden w-60 overflow-y-auto border-r border-border bg-background p-5 lg:block">
@@ -92,20 +104,24 @@ export default function AdminLayout({
             </div>
           ))}
         </div>
-        <div className="mt-6 border-t border-border pt-4">
+        <div className="mt-6 border-t border-border pt-4 grid gap-1">
           <Link
             href="/"
             className="flex items-center gap-3 rounded-md px-3 py-2 text-sm text-muted-foreground hover:bg-muted hover:text-foreground transition"
           >
             ← Storefront
           </Link>
+          <AdminLogoutButton />
         </div>
       </aside>
       <main className="lg:pl-60">
-        <div className="border-b border-border bg-background px-5 py-4 lg:hidden">
+        <div className="flex items-center justify-between border-b border-border bg-background px-5 py-4 lg:hidden">
           <Link href="/admin" className="font-semibold">
             {storeConfig.name} Admin
           </Link>
+          <div className="w-32">
+            <AdminLogoutButton />
+          </div>
         </div>
         <div className="p-5 lg:p-8">{children}</div>
       </main>
