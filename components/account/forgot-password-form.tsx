@@ -18,8 +18,8 @@ export function ForgotPasswordForm() {
     setLoading(true);
 
     try {
-      // Call better-auth's forget-password endpoint directly
-      const res = await fetch("/api/auth/forget-password", {
+      // Call better-auth's password reset request endpoint
+      const res = await fetch("/api/auth/request-password-reset", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
