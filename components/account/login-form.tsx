@@ -30,7 +30,7 @@ export function LoginForm() {
     if (result.error) {
       setError(
         result.error.message === "Email not verified"
-          ? "Check your inbox and verify your email before signing in."
+          ? "Your email isn't verified. Go to the register page to resend your code."
           : "Invalid email or password."
       );
       return;

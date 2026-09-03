@@ -30,7 +30,7 @@ export const auth = betterAuth({
     }
   },
   emailVerification: {
-    sendOnSignUp: true,
+    sendOnSignUp: false,
     async sendVerificationEmail({ user, url }) {
       if (process.env.EMAIL_PROVIDER === "console" || !process.env.EMAIL_PROVIDER) {
         console.log(`\n[email] Verify account for ${user.email}\n  URL: ${url}\n`);

@@ -2,20 +2,19 @@
 
 import { useState, type FormEvent } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
 import { signUp } from "@/lib/auth/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Spinner } from "@/components/ui/spinner";
+import { OtpForm } from "@/components/account/otp-form";
 
 export function RegisterForm() {
-  const router = useRouter();
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [success, setSuccess] = useState(false);
+  const [otpSent, setOtpSent] = useState(false);
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -34,34 +33,41 @@ export function RegisterForm() {
       password
     });
 
-    setLoading(false);
-
     if (result.error) {
       setError(
         result.error.message?.includes("already")
           ? "An account with this email already exists."
           : "Something went wrong. Please try again."
       );
+      setLoading(false);
       return;
     }
 
-    setSuccess(true);
+    // Send OTP via our Brevo-backed route
+    const otpRes = await fetch("/api/auth/send-otp", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ email: email.trim().toLowerCase() })
+    });
+
+    setLoading(false);
+
+    if (!otpRes.ok) {
+      setError("Account created but failed to send verification code. Try signing in to resend.");
+      return;
+    }
+
+    setOtpSent(true);
   }
 
-  if (success) {
+  if (otpSent) {
     return (
-      <div className="rounded-lg border border-border bg-muted/50 p-6 text-center">
-        <p className="text-sm font-semibold">Check your inbox</p>
-        <p className="mt-2 text-sm text-muted-foreground">
-          We sent a verification link to <strong>{email}</strong>. Click it to
-          activate your account.
-        </p>
-        <Link
-          href="/login"
-          className="mt-4 inline-block text-sm font-semibold underline underline-offset-4"
-        >
-          Back to sign in
-        </Link>
+      <div className="grid gap-6">
+        <div className="text-center">
+          <p className="text-sm font-semibold">Check your inbox</p>
+          <p className="mt-1 text-sm text-muted-foreground">Enter the 6-digit code we sent to verify your account.</p>
+        </div>
+        <OtpForm email={email.trim().toLowerCase()} />
       </div>
     );
   }

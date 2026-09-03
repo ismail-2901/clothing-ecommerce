@@ -141,9 +141,11 @@ model User {
   id            String    @id @default(uuid())
   name          String?
   email         String    @unique
-  emailVerified Boolean   @default(false)
-  image         String?
-  phone         String?   @unique
+  emailVerified           Boolean   @default(false)
+  image                   String?
+  phone                   String?   @unique
+  verificationCode        String?
+  verificationExpires     DateTime?
   createdAt     DateTime  @default(now())
   updatedAt     DateTime  @updatedAt
   deletedAt     DateTime?

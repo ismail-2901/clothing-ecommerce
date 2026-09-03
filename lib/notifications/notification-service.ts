@@ -1,15 +1,12 @@
 /**
- * Notification service  provider-agnostic email interface.
- *
- * Wire a real provider (Resend, SendGrid, Nodemailer) by implementing
- * sendEmail() in the provider block. The rest of the system uses the
- * typed helper functions below so business logic never touches transport.
+ * Notification service — provider-agnostic email interface.
  *
  * Required env vars:
- *   EMAIL_FROM         sender address, e.g. "Elaris <no-reply@yourdomain.com>"
- *   EMAIL_PROVIDER     "resend" | "console" (default: console in dev)
- *   RESEND_API_KEY     required when EMAIL_PROVIDER=resend
+ *   EMAIL_FROM       sender address, e.g. "Elaris <no-reply@yourdomain.com>"
+ *   EMAIL_PROVIDER   "brevo" | "console" (default: console in dev)
+ *   BREVO_API_KEY    required when EMAIL_PROVIDER=brevo
  */
+import { sendBrevoEmail } from "@/lib/email/brevo";
 
 export type EmailPayload = {
   to: string;
@@ -31,11 +28,8 @@ async function sendEmail(payload: EmailPayload): Promise<void> {
     return;
   }
 
-  if (PROVIDER === "resend") {
-    const { Resend } = await import("resend");
-    const resend = new Resend(process.env.RESEND_API_KEY ?? "");
-    await resend.emails.send({
-      from: FROM,
+  if (PROVIDER === "brevo") {
+    await sendBrevoEmail({
       to: payload.to,
       subject: payload.subject,
       html: payload.html,
