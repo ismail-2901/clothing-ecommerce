@@ -106,10 +106,10 @@ export async function getAllProducts(): Promise<CatalogProduct[]> {
           .map((size) => ({ ...v, size }));
       });
 
-      // Deduplicate by color+size — keep highest stock entry
+      // Deduplicate by color+size (case-insensitive) — keep highest stock entry
       const seen = new Map<string, typeof expanded[0]>();
       for (const v of expanded) {
-        const key = `${v.color}||${v.size}`;
+        const key = `${v.color.trim().toLowerCase()}||${v.size.trim().toLowerCase()}`;
         const existing = seen.get(key);
         if (!existing || v.stock > existing.stock) {
           seen.set(key, v);

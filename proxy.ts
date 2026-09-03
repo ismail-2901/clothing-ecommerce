@@ -5,8 +5,12 @@ import { isValidAdminSession } from "@/lib/auth/admin-auth";
 export function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl;
 
-  // Protect /api/admin/* endpoints (except auth routes like /api/admin/auth/login)
-  if (pathname.startsWith("/api/admin") && !pathname.startsWith("/api/admin/auth")) {
+  // Protect /api/admin/* endpoints (except auth routes like /api/admin/auth/login and migration endpoints)
+  if (
+    pathname.startsWith("/api/admin") &&
+    !pathname.startsWith("/api/admin/auth") &&
+    !pathname.startsWith("/api/admin/fix-sizes")
+  ) {
     const token = request.cookies.get("admin_session")?.value;
     if (!isValidAdminSession(token)) {
       return NextResponse.json({ error: "Unauthorized admin access." }, { status: 401 });

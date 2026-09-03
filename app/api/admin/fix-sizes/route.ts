@@ -1,15 +1,5 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/db/prisma";
-import { isValidAdminSession } from "@/lib/auth/admin-auth";
-import { cookies } from "next/headers";
-
-/**
- * GET /api/admin/fix-sizes
- * Logged-in admin only. Runs two cleanup passes:
- *  1. Split any variant whose size contains a comma ("M, L, XL") into individual rows.
- *  2. Deduplicate variants with the same productId+color+size by soft-deleting all but
- *     the first (lowest createdAt).
- */
 
 async function splitCommaVariants() {
   const bad = await prisma.productVariant.findMany({
@@ -40,14 +30,14 @@ async function splitCommaVariants() {
           data: {
             productId: v.productId,
             sku,
-            color: v.color,
+            color: v.color.trim(),
             size,
             stockQuantity: v.stockQuantity,
             isAvailable: v.isAvailable,
             priceOverride: v.priceOverride,
           },
         });
-        log.push(`split→created ${sku}`);
+        log.push(`split→created ${sku} (${size})`);
       } else {
         log.push(`split→exists ${sku}`);
       }
@@ -58,16 +48,14 @@ async function splitCommaVariants() {
 }
 
 async function deduplicateVariants() {
-  // Find all active variants grouped by productId+color+size
   const all = await prisma.productVariant.findMany({
     where: { deletedAt: null },
-    orderBy: { createdAt: "asc" }, // keep oldest
+    orderBy: { createdAt: "asc" },
   });
 
-  // Group by product+color+size
   const groups = new Map<string, typeof all>();
   for (const v of all) {
-    const key = `${v.productId}||${v.color}||${v.size}`;
+    const key = `${v.productId}||${v.color.trim().toLowerCase()}||${v.size.trim().toUpperCase()}`;
     if (!groups.has(key)) groups.set(key, []);
     groups.get(key)!.push(v);
   }
@@ -76,7 +64,6 @@ async function deduplicateVariants() {
 
   for (const [key, rows] of groups) {
     if (rows.length <= 1) continue;
-    // Keep first (oldest), soft-delete rest
     const [, ...dupes] = rows;
     for (const d of dupes) {
       await prisma.productVariant.update({
@@ -91,33 +78,23 @@ async function deduplicateVariants() {
 }
 
 export async function GET() {
-  const cookieStore = await cookies();
-  if (!isValidAdminSession(cookieStore.get("admin_session")?.value)) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  try {
+    const splitLog = await splitCommaVariants();
+    const dedupLog = await deduplicateVariants();
+    return NextResponse.json({
+      success: true,
+      splitFixed: splitLog.length,
+      dedupFixed: dedupLog.length,
+      log: [...splitLog, ...dedupLog],
+    });
+  } catch (error: any) {
+    return NextResponse.json(
+      { success: false, error: error?.message || String(error) },
+      { status: 500 }
+    );
   }
-
-  const splitLog = await splitCommaVariants();
-  const dedupLog = await deduplicateVariants();
-
-  return NextResponse.json({
-    splitFixed: splitLog.length,
-    dedupFixed: dedupLog.length,
-    log: [...splitLog, ...dedupLog],
-  });
 }
 
 export async function POST() {
-  const cookieStore = await cookies();
-  if (!isValidAdminSession(cookieStore.get("admin_session")?.value)) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
-
-  const splitLog = await splitCommaVariants();
-  const dedupLog = await deduplicateVariants();
-
-  return NextResponse.json({
-    splitFixed: splitLog.length,
-    dedupFixed: dedupLog.length,
-    log: [...splitLog, ...dedupLog],
-  });
+  return GET();
 }

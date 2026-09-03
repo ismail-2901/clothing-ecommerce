@@ -6,54 +6,133 @@ import { useMemo, useState } from "react";
 import { useCart } from "@/components/cart/cart-provider";
 import { Button } from "@/components/ui/button";
 import { WishlistButton } from "@/components/wishlist/wishlist-button";
-import type { CatalogProduct } from "@/features/catalog/data";
+import type { CatalogProduct, CatalogVariant } from "@/features/catalog/data";
 import { formatMoney } from "@/lib/utils/money";
+
+const SIZE_SORT_ORDER = [
+  "XS", "S", "M", "L", "XL", "2XL", "3XL", "4XL",
+  "28", "30", "32", "34", "36", "38", "40", "42",
+  "EU38", "EU39", "EU40", "EU41", "EU42", "EU43", "EU44", "EU45",
+  "ONE SIZE", "FREE SIZE"
+];
 
 export function ProductDetail({ product }: { product: CatalogProduct }) {
   const { addItem } = useCart();
-  const [selectedColor, setSelectedColor] = useState(product.variants[0]?.color ?? "");
-  const [selectedSize, setSelectedSize] = useState(product.variants[0]?.size ?? "");
 
-  const colors = useMemo(
-    () => [...new Set(product.variants.map((variant) => variant.color))],
-    [product.variants]
-  );
-
-  // Expand comma-size legacy variants then deduplicate by (color, size).
-  // Prevents duplicate buttons when "M, L, XL" row AND individual M/L/XL rows
-  // both exist in DB simultaneously.
-  const normalizedVariants = useMemo(() => {
-    const expanded = product.variants.flatMap((v) => {
-      if (!v.size.includes(",")) return [v];
-      return v.size
+  // 1. Expand any legacy comma-separated sizes into individual clean variants
+  const flatVariants = useMemo(() => {
+    return product.variants.flatMap((v) => {
+      const rawSize = (v.size || "").trim();
+      const rawColor = (v.color || "Default").trim();
+      if (!rawSize.includes(",")) {
+        return [{ ...v, color: rawColor, size: rawSize }];
+      }
+      return rawSize
         .split(",")
         .map((s) => s.trim())
         .filter(Boolean)
-        .map((size) => ({ ...v, size }));
-    });
-    const seen = new Set<string>();
-    return expanded.filter((v) => {
-      const key = `${v.color}||${v.size}`;
-      if (seen.has(key)) return false;
-      seen.add(key);
-      return true;
+        .map((size) => ({ ...v, color: rawColor, size }));
     });
   }, [product.variants]);
 
-  const availableSizes = useMemo(
-    () => normalizedVariants.filter((variant) => variant.color === selectedColor),
-    [normalizedVariants, selectedColor]
+  // 2. Distinct colors (case-insensitive deduplication)
+  const colors = useMemo(() => {
+    const seen = new Set<string>();
+    const list: string[] = [];
+    for (const v of flatVariants) {
+      const key = v.color.toLowerCase();
+      if (!seen.has(key) && v.color) {
+        seen.add(key);
+        list.push(v.color);
+      }
+    }
+    return list;
+  }, [flatVariants]);
+
+  const [selectedColor, setSelectedColor] = useState<string>(
+    () => colors[0] ?? flatVariants[0]?.color ?? ""
   );
 
-  const activeVariant =
-    normalizedVariants.find(
-      (variant) => variant.color === selectedColor && variant.size === selectedSize
-    ) ?? availableSizes[0] ?? normalizedVariants[0];
+  // 3. Unique sizes for selected color (STRICTLY ONE BUTTON PER SIZE)
+  const availableSizes = useMemo(() => {
+    const sizeMap = new Map<string, CatalogVariant>();
+    for (const v of flatVariants) {
+      if (v.color.toLowerCase() === selectedColor.toLowerCase()) {
+        const key = v.size.toLowerCase();
+        const existing = sizeMap.get(key);
+        // Prefer in-stock variant, or variant with higher stock
+        if (!existing || v.stock > existing.stock) {
+          sizeMap.set(key, v);
+        }
+      }
+    }
 
-  const handleAddToCart = () => {
-    if (!activeVariant) {
+    // Sort in standard fashion
+    return Array.from(sizeMap.values()).sort((a, b) => {
+      const idxA = SIZE_SORT_ORDER.indexOf(a.size.toUpperCase());
+      const idxB = SIZE_SORT_ORDER.indexOf(b.size.toUpperCase());
+      if (idxA !== -1 && idxB !== -1) return idxA - idxB;
+      if (idxA !== -1) return -1;
+      if (idxB !== -1) return 1;
+      return a.size.localeCompare(b.size);
+    });
+  }, [flatVariants, selectedColor]);
+
+  // 4. Selected size state
+  const [selectedSize, setSelectedSize] = useState<string>(() => {
+    const initialForColor = flatVariants.filter(
+      (v) => v.color.toLowerCase() === (colors[0] ?? "").toLowerCase()
+    );
+    const inStock = initialForColor.find((v) => v.stock > 0);
+    return inStock?.size ?? initialForColor[0]?.size ?? flatVariants[0]?.size ?? "";
+  });
+
+  // 5. Active variant for current (color, size)
+  const activeVariant = useMemo(() => {
+    return (
+      flatVariants.find(
+        (v) =>
+          v.color.toLowerCase() === selectedColor.toLowerCase() &&
+          v.size.toLowerCase() === selectedSize.toLowerCase()
+      ) ??
+      availableSizes[0] ??
+      flatVariants[0]
+    );
+  }, [flatVariants, selectedColor, selectedSize, availableSizes]);
+
+  // Color change handler: retains size if valid in new color, otherwise selects available size
+  const handleColorChange = (newColor: string) => {
+    setSelectedColor(newColor);
+    const sizesInNewColor = flatVariants.filter(
+      (v) => v.color.toLowerCase() === newColor.toLowerCase()
+    );
+
+    const sameSizeInStock = sizesInNewColor.find(
+      (v) => v.size.toLowerCase() === selectedSize.toLowerCase() && v.stock > 0
+    );
+    if (sameSizeInStock) {
+      setSelectedSize(sameSizeInStock.size);
       return;
     }
+
+    const sameSizeAny = sizesInNewColor.find(
+      (v) => v.size.toLowerCase() === selectedSize.toLowerCase()
+    );
+    if (sameSizeAny) {
+      setSelectedSize(sameSizeAny.size);
+      return;
+    }
+
+    const firstInStock = sizesInNewColor.find((v) => v.stock > 0);
+    if (firstInStock) {
+      setSelectedSize(firstInStock.size);
+    } else if (sizesInNewColor.length > 0) {
+      setSelectedSize(sizesInNewColor[0].size);
+    }
+  };
+
+  const handleAddToCart = () => {
+    if (!activeVariant) return;
 
     addItem({
       sku: activeVariant.sku,
@@ -63,7 +142,7 @@ export function ProductDetail({ product }: { product: CatalogProduct }) {
       color: activeVariant.color,
       price: activeVariant.price,
       quantity: 1,
-      image: product.images[0]?.src ?? ""
+      image: product.images[0]?.src ?? "",
     });
   };
 
@@ -103,35 +182,36 @@ export function ProductDetail({ product }: { product: CatalogProduct }) {
         <p className="mt-5 text-sm leading-7 text-muted-foreground">{product.description}</p>
 
         <div className="mt-8 space-y-6">
-          <div>
-            <div className="flex items-center justify-between">
-              <h2 className="text-sm font-semibold">Color</h2>
-              <span className="text-sm text-muted-foreground">{activeVariant.color}</span>
+          {/* Color selector */}
+          {colors.length > 0 && (
+            <div>
+              <div className="flex items-center justify-between">
+                <h2 className="text-sm font-semibold">Color</h2>
+                <span className="text-sm text-muted-foreground">{selectedColor}</span>
+              </div>
+              <div className="mt-3 flex flex-wrap gap-2">
+                {colors.map((color) => {
+                  const isSelected = selectedColor.toLowerCase() === color.toLowerCase();
+                  return (
+                    <button
+                      key={color}
+                      className={`h-10 min-w-16 rounded-md border px-3 text-sm capitalize transition-colors ${
+                        isSelected
+                          ? "border-foreground bg-foreground text-background"
+                          : "border-border hover:border-foreground"
+                      }`}
+                      type="button"
+                      onClick={() => handleColorChange(color)}
+                    >
+                      {color}
+                    </button>
+                  );
+                })}
+              </div>
             </div>
-            <div className="mt-3 flex flex-wrap gap-2">
-              {colors.map((color) => (
-                <button
-                  key={color}
-                  className={`h-10 min-w-16 rounded-md border px-3 text-sm capitalize ${
-                    selectedColor === color ? "border-foreground bg-foreground text-background" : "border-border"
-                  }`}
-                  type="button"
-                  onClick={() => {
-                    setSelectedColor(color);
-                    const nextSize = normalizedVariants.find(
-                      (variant) => variant.color === color && variant.stock > 0
-                    )?.size;
-                    if (nextSize) {
-                      setSelectedSize(nextSize);
-                    }
-                  }}
-                >
-                  {color}
-                </button>
-              ))}
-            </div>
-          </div>
+          )}
 
+          {/* Size selector */}
           <div>
             <div className="flex items-center justify-between">
               <h2 className="text-sm font-semibold">Size</h2>
@@ -141,19 +221,24 @@ export function ProductDetail({ product }: { product: CatalogProduct }) {
               </button>
             </div>
             <div className="mt-3 grid grid-cols-5 gap-2">
-              {availableSizes.map((variant) => (
-                <button
-                  key={variant.sku}
-                  className={`h-11 rounded-md border text-sm font-medium disabled:cursor-not-allowed disabled:bg-muted disabled:text-muted-foreground ${
-                    selectedSize === variant.size ? "border-foreground bg-foreground text-background" : "border-border"
-                  }`}
-                  disabled={variant.stock <= 0}
-                  type="button"
-                  onClick={() => setSelectedSize(variant.size)}
-                >
-                  {variant.size}
-                </button>
-              ))}
+              {availableSizes.map((variant) => {
+                const isSelected = selectedSize.toLowerCase() === variant.size.toLowerCase();
+                return (
+                  <button
+                    key={`${variant.color}-${variant.size}`}
+                    className={`h-11 rounded-md border text-sm font-medium transition-colors disabled:cursor-not-allowed disabled:bg-muted disabled:text-muted-foreground ${
+                      isSelected
+                        ? "border-foreground bg-foreground text-background"
+                        : "border-border hover:border-foreground"
+                    }`}
+                    disabled={variant.stock <= 0}
+                    type="button"
+                    onClick={() => setSelectedSize(variant.size)}
+                  >
+                    {variant.size}
+                  </button>
+                );
+              })}
             </div>
           </div>
 
@@ -187,7 +272,7 @@ export function ProductDetail({ product }: { product: CatalogProduct }) {
           {[
             ["Materials", product.material],
             ["Care", product.care],
-            ["SKU", activeVariant.sku]
+            ["SKU", activeVariant.sku],
           ].map(([title, copy]) => (
             <div key={title} className="grid gap-2 py-4 sm:grid-cols-[120px_1fr]">
               <h2 className="font-semibold">{title}</h2>

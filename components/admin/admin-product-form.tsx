@@ -52,15 +52,27 @@ function SizeToggle({
   selected: string[];
   onChange: (sizes: string[]) => void;
 }) {
+  // Sanitize: split any legacy comma strings and remove duplicates
+  const cleanSelected = [
+    ...new Set(
+      selected
+        .flatMap((s) => (s ? s.split(",") : []))
+        .map((s) => s.trim())
+        .filter(Boolean)
+    ),
+  ];
+
   function toggle(s: string) {
-    onChange(
-      selected.includes(s) ? selected.filter((x) => x !== s) : [...selected, s]
-    );
+    const next = cleanSelected.includes(s)
+      ? cleanSelected.filter((x) => x !== s)
+      : [...cleanSelected, s];
+    onChange(next);
   }
+
   return (
     <div className="flex flex-wrap gap-1.5">
       {ALL_SIZES.map((s) => {
-        const active = selected.includes(s);
+        const active = cleanSelected.includes(s);
         return (
           <button
             key={s}
@@ -120,8 +132,18 @@ export function AdminProductForm({
   const [error, setError] = useState<string | null>(null);
 
   const [groups, setGroups] = useState<VariantGroup[]>(
-    initialData?.variantGroups ?? [
-      { id: "1", color: "Black", sizes: [], sku: "", stockQuantity: 10 },
+    initialData?.variantGroups?.map((g) => ({
+      ...g,
+      sizes: [
+        ...new Set(
+          g.sizes
+            .flatMap((s) => (s ? s.split(",") : []))
+            .map((s) => s.trim())
+            .filter(Boolean)
+        ),
+      ],
+    })) ?? [
+      { id: "1", color: "", sizes: [], sku: "", stockQuantity: 10 },
     ]
   );
 
@@ -137,7 +159,7 @@ export function AdminProductForm({
   function addGroup() {
     setGroups((prev) => [
       ...prev,
-      { id: String(Date.now()), color: "Black", sizes: ["M"], sku: "", stockQuantity: 5 },
+      { id: String(Date.now()), color: "", sizes: [], sku: "", stockQuantity: 10 },
     ]);
   }
 
@@ -207,16 +229,26 @@ export function AdminProductForm({
       const basePricePoisha = Math.round(Number(basePrice) * 100);
       const cleanSlug = slug || name.toLowerCase().replace(/[^a-z0-9]+/g, "-");
 
-      // Expand each color group → one DB variant per size
-      const mappedVariants = groups.flatMap((g, gi) =>
-        g.sizes.map((size, si) => {
+      // Expand each color group → one DB variant per size (strictly unique per color)
+      const mappedVariants = groups.flatMap((g, gi) => {
+        const cleanColor = g.color.trim() || "Default";
+        const cleanSizes = [
+          ...new Set(
+            g.sizes
+              .flatMap((s) => (s ? s.split(",") : []))
+              .map((s) => s.trim())
+              .filter(Boolean)
+          ),
+        ];
+
+        return cleanSizes.map((size, si) => {
           const sku =
             g.sku.trim()
               ? `${g.sku.trim()}-${size}`
-              : `${cleanSlug.slice(0, 4).toUpperCase()}-${g.color.slice(0, 3).toUpperCase()}-${size}-${gi + 1}${si + 1}`;
+              : `${cleanSlug.slice(0, 4).toUpperCase()}-${cleanColor.slice(0, 3).toUpperCase()}-${size}-${gi + 1}${si + 1}`;
           return {
             sku,
-            color: g.color.trim() || "Default",
+            color: cleanColor,
             size,
             stockQuantity: Number(g.stockQuantity) || 0,
             isAvailable: Number(g.stockQuantity) > 0,
@@ -224,8 +256,8 @@ export function AdminProductForm({
               ? { priceOverride: Math.round(Number(g.priceOverride) * 100) }
               : {}),
           };
-        })
-      );
+        });
+      });
 
       const payload = {
         name: name.trim(),
