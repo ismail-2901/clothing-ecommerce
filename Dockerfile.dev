@@ -2,7 +2,8 @@ FROM node:22-alpine
 RUN apk add --no-cache libc6-compat openssl
 WORKDIR /app
 
-# Install dependencies first (cached layer)
+# Copy prisma schema BEFORE npm install (postinstall runs prisma generate)
+COPY prisma ./prisma
 COPY package.json package-lock.json ./
 RUN npm install --legacy-peer-deps
 
