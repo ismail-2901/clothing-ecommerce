@@ -47,6 +47,9 @@ services:
       DATABASE_URL: "postgresql://elaris:elaris_secret@db:5432/ateliercommerce?schema=public"
       DIRECT_URL:   "postgresql://elaris:elaris_secret@db:5432/ateliercommerce?schema=public"
       REDIS_URL:    "redis://redis:6379"
+      # Ensure Next.js binds to all interfaces for Windows localhost and 127.0.0.1
+      HOSTNAME: "0.0.0.0"
+      PORT: "3000"
       # Required for hot-reload to work on Windows Docker
       WATCHPACK_POLLING: "true"
       CHOKIDAR_USEPOLLING: "true"
