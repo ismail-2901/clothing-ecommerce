@@ -1,0 +1,57 @@
+services:
+  # ── PostgreSQL ──────────────────────────────────────────────────────────────
+  db:
+    image: postgres:16-alpine
+    container_name: elaris_db
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: elaris
+      POSTGRES_PASSWORD: elaris_secret
+      POSTGRES_DB: ateliercommerce
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"          # expose only for local debugging — remove in prod
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U elaris -d ateliercommerce"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  # ── Redis ───────────────────────────────────────────────────────────────────
+  redis:
+    image: redis:7-alpine
+    container_name: elaris_redis
+    restart: unless-stopped
+    ports:
+      - "6379:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+
+  # ── Next.js App ─────────────────────────────────────────────────────────────
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: elaris_app
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    env_file:
+      - .env.docker
+    environment:
+      # Override DB/Redis to point at Docker service names
+      DATABASE_URL: postgresql://elaris:elaris_secret@db:5432/ateliercommerce?schema=public
+      DIRECT_URL:   postgresql://elaris:elaris_secret@db:5432/ateliercommerce?schema=public
+      REDIS_URL:    redis://redis:6379
+    ports:
+      - "3000:3000"
+
+volumes:
+  postgres_data:

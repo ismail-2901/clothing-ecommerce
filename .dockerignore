@@ -9,5 +9,8 @@ test-results/
 dist/
 *.tsbuildinfo
 .npm-cache/
-prisma/migrations/*/migration_lock.toml
-
+.agents/
+.vscode/
+README.md
+docs/
+tests/

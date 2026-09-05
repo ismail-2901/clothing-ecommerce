@@ -1,5 +1,8 @@
-import { createHmac } from "crypto";
+import { createHmac } from "node:crypto";
 import { NextResponse } from "next/server";
+
+export const runtime = "nodejs";
+export const maxDuration = 60; // seconds — large uploads can be slow
 
 const CLOUD_NAME = process.env.CLOUDINARY_CLOUD_NAME!;
 const API_KEY = process.env.CLOUDINARY_API_KEY!;
