@@ -1,4 +1,4 @@
-import { createHmac } from "node:crypto";
+import { createHash } from "node:crypto";
 import { NextResponse } from "next/server";
 
 export const runtime = "nodejs";
@@ -9,11 +9,14 @@ const API_KEY = process.env.CLOUDINARY_API_KEY!;
 const API_SECRET = process.env.CLOUDINARY_API_SECRET!;
 
 function sign(params: Record<string, string>): string {
+  // Cloudinary spec: SHA1(sorted_params_string + api_secret) — NOT HMAC
   const sorted = Object.keys(params)
     .sort()
     .map((k) => `${k}=${params[k]}`)
     .join("&");
-  return createHmac("sha1", API_SECRET).update(sorted).digest("hex");
+  return createHash("sha1")
+    .update(sorted + API_SECRET)
+    .digest("hex");
 }
 
 export async function POST(req: Request) {
@@ -43,10 +46,9 @@ export async function POST(req: Request) {
 
   if (!res.ok) {
     const err = await res.json().catch(() => ({}));
-    return NextResponse.json(
-      { error: err.error?.message ?? "Upload failed." },
-      { status: 502 }
-    );
+    const msg = err?.error?.message ?? JSON.stringify(err) ?? "Upload failed.";
+    console.error("[upload] Cloudinary error:", msg);
+    return NextResponse.json({ error: msg }, { status: 502 });
   }
 
   const data = await res.json();
