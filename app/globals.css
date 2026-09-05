@@ -91,3 +91,331 @@
   }
 }
 
+/* ═══════════════════════════════════════════════
+   ELARIS ANNOUNCEMENT BAR
+═══════════════════════════════════════════════ */
+.elaris-ann {
+  display: flex;
+  align-items: center;
+  height: 36px;
+  background: #0a0a0a;
+  color: #fff;
+}
+
+.elaris-ann-btn {
+  flex-shrink: 0;
+  width: 40px;
+  height: 100%;
+  background: none;
+  border: none;
+  color: rgba(255, 255, 255, 0.65);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: color 0.15s;
+}
+.elaris-ann-btn:hover { color: #fff; }
+
+.elaris-ann-text {
+  flex: 1;
+  text-align: center;
+  margin: 0;
+  font-size: 10.5px;
+  font-weight: 500;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+}
+
+/* ═══════════════════════════════════════════════
+   ELARIS HERO — full viewport width, 3 columns
+═══════════════════════════════════════════════ */
+.elaris-hero {
+  width: 100%;
+  background: #fff;
+}
+
+/* 3-column grid: text | image | badge */
+.elaris-hero-grid {
+  display: grid;
+  grid-template-columns: 1fr; /* mobile: stack */
+  min-height: 76vh;
+  align-items: stretch;
+}
+
+@media (min-width: 768px) {
+  .elaris-hero-grid {
+    grid-template-columns: 1.4fr 1.3fr 0.5fr;
+    min-height: 76vh;
+  }
+}
+
+/* ── Left column ── */
+.elaris-hero-left {
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  /* Left padding mirrors container-shell margin so text aligns with nav */
+  padding-top: 3rem;
+  padding-bottom: 1.75rem;
+  padding-left: 16px;
+  padding-right: 2rem;
+}
+
+@media (min-width: 768px) {
+  .elaris-hero-left {
+    /* max(32px, (100vw - 1180px) / 2) aligns with container-shell left edge */
+    padding-left: max(32px, calc((100vw - 1180px) / 2));
+    padding-right: 2.5rem;
+    border-right: 1px solid #e4e4e7;
+  }
+}
+
+/* Kicker */
+.elaris-kicker {
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: #71717a;
+  margin: 0 0 0.6rem;
+}
+
+/* Huge headline */
+.elaris-headline {
+  font-size: clamp(2.25rem, 3.2vw, 4.5rem);
+  font-weight: 900;
+  line-height: 0.95;
+  letter-spacing: -0.03em;
+  margin: 0 0 1.1rem;
+  color: #0a0a0a;
+}
+.elaris-headline span { display: block; }
+
+/* Subline */
+.elaris-subline {
+  font-size: 14px;
+  line-height: 1.5;
+  color: #71717a;
+  margin: 0 0 1.75rem;
+}
+
+/* CTA button */
+.elaris-cta-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 13px 22px;
+  background: #0a0a0a;
+  color: #fff;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  text-decoration: none;
+  transition: opacity 0.15s;
+  width: fit-content;
+}
+.elaris-cta-link:hover { opacity: 0.8; }
+
+/* Slide bar — pinned to bottom of left column */
+.elaris-slide-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  border-top: 1px solid #d4d4d8;
+  padding-top: 1rem;
+}
+
+.elaris-slide-nums {
+  display: flex;
+  align-items: center;
+  gap: 1.4rem;
+}
+
+.elaris-slide-num {
+  background: none;
+  border: none;
+  border-bottom: 1.5px solid transparent;
+  font-size: 13px;
+  font-weight: 600;
+  color: #a1a1aa;
+  cursor: pointer;
+  padding: 0 0 2px;
+  letter-spacing: 0.02em;
+  transition: color 0.15s;
+  line-height: 1;
+}
+.elaris-slide-num.active {
+  color: #0a0a0a;
+  border-bottom-color: #0a0a0a;
+}
+
+.elaris-slide-navs {
+  display: flex;
+  gap: 6px;
+}
+
+.elaris-nav-btn {
+  width: 34px;
+  height: 34px;
+  border: 1px solid #d4d4d8;
+  background: transparent;
+  border-radius: 50%;
+  cursor: pointer;
+  font-size: 14px;
+  display: grid;
+  place-items: center;
+  transition: background 0.15s;
+}
+.elaris-nav-btn:hover { background: #f4f4f5; }
+
+/* ── Center column: hero image ── */
+.elaris-hero-img-col {
+  position: relative;
+  overflow: hidden;
+  background: #e8e8e8;
+  /* On mobile: show with fixed aspect ratio */
+  aspect-ratio: 3 / 4;
+  order: -1; /* image above text on mobile */
+}
+
+@media (min-width: 768px) {
+  .elaris-hero-img-col {
+    aspect-ratio: auto; /* let the grid row height determine it */
+    order: 0;
+  }
+}
+
+/* ── Right column: discount badge ── */
+.elaris-hero-badge-col {
+  display: none; /* hidden on mobile */
+}
+
+@media (min-width: 768px) {
+  .elaris-hero-badge-col {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 2rem 1.5rem;
+    border-left: 1px solid #e4e4e7;
+    /* Right padding mirrors container-shell margin */
+    padding-right: max(20px, calc((100vw - 1180px) / 2));
+  }
+}
+
+.elaris-badge-box {
+  border: 1px solid #d4d4d8;
+  padding: 2rem 1.25rem;
+  text-align: center;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 3px;
+  width: 100%;
+  max-width: 170px;
+}
+
+.elaris-badge-gift {
+  color: #71717a;
+  margin-bottom: 10px;
+}
+
+.elaris-badge-upto {
+  font-size: 9px;
+  font-weight: 600;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: #71717a;
+}
+
+.elaris-badge-pct {
+  font-size: 3rem;
+  font-weight: 900;
+  line-height: 1;
+  color: #0a0a0a;
+}
+
+.elaris-badge-off {
+  font-size: 13px;
+  font-weight: 800;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: #0a0a0a;
+}
+
+.elaris-badge-note {
+  font-size: 8px;
+  font-weight: 600;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: #71717a;
+  margin-top: 6px;
+  line-height: 1.5;
+}
+
+/* ═══════════════════════════════════════════════
+   ELARIS CATEGORY SECTION
+═══════════════════════════════════════════════ */
+.elaris-cat-section {
+  border-top: 1px solid #d4d4d8;
+  padding-top: 2rem;
+  padding-bottom: 0;
+}
+
+.elaris-cat-title {
+  text-align: center;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+  margin: 0 0 1.5rem;
+  color: #0a0a0a;
+}
+
+/* Full-width 4-column grid, no outer padding, no gaps */
+.elaris-cat-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  width: 100%;
+  border-top: 1px solid #d4d4d8;
+}
+
+@media (min-width: 768px) {
+  .elaris-cat-grid {
+    grid-template-columns: repeat(4, 1fr);
+  }
+}
+
+.elaris-cat-card {
+  display: flex;
+  flex-direction: column;
+  text-decoration: none;
+  color: inherit;
+  overflow: hidden;
+  border-right: 1px solid #d4d4d8;
+}
+.elaris-cat-card:last-child { border-right: none; }
+
+/* Portrait image */
+.elaris-cat-img-wrap {
+  position: relative;
+  aspect-ratio: 3 / 4;
+  overflow: hidden;
+  background: #f0f0f0;
+}
+
+/* Label strip below image */
+.elaris-cat-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0.75rem 1rem;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  background: #fff;
+  border-top: 1px solid #d4d4d8;
+  flex-shrink: 0;
+}
