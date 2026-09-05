@@ -10,8 +10,6 @@ services:
       POSTGRES_DB: ateliercommerce
     volumes:
       - postgres_data:/var/lib/postgresql/data
-    ports:
-      - "5432:5432"          # expose only for local debugging — remove in prod
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U elaris -d ateliercommerce"]
       interval: 5s
@@ -23,19 +21,17 @@ services:
     image: redis:7-alpine
     container_name: elaris_redis
     restart: unless-stopped
-    ports:
-      - "6379:6379"
     healthcheck:
       test: ["CMD", "redis-cli", "ping"]
       interval: 5s
       timeout: 3s
       retries: 5
 
-  # ── Next.js App ─────────────────────────────────────────────────────────────
+  # ── Next.js Dev Server ──────────────────────────────────────────────────────
   app:
     build:
       context: .
-      dockerfile: Dockerfile
+      dockerfile: Dockerfile.dev
     container_name: elaris_app
     restart: unless-stopped
     depends_on:
@@ -43,15 +39,25 @@ services:
         condition: service_healthy
       redis:
         condition: service_healthy
+    # Reads ALL vars from your existing .env file automatically
     env_file:
-      - .env.docker
+      - .env
     environment:
-      # Override DB/Redis to point at Docker service names
-      DATABASE_URL: postgresql://elaris:elaris_secret@db:5432/ateliercommerce?schema=public
-      DIRECT_URL:   postgresql://elaris:elaris_secret@db:5432/ateliercommerce?schema=public
-      REDIS_URL:    redis://redis:6379
+      # Override only the DB/Redis URLs to use Docker container names
+      DATABASE_URL: "postgresql://elaris:elaris_secret@db:5432/ateliercommerce?schema=public"
+      DIRECT_URL:   "postgresql://elaris:elaris_secret@db:5432/ateliercommerce?schema=public"
+      REDIS_URL:    "redis://redis:6379"
+      # Required for hot-reload to work on Windows Docker
+      WATCHPACK_POLLING: "true"
+      CHOKIDAR_USEPOLLING: "true"
     ports:
       - "3000:3000"
+    volumes:
+      # Mount source code so edits appear instantly without rebuilding
+      - .:/app
+      # Keep node_modules inside the container (faster on Windows)
+      - node_modules:/app/node_modules
 
 volumes:
   postgres_data:
+  node_modules:
