@@ -53,11 +53,13 @@ services:
     ports:
       - "3000:3000"
     volumes:
-      # Mount source code so edits appear instantly without rebuilding
-      - .:/app
-      # Keep node_modules inside the container (faster on Windows)
-      - node_modules:/app/node_modules
+      - ./app:/app/app
+      - ./components:/app/components
+      - ./config:/app/config
+      - ./features:/app/features
+      - ./lib:/app/lib
+      - ./prisma:/app/prisma
+      - ./schemas:/app/schemas
 
 volumes:
   postgres_data:
-  node_modules:
