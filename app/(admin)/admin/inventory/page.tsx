@@ -6,16 +6,39 @@ import { prisma } from "@/db/prisma";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 
-export default async function AdminInventoryPage() {
+import { AdminSearchInput } from "@/components/admin/admin-search-input";
+
+type PageProps = {
+  searchParams: Promise<{ q?: string }>;
+};
+
+export default async function AdminInventoryPage({ searchParams }: PageProps) {
+  const { q } = (await searchParams) || {};
+
+  const whereClause: Record<string, unknown> = {
+    deletedAt: null,
+  };
+
+  if (q && q.trim()) {
+    const term = q.trim();
+    whereClause.OR = [
+      { sku: { contains: term, mode: "insensitive" } },
+      { color: { contains: term, mode: "insensitive" } },
+      { size: { contains: term, mode: "insensitive" } },
+      { product: { name: { contains: term, mode: "insensitive" } } },
+    ];
+  }
+
   const dbVariants = await prisma.productVariant.findMany({
-    where: { deletedAt: null },
+    where: whereClause,
     include: {
-      product: { select: { name: true, slug: true } }
+      product: { select: { id: true, name: true, slug: true } }
     },
     orderBy: { createdAt: "desc" }
   });
 
   const variants = dbVariants.map((v) => ({
+    productId: v.product.id,
     product: v.product.name,
     slug: v.product.slug,
     sku: v.sku,
@@ -42,6 +65,10 @@ export default async function AdminInventoryPage() {
             <Plus size={16} /> Add product
           </Link>
         </Button>
+      </div>
+
+      <div className="max-w-md">
+        <AdminSearchInput placeholder="Search SKU, color, size, product name…" />
       </div>
 
       <div className="mt-6 grid gap-4 sm:grid-cols-3">
@@ -113,7 +140,7 @@ export default async function AdminInventoryPage() {
                     </td>
                     <td className="px-4 py-3">
                       <Link
-                        href={`/admin/products`}
+                        href={`/admin/products/${v.productId}/edit`}
                         className="rounded-md border border-border px-3 py-1.5 text-xs hover:bg-muted"
                       >
                         Edit

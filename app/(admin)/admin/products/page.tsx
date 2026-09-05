@@ -3,14 +3,39 @@ export const dynamic = "force-dynamic";
 import Link from "next/link";
 import { Badge } from "@/components/ui/badge";
 import { formatMoney } from "@/lib/utils/money";
-import { Plus, Search, PackageSearch, Pencil } from "lucide-react";
+import { Plus, PackageSearch, Pencil } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { prisma } from "@/db/prisma";
 import { DeleteProductButton } from "@/components/admin/delete-product-button";
+import { AdminSearchInput } from "@/components/admin/admin-search-input";
+import type { ProductStatus } from "@prisma/client";
 
-export default async function AdminProductsPage() {
+type PageProps = {
+  searchParams: Promise<{ q?: string; status?: string }>;
+};
+
+export default async function AdminProductsPage({ searchParams }: PageProps) {
+  const { q, status } = (await searchParams) || {};
+
+  const whereClause: Record<string, unknown> = {
+    deletedAt: null,
+  };
+
+  if (status && ["PUBLISHED", "DRAFT", "ARCHIVED"].includes(status.toUpperCase())) {
+    whereClause.status = status.toUpperCase() as ProductStatus;
+  }
+
+  if (q && q.trim()) {
+    const term = q.trim();
+    whereClause.OR = [
+      { name: { contains: term, mode: "insensitive" } },
+      { slug: { contains: term, mode: "insensitive" } },
+      { variants: { some: { sku: { contains: term, mode: "insensitive" } } } },
+    ];
+  }
+
   const dbProducts = await prisma.product.findMany({
-    where: { deletedAt: null },
+    where: whereClause,
     include: {
       category: { select: { name: true } },
       variants: {
@@ -55,13 +80,37 @@ export default async function AdminProductsPage() {
         </Button>
       </div>
 
-      <div className="mt-6 flex items-center gap-2 rounded-md border border-border bg-background px-4">
-        <Search size={16} className="shrink-0 text-muted-foreground" />
-        <input
-          type="text"
-          placeholder="Search products, SKUs…"
-          className="h-11 flex-1 bg-transparent text-sm outline-none placeholder:text-muted-foreground"
-        />
+      <div className="mt-6 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+        <div className="flex-1 max-w-md">
+          <AdminSearchInput placeholder="Search products, SKUs…" />
+        </div>
+        <div className="flex flex-wrap gap-1.5 pt-6 sm:pt-0">
+          {[
+            { label: "All", value: "" },
+            { label: "Published", value: "PUBLISHED" },
+            { label: "Drafts", value: "DRAFT" },
+          ].map((tab) => {
+            const active = (status?.toUpperCase() || "") === tab.value;
+            const queryParams = new URLSearchParams();
+            if (q) queryParams.set("q", q);
+            if (tab.value) queryParams.set("status", tab.value);
+            const href = `/admin/products${queryParams.toString() ? `?${queryParams.toString()}` : ""}`;
+
+            return (
+              <Link
+                key={tab.label}
+                href={href}
+                className={`rounded-md px-3 py-2 text-xs font-medium transition ${
+                  active
+                    ? "bg-foreground text-background"
+                    : "border border-border bg-background text-muted-foreground hover:text-foreground"
+                }`}
+              >
+                {tab.label}
+              </Link>
+            );
+          })}
+        </div>
       </div>
 
       {products.length === 0 ? (

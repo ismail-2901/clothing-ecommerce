@@ -24,9 +24,30 @@ function riskBadge(score: number) {
   return <Badge variant="muted">{score} Low</Badge>;
 }
 
-export default async function AdminCustomersPage() {
+import { AdminSearchInput } from "@/components/admin/admin-search-input";
+
+type PageProps = {
+  searchParams: Promise<{ q?: string }>;
+};
+
+export default async function AdminCustomersPage({ searchParams }: PageProps) {
+  const { q } = (await searchParams) || {};
+
+  const whereClause: Record<string, unknown> = {
+    deletedAt: null,
+  };
+
+  if (q && q.trim()) {
+    const term = q.trim();
+    whereClause.OR = [
+      { name: { contains: term, mode: "insensitive" } },
+      { email: { contains: term, mode: "insensitive" } },
+      { phone: { contains: term, mode: "insensitive" } },
+    ];
+  }
+
   const users = await prisma.user.findMany({
-    where: { deletedAt: null },
+    where: whereClause,
     include: {
       orders: {
         where: { status: { notIn: ["CANCELLED", "FAILED_DELIVERY"] } },
@@ -93,13 +114,8 @@ export default async function AdminCustomersPage() {
         </div>
       </div>
 
-      <div className="mt-6 flex items-center gap-2 rounded-md border border-border bg-background px-4">
-        <Search size={16} className="shrink-0 text-muted-foreground" />
-        <input
-          type="text"
-          placeholder="Search customer name, email…"
-          className="h-11 flex-1 bg-transparent text-sm outline-none placeholder:text-muted-foreground"
-        />
+      <div className="max-w-md">
+        <AdminSearchInput placeholder="Search customer name, email, phone…" />
       </div>
 
       {customers.length === 0 ? (

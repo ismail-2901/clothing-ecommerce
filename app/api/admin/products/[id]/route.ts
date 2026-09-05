@@ -53,7 +53,7 @@ const putProductSchema = z.object({
   careInstructions: z.string().max(500).nullable().optional(),
   status: z.enum(["DRAFT", "PUBLISHED", "ARCHIVED"]).default("PUBLISHED"),
   tags: z.array(z.string()).default([]),
-  images: z.array(z.string().url()).default([]),
+  images: z.array(z.string().min(1)).default([]),
   variants: z.array(variantSchema).min(1),
 });
 
@@ -132,11 +132,34 @@ export async function PUT(request: NextRequest, { params }: RouteParams) {
   }
 
   const updated = await prisma.$transaction(async (tx) => {
-    // Soft-delete old variants
-    await tx.productVariant.updateMany({
-      where: { productId: id, deletedAt: null },
-      data: { deletedAt: new Date() },
+    // Safely handle existing variants to avoid SKU unique constraint conflicts
+    const oldVariants = await tx.productVariant.findMany({
+      where: { productId: id },
+      include: {
+        orderItems: { select: { id: true }, take: 1 },
+        cartItems: { select: { id: true }, take: 1 },
+        inventoryMovements: { select: { id: true }, take: 1 },
+      },
     });
+
+    for (const ov of oldVariants) {
+      const hasHistory =
+        ov.orderItems.length > 0 ||
+        ov.cartItems.length > 0 ||
+        ov.inventoryMovements.length > 0;
+      if (!hasHistory) {
+        await tx.productVariant.delete({ where: { id: ov.id } });
+      } else {
+        await tx.productVariant.update({
+          where: { id: ov.id },
+          data: {
+            sku: `${ov.sku}__archived_${Date.now()}_${ov.id.slice(0, 4)}`,
+            deletedAt: new Date(),
+            isAvailable: false,
+          },
+        });
+      }
+    }
 
     // Delete old images
     await tx.productImage.deleteMany({ where: { productId: id } });

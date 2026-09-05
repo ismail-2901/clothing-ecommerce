@@ -595,6 +595,25 @@ export function AdminProductForm({
                 <span className="text-[11px]">PNG, JPG, WEBP up to 10 MB</span>
               </button>
             )}
+
+            <div className="mt-3 pt-3 border-t border-border">
+              <label htmlFor="product-image-url" className="text-xs text-muted-foreground">
+                Or paste image URL directly
+              </label>
+              <input
+                id="product-image-url"
+                type="text"
+                placeholder="https://... or /images/..."
+                value={existingImageUrl ?? ""}
+                onChange={(e) => {
+                  const val = e.target.value.trim();
+                  setExistingImageUrl(val || null);
+                  setImagePreview(val || null);
+                  setImageFile(null);
+                }}
+                className="mt-1 h-9 w-full rounded-md border border-border bg-background px-3 text-xs focus-visible:outline-none"
+              />
+            </div>
           </div>
         </div>
       </div>

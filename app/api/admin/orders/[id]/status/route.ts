@@ -4,7 +4,14 @@ import { prisma } from "@/db/prisma";
 import { getServerSession } from "@/lib/auth/server";
 import { transitionOrderStatus, type OrderStatus } from "@/features/orders/state-machine";
 
+import { isValidAdminSession } from "@/lib/auth/admin-auth";
+
 async function requireAdmin(request: NextRequest) {
+  const adminCookie = request.cookies.get("admin_session")?.value;
+  if (isValidAdminSession(adminCookie)) {
+    return { error: null, userId: null };
+  }
+
   const session = await getServerSession();
   if (!session?.userId) {
     return { error: NextResponse.json({ error: "Unauthorized" }, { status: 401 }), userId: null };
@@ -86,14 +93,14 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
         orderId: id,
         previousStatus: order.status as OrderStatus,
         newStatus: resolvedStatus,
-        actorId: userId!,
+        actorId: userId ?? null,
         note: note ?? null
       }
     });
 
     await tx.auditLog.create({
       data: {
-        actorId: userId!,
+        actorId: userId ?? null,
         action: "ORDER_STATUS_CHANGED",
         resource: "Order",
         resourceId: id,
@@ -114,7 +121,7 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
         await tx.inventoryMovement.create({
           data: {
             variantId: item.variantId,
-            actorId: userId!,
+            actorId: userId ?? null,
             type: "RELEASE",
             quantity: item.quantity,
             reason: `Order ${order.orderNumber} cancelled`
@@ -138,7 +145,7 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
         await tx.inventoryMovement.create({
           data: {
             variantId: item.variantId,
-            actorId: userId!,
+            actorId: userId ?? null,
             type: "SALE",
             quantity: item.quantity,
             reason: `Order ${order.orderNumber} delivered`

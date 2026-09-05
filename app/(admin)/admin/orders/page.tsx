@@ -26,8 +26,34 @@ function OrderStatusBadge({ status }: { status: string }) {
   return <Badge variant={map.variant}>{map.label}</Badge>;
 }
 
-export default async function AdminOrdersPage() {
+import { AdminSearchInput } from "@/components/admin/admin-search-input";
+import type { OrderStatus } from "@prisma/client";
+
+type PageProps = {
+  searchParams: Promise<{ q?: string; status?: string }>;
+};
+
+export default async function AdminOrdersPage({ searchParams }: PageProps) {
+  const { q, status } = (await searchParams) || {};
+
+  const whereClause: Record<string, unknown> = {};
+
+  if (status && status.toUpperCase() in statusMap) {
+    whereClause.status = status.toUpperCase() as OrderStatus;
+  }
+
+  if (q && q.trim()) {
+    const term = q.trim();
+    whereClause.OR = [
+      { orderNumber: { contains: term, mode: "insensitive" } },
+      { guestEmail: { contains: term, mode: "insensitive" } },
+      { user: { name: { contains: term, mode: "insensitive" } } },
+      { user: { email: { contains: term, mode: "insensitive" } } },
+    ];
+  }
+
   const rawOrders = await prisma.order.findMany({
+    where: whereClause,
     include: {
       user: { select: { name: true, email: true } },
       items: { select: { quantity: true } },
@@ -66,14 +92,40 @@ export default async function AdminOrdersPage() {
         <p className="text-sm font-semibold">{orders.length} total</p>
       </div>
 
-      {/* Search/filter bar */}
-      <div className="mt-6 flex items-center gap-2 rounded-md border border-border bg-background px-4">
-        <Search size={16} className="shrink-0 text-muted-foreground" />
-        <input
-          type="text"
-          placeholder="Search order number, customer name, email…"
-          className="h-11 flex-1 bg-transparent text-sm outline-none placeholder:text-muted-foreground"
-        />
+      <div className="mt-6 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+        <div className="flex-1 max-w-md">
+          <AdminSearchInput placeholder="Search order number, customer, email…" />
+        </div>
+        <div className="flex flex-wrap gap-1.5 pt-6 sm:pt-0">
+          {[
+            { label: "All", value: "" },
+            { label: "Pending", value: "PENDING" },
+            { label: "Confirmed", value: "CONFIRMED" },
+            { label: "Processing", value: "PROCESSING" },
+            { label: "Delivered", value: "DELIVERED" },
+            { label: "Cancelled", value: "CANCELLED" },
+          ].map((tab) => {
+            const active = (status?.toUpperCase() || "") === tab.value;
+            const queryParams = new URLSearchParams();
+            if (q) queryParams.set("q", q);
+            if (tab.value) queryParams.set("status", tab.value);
+            const href = `/admin/orders${queryParams.toString() ? `?${queryParams.toString()}` : ""}`;
+
+            return (
+              <Link
+                key={tab.label}
+                href={href}
+                className={`rounded-md px-3 py-2 text-xs font-medium transition ${
+                  active
+                    ? "bg-foreground text-background"
+                    : "border border-border bg-background text-muted-foreground hover:text-foreground"
+                }`}
+              >
+                {tab.label}
+              </Link>
+            );
+          })}
+        </div>
       </div>
 
       {orders.length === 0 ? (

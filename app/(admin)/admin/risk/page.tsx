@@ -5,6 +5,8 @@ import { Badge } from "@/components/ui/badge";
 import { formatMoney } from "@/lib/utils/money";
 import { ShieldAlert, AlertTriangle, Info } from "lucide-react";
 import { getServerSession } from "@/lib/auth/server";
+import { cookies } from "next/headers";
+import { isValidAdminSession } from "@/lib/auth/admin-auth";
 import { prisma } from "@/db/prisma";
 
 function levelBadge(level: string) {
@@ -31,15 +33,21 @@ const ACTION_LABEL: Record<string, string> = {
 };
 
 export default async function AdminRiskPage() {
-  const session = await getServerSession();
-  if (!session?.userId) redirect("/login");
+  const cookieStore = await cookies();
+  const token = cookieStore.get("admin_session")?.value;
+  const isMasterAdmin = isValidAdminSession(token);
 
-  const userRoles = await prisma.userRole.findMany({
-    where: { userId: session.userId },
-    include: { role: true }
-  });
-  const isAdmin = userRoles.some((ur) => ur.role.name === "ADMIN" || ur.role.name === "SUPER_ADMIN");
-  if (!isAdmin) redirect("/admin");
+  if (!isMasterAdmin) {
+    const session = await getServerSession();
+    if (!session?.userId) redirect("/login");
+
+    const userRoles = await prisma.userRole.findMany({
+      where: { userId: session.userId },
+      include: { role: true }
+    });
+    const isAdmin = userRoles.some((ur) => ur.role.name === "ADMIN" || ur.role.name === "SUPER_ADMIN");
+    if (!isAdmin) redirect("/admin");
+  }
 
   const riskAssessments = await prisma.riskAssessment.findMany({
     where: {

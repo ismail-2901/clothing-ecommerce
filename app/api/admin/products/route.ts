@@ -57,7 +57,7 @@ const createProductSchema = z.object({
   seoTitle: z.string().max(200).optional(),
   seoDescription: z.string().max(500).optional(),
   tags: z.array(z.string().min(1).max(50)).max(20).default([]),
-  images: z.array(z.string().url()).optional().default([]),
+  images: z.array(z.string().min(1)).optional().default([]),
   variants: z.array(variantSchema).min(1)
 });
 
