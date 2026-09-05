@@ -1,7 +1,7 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
-  output: "standalone", // enables minimal Docker image via .next/standalone
+  output: process.env.VERCEL ? undefined : "standalone", // standalone for Docker, native for Vercel
   images: {
     remotePatterns: [
       {
