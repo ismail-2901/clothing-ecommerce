@@ -239,11 +239,24 @@ export function FloatingAssistant() {
 
       <button
         aria-label={open ? "Close shopping assistant" : "Open shopping assistant"}
-        className="ml-auto flex h-12 w-12 items-center justify-center rounded-full bg-foreground text-background shadow-md hover:bg-zinc-800 transition"
+        className="group ml-auto flex items-center gap-3 rounded-full border border-border/80 bg-background pl-2 pr-4 py-2 shadow-xl hover:shadow-2xl hover:border-foreground/30 transition-all duration-200"
         onClick={open ? () => setOpen(false) : handleOpen}
         type="button"
       >
-        {open ? <X aria-hidden="true" size={20} /> : <MessageSquareText aria-hidden="true" size={22} />}
+        <div className="flex h-8 w-8 items-center justify-center rounded-full bg-foreground text-background">
+          {open ? (
+            <X size={16} />
+          ) : (
+            <span className="text-sm">✦</span>
+          )}
+        </div>
+        <div className="text-left">
+          <p className="text-[12px] font-bold text-foreground leading-tight">Ask ELARIS AI</p>
+          <p className="text-[10px] text-muted-foreground leading-tight">Track your order or find styles</p>
+        </div>
+        <span className="text-xs text-foreground/70 transition-transform duration-200 group-hover:translate-x-0.5">
+          →
+        </span>
       </button>
     </div>
   );

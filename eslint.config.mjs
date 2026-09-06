@@ -4,8 +4,7 @@ const config = [
   ...nextConfig,
   {
     rules: {
-      "react/no-unescaped-entities": "off",
-      "@next/next/no-img-element": "warn"
+      "react/no-unescaped-entities": "off"
     }
   },
   {

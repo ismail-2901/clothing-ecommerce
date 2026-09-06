@@ -2,7 +2,7 @@
 
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { Search, X } from "lucide-react";
-import { useTransition, useState, useEffect } from "react";
+import { useTransition, useState } from "react";
 
 export function AdminSearchInput({ placeholder = "Search..." }: { placeholder?: string }) {
   const router = useRouter();
@@ -11,11 +11,13 @@ export function AdminSearchInput({ placeholder = "Search..." }: { placeholder?: 
   const [isPending, startTransition] = useTransition();
 
   const currentQ = searchParams.get("q") ?? "";
+  const [prevQ, setPrevQ] = useState(currentQ);
   const [value, setValue] = useState(currentQ);
 
-  useEffect(() => {
+  if (prevQ !== currentQ) {
+    setPrevQ(currentQ);
     setValue(currentQ);
-  }, [currentQ]);
+  }
 
   function handleSearch(term: string) {
     const params = new URLSearchParams(searchParams.toString());
