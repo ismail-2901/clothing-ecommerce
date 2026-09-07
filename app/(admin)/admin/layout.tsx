@@ -185,16 +185,20 @@ export default async function AdminLayout({
               <span className="absolute top-1.5 right-1.5 h-2 w-2 rounded-full bg-rose-500" />
             </Link>
 
-            {/* Admin Profile */}
-            <div className="flex items-center gap-3 border-l border-border/80 pl-4">
-              <div className="relative h-9 w-9 overflow-hidden rounded-full border border-border bg-muted shrink-0">
+            {/* Admin Profile & Security Link */}
+            <Link
+              href="/admin/settings?tab=security"
+              className="flex items-center gap-3 border-l border-border/80 pl-4 hover:opacity-80 transition-opacity group cursor-pointer"
+              title="Admin Security & Password Settings"
+            >
+              <div className="relative h-9 w-9 overflow-hidden rounded-full border border-border bg-muted shrink-0 group-hover:border-foreground transition-colors">
                 <Image src="/elaris-women.jpg" alt="Admin" fill className="object-cover" sizes="36px" />
               </div>
               <div className="hidden sm:block text-left">
-                <p className="text-xs font-bold text-foreground leading-tight">Admin</p>
+                <p className="text-xs font-bold text-foreground leading-tight group-hover:underline">Admin</p>
                 <p className="text-[10px] text-muted-foreground leading-tight">admin@elaris.com</p>
               </div>
-            </div>
+            </Link>
           </div>
         </header>
 

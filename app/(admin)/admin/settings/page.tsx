@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import {
   Store,
   Globe,
@@ -20,6 +20,16 @@ import { AdminPasswordChangeForm } from "@/components/admin/admin-password-chang
 
 export default function AdminSettingsPage() {
   const [activeTab, setActiveTab] = useState<"general" | "localization" | "payments" | "shipping" | "security">("general");
+
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      const params = new URLSearchParams(window.location.search);
+      const tab = params.get("tab");
+      if (tab === "security" || tab === "general" || tab === "localization" || tab === "payments" || tab === "shipping") {
+        setActiveTab(tab);
+      }
+    }
+  }, []);
   const [storeName, setStoreName] = useState("ELARIS");
   const [tagline, setTagline] = useState("More Than Clothing. Wear Your Story.");
   const [supportEmail, setSupportEmail] = useState("support@elaris.com");
