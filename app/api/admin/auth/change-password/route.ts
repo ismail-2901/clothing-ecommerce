@@ -29,7 +29,8 @@ export async function POST(req: Request) {
       );
     }
 
-    if (!verifyAdminPassword(currentPassword)) {
+    const isCurrentValid = await verifyAdminPassword(currentPassword);
+    if (!isCurrentValid) {
       return NextResponse.json(
         { error: "Current password does not match our records." },
         { status: 400 }
@@ -57,8 +58,8 @@ export async function POST(req: Request) {
       );
     }
 
-    // Persist new password with secure salt & HMAC hash
-    setAdminPassword(newPassword);
+    // Persist new password with secure salt & HMAC hash in database
+    await setAdminPassword(newPassword);
 
     // Refresh admin session token
     const newToken = getExpectedAdminToken();

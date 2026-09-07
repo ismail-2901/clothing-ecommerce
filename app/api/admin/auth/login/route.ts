@@ -6,7 +6,8 @@ export async function POST(req: Request) {
   try {
     const { password } = await req.json();
 
-    if (!password || !verifyAdminPassword(password)) {
+    const isValid = await verifyAdminPassword(password);
+    if (!password || !isValid) {
       return NextResponse.json(
         { error: "Incorrect admin password. Access denied." },
         { status: 401 }
