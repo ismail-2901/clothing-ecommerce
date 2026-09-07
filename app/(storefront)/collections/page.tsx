@@ -13,7 +13,6 @@ interface CollectionItem {
   title: string;
   subtitle: string;
   badge: string;
-  itemCount: string;
   image: string;
   href: string;
 }
@@ -24,7 +23,6 @@ const collections: CollectionItem[] = [
     title: "Minimalist Streetwear",
     subtitle: "Heavyweight cotton hoodies, relaxed-fit trousers, and structured monochrome staples.",
     badge: "New Drop",
-    itemCount: "18 Pieces",
     image: "/elaris-men.jpg",
     href: "/shop?category=men"
   },
@@ -33,7 +31,6 @@ const collections: CollectionItem[] = [
     title: "Contemporary Feminine",
     subtitle: "Soft knitwear, effortless denim cuts, and tailored essentials for everyday elegance.",
     badge: "Trending",
-    itemCount: "22 Pieces",
     image: "/elaris-women.jpg",
     href: "/shop?category=women"
   },
@@ -42,7 +39,6 @@ const collections: CollectionItem[] = [
     title: "Monochrome Studio",
     subtitle: "High-contrast blacks, architectural whites, and pure neutral tones designed to mix and match.",
     badge: "Core Capsule",
-    itemCount: "16 Pieces",
     image: "/elaris-hero.jpg",
     href: "/shop?color=black"
   },
@@ -51,7 +47,6 @@ const collections: CollectionItem[] = [
     title: "Signature Accessories",
     subtitle: "Premium embroidered caps, minimal acetate sunglasses, and refined everyday accents.",
     badge: "Essentials",
-    itemCount: "12 Pieces",
     image: "/elaris-accessories.jpg",
     href: "/shop?category=accessories"
   },
@@ -60,7 +55,6 @@ const collections: CollectionItem[] = [
     title: "Seasonal Deals & Edits",
     subtitle: "Limited-run pricing on our most sought-after silhouettes and warm-weather favorites.",
     badge: "Up to 30% Off",
-    itemCount: "14 Pieces",
     image: "/elaris-deals.jpg",
     href: "/offers"
   },
@@ -68,8 +62,7 @@ const collections: CollectionItem[] = [
     id: "urban-tailoring",
     title: "Urban Tailoring",
     subtitle: "Relaxed blazers, clean collar overshirts, and versatile bottoms built for day-to-night transitions.",
-    badge: "Editorial",
-    itemCount: "20 Pieces",
+    badge: "Seasonal",
     image: "/elaris-women.jpg",
     href: "/shop"
   }
@@ -118,16 +111,13 @@ export default function CollectionsPage() {
               </p>
             </div>
 
-            <div className="pt-8 flex flex-wrap items-center gap-4">
+            <div className="pt-8">
               <Link
                 href="/shop"
                 className="inline-flex items-center gap-2 rounded-md bg-white px-6 py-3 text-xs font-bold uppercase tracking-wider text-black hover:bg-zinc-100 transition-colors shadow-sm"
               >
                 Shop The Collection <ArrowRight size={14} aria-hidden="true" />
               </Link>
-              <span className="text-xs text-zinc-400 font-medium tracking-wide">
-                24 Selected Silhouettes
-              </span>
             </div>
           </div>
 
@@ -148,13 +138,10 @@ export default function CollectionsPage() {
 
       {/* Collections Grid */}
       <section className="space-y-6">
-        <div className="flex items-center justify-between border-b border-border pb-3">
+        <div className="border-b border-border pb-3">
           <h2 className="text-lg sm:text-xl font-bold tracking-tight text-foreground">
             Explore All Editions
           </h2>
-          <span className="text-xs text-muted-foreground">
-            {collections.length} Curated Drops
-          </span>
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
@@ -178,11 +165,6 @@ export default function CollectionsPage() {
                     {col.badge}
                   </span>
                 </div>
-                <div className="absolute right-3 bottom-3">
-                  <span className="rounded-full bg-black/60 backdrop-blur-sm px-2.5 py-0.5 text-[10px] font-semibold text-white">
-                    {col.itemCount}
-                  </span>
-                </div>
               </div>
 
               {/* Content Footer */}
@@ -197,7 +179,7 @@ export default function CollectionsPage() {
                 </div>
 
                 <div className="flex items-center justify-between pt-2 border-t border-border/60 text-xs font-bold uppercase tracking-wider text-foreground">
-                  <span>Explore Edit</span>
+                  <span>Explore</span>
                   <ArrowRight size={14} className="transition-transform group-hover:translate-x-1" aria-hidden="true" />
                 </div>
               </div>
