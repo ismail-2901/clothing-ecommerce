@@ -18,13 +18,6 @@ const categories = [
   { name: "Accessories", count: 4, slug: "accessories" },
 ];
 
-const colors = [
-  { name: "Black", hex: "#111111" },
-  { name: "Beige", hex: "#E6DBCB" },
-  { name: "Pink", hex: "#F3C5C5" },
-  { name: "Blue", hex: "#9BB7D4" },
-  { name: "Green", hex: "#A3C1AD" },
-];
 
 export default async function ShopPage({ searchParams }: ShopPageProps) {
   const params = await searchParams;
@@ -135,24 +128,7 @@ export default async function ShopPage({ searchParams }: ShopPageProps) {
             </div>
           </div>
 
-          {/* Color Filter */}
-          <div className="space-y-3 border-t border-border/80 pt-6">
-            <h2 className="text-xs font-bold uppercase tracking-wider text-foreground">Color</h2>
-            <div className="flex items-center gap-2">
-              {colors.map((c) => (
-                <button
-                  key={c.name}
-                  type="button"
-                  title={c.name}
-                  className="h-6 w-6 rounded-full border border-black/20 shadow-inner hover:scale-110 transition-transform"
-                  style={{ backgroundColor: c.hex }}
-                />
-              ))}
-              <span className="flex h-6 w-6 items-center justify-center rounded-full border border-border text-[11px] text-muted-foreground">
-                +
-              </span>
-            </div>
-          </div>
+
 
           {/* Sidebar Promo Card */}
           <div className="relative overflow-hidden rounded-xl border border-border bg-stone-100 p-5 space-y-3">
