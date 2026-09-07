@@ -16,6 +16,7 @@ import {
   Sparkles
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { AdminPasswordChangeForm } from "@/components/admin/admin-password-change-form";
 
 export default function AdminSettingsPage() {
   const [activeTab, setActiveTab] = useState<"general" | "localization" | "payments" | "shipping" | "security">("general");
@@ -288,6 +289,8 @@ export default function AdminSettingsPage() {
 
       {activeTab === "security" && (
         <div className="space-y-6">
+          <AdminPasswordChangeForm />
+
           <div className="rounded-xl border border-border bg-background p-6 shadow-sm space-y-4">
             <h2 className="text-sm font-bold uppercase tracking-wider text-foreground">
               Security Clearance &amp; Session Management
