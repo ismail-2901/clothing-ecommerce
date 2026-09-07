@@ -1,8 +1,8 @@
 "use client";
 
-import { useState } from "react";
+import { Suspense, useState } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { Search, UserRound, Heart, ShoppingBag, Menu, X } from "lucide-react";
 import { useCart } from "@/components/cart/cart-provider";
 import { useWishlist } from "@/components/wishlist/wishlist-provider";
@@ -15,6 +15,82 @@ const navItems = [
   ["Offers", "/offers"],
   ["About", "/about"]
 ] as const;
+
+function isNavItemActive(href: string, label: string, pathname: string, categoryParam: string | null) {
+  if (href.includes("?category=")) {
+    const targetCategory = href.split("?category=")[1];
+    return pathname === "/shop" && categoryParam?.toLowerCase() === targetCategory.toLowerCase();
+  }
+
+  if (href === "/shop" && label === "Shop") {
+    return (pathname === "/shop" && (!categoryParam || categoryParam === "all")) || pathname.startsWith("/products");
+  }
+
+  if (href === "/shop" && label === "Collections") {
+    return false;
+  }
+
+  if (href !== "/" && href !== "/shop") {
+    return pathname === href || pathname.startsWith(href + "/");
+  }
+
+  return false;
+}
+
+function HeaderNavLinks() {
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
+  const categoryParam = searchParams.get("category");
+
+  return (
+    <nav className="hidden items-center gap-7 text-[13px] font-semibold tracking-[0.06em] md:flex">
+      {navItems.map(([label, href]) => {
+        const isActive = isNavItemActive(href, label, pathname, categoryParam);
+        return (
+          <Link
+            key={label}
+            href={href}
+            className={`relative py-1 border-b-2 transition-colors duration-150 ${
+              isActive
+                ? "border-foreground text-foreground"
+                : "border-transparent text-foreground/80 hover:border-foreground hover:text-foreground"
+            }`}
+          >
+            {label}
+          </Link>
+        );
+      })}
+    </nav>
+  );
+}
+
+function MobileNavLinks({ onSelect }: { onSelect: () => void }) {
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
+  const categoryParam = searchParams.get("category");
+
+  return (
+    <nav className="flex flex-col gap-2">
+      {navItems.map(([label, href]) => {
+        const isActive = isNavItemActive(href, label, pathname, categoryParam);
+        return (
+          <Link
+            key={label}
+            href={href}
+            onClick={onSelect}
+            className={`rounded-md px-3 py-2 text-sm font-medium transition-colors ${
+              isActive
+                ? "bg-muted font-bold text-foreground border-l-2 border-foreground"
+                : "text-foreground/80 hover:bg-muted"
+            }`}
+          >
+            {label}
+          </Link>
+        );
+      })}
+    </nav>
+  );
+}
 
 export function SiteHeader() {
   const { itemCount } = useCart();
@@ -51,17 +127,23 @@ export function SiteHeader() {
         </Link>
 
         {/* Center Navigation */}
-        <nav className="hidden items-center gap-7 text-[13px] font-semibold tracking-[0.06em] text-foreground/80 md:flex">
-          {navItems.map(([label, href]) => (
-            <Link
-              key={label}
-              href={href}
-              className="hover:text-foreground transition-colors duration-150 relative py-1 hover:border-b-2 hover:border-foreground"
-            >
-              {label}
-            </Link>
-          ))}
-        </nav>
+        <Suspense
+          fallback={
+            <nav className="hidden items-center gap-7 text-[13px] font-semibold tracking-[0.06em] text-foreground/80 md:flex">
+              {navItems.map(([label, href]) => (
+                <Link
+                  key={label}
+                  href={href}
+                  className="relative py-1 border-b-2 border-transparent text-foreground/80 hover:border-foreground hover:text-foreground transition-colors duration-150"
+                >
+                  {label}
+                </Link>
+              ))}
+            </nav>
+          }
+        >
+          <HeaderNavLinks />
+        </Suspense>
 
         {/* Right Actions */}
         <div className="flex items-center gap-2 sm:gap-3">
@@ -144,18 +226,24 @@ export function SiteHeader() {
               className="h-10 w-full rounded-full border border-border bg-muted/40 pl-9 pr-4 text-sm focus:outline-none focus:border-foreground"
             />
           </form>
-          <nav className="flex flex-col gap-2">
-            {navItems.map(([label, href]) => (
-              <Link
-                key={label}
-                href={href}
-                onClick={() => setMobileMenuOpen(false)}
-                className="rounded-md px-3 py-2 text-sm font-medium hover:bg-muted"
-              >
-                {label}
-              </Link>
-            ))}
-          </nav>
+          <Suspense
+            fallback={
+              <nav className="flex flex-col gap-2">
+                {navItems.map(([label, href]) => (
+                  <Link
+                    key={label}
+                    href={href}
+                    onClick={() => setMobileMenuOpen(false)}
+                    className="rounded-md px-3 py-2 text-sm font-medium hover:bg-muted text-foreground/80"
+                  >
+                    {label}
+                  </Link>
+                ))}
+              </nav>
+            }
+          >
+            <MobileNavLinks onSelect={() => setMobileMenuOpen(false)} />
+          </Suspense>
         </div>
       )}
     </header>
