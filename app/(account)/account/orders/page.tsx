@@ -189,8 +189,8 @@ export default function AccountOrdersPage() {
           <div className="rounded-xl border border-border bg-background p-4 space-y-2 text-xs shadow-sm">
             <p className="font-bold text-foreground">Be the first to know</p>
             <p className="text-[11px] text-muted-foreground">Get exclusive offers &amp; style tips.</p>
-            <input placeholder="Enter your email" className="h-8 w-full rounded border border-border px-2 text-xs" />
-            <button className="h-8 w-full rounded bg-foreground text-xs font-bold text-background">
+            <input placeholder="Enter your email" className="h-8 w-full rounded-md border border-border px-2 text-xs" />
+            <button className="h-8 w-full rounded-md bg-foreground text-xs font-bold text-background">
               Subscribe
             </button>
           </div>

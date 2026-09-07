@@ -62,7 +62,11 @@
     text-decoration: none;
   }
 
-  button,
+  button {
+    font: inherit;
+    border-radius: var(--radius-md, 6px);
+  }
+
   input,
   select,
   textarea {
@@ -213,6 +217,7 @@
   letter-spacing: 0.1em;
   text-transform: uppercase;
   text-decoration: none;
+  border-radius: var(--radius-md, 6px);
   transition: opacity 0.15s;
   width: fit-content;
 }
