@@ -11,7 +11,7 @@ const navItems = [
   ["Shop", "/shop"],
   ["Women", "/shop?category=women"],
   ["Men", "/shop?category=men"],
-  ["Collections", "/shop"],
+  ["Collections", "/collections"],
   ["Offers", "/offers"],
   ["About", "/about"]
 ] as const;
@@ -24,10 +24,6 @@ function isNavItemActive(href: string, label: string, pathname: string, category
 
   if (href === "/shop" && label === "Shop") {
     return (pathname === "/shop" && (!categoryParam || categoryParam === "all")) || pathname.startsWith("/products");
-  }
-
-  if (href === "/shop" && label === "Collections") {
-    return false;
   }
 
   if (href !== "/" && href !== "/shop") {
