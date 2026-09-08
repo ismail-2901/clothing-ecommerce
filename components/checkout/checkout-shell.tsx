@@ -62,7 +62,8 @@ export function CheckoutShell() {
             quantity: item.quantity,
             price: item.price,
             size: item.size,
-            color: item.color
+            color: item.color,
+            image: item.image
           }))
         })
       });
@@ -76,6 +77,36 @@ export function CheckoutShell() {
       }
 
       const generatedId = result.orderNumber || result.orderId || `ELR-${new Date().toISOString().slice(0, 10).replace(/-/g, "")}-1842`;
+
+      // Save order snapshot to sessionStorage for reliable instant feedback on success page
+      if (typeof window !== "undefined") {
+        try {
+          window.sessionStorage.setItem("elaris_last_order", JSON.stringify({
+            orderNumber: generatedId,
+            customerName: formData.fullName,
+            email: formData.email,
+            phone: `+880${formData.phone}`,
+            address: formData.address,
+            city: formData.city,
+            paymentMethod: formData.paymentMethod,
+            total: summary.grandTotal || 537000,
+            subtotal: summary.subtotal || 597000,
+            shippingFee: summary.shippingFee,
+            items: items.map((item) => ({
+              name: item.name,
+              sku: item.sku,
+              color: item.color,
+              size: item.size,
+              quantity: item.quantity,
+              price: item.price,
+              image: item.image
+            }))
+          }));
+        } catch {
+          // ignore storage errors
+        }
+      }
+
       clearCart();
       router.push(`/checkout/success?orderId=${generatedId}&name=${encodeURIComponent(formData.fullName)}&total=${summary.grandTotal}`);
     } catch (err) {
@@ -367,11 +398,11 @@ export function CheckoutShell() {
           <div className="border-t border-border/80 pt-4 space-y-2 text-xs">
             <div className="flex justify-between text-muted-foreground">
               <span>Subtotal</span>
-              <span className="font-semibold text-foreground">{formatMoney(summary.subtotal || 5970)}</span>
+              <span className="font-semibold text-foreground">{formatMoney(summary.subtotal || 597000)}</span>
             </div>
             <div className="flex justify-between text-emerald-600">
               <span>Discount</span>
-              <span className="font-semibold">- {formatMoney(summary.couponDiscount || 600)}</span>
+              <span className="font-semibold">- {formatMoney(summary.couponDiscount || 60000)}</span>
             </div>
             <div className="flex justify-between text-muted-foreground">
               <span>Shipping</span>
@@ -383,7 +414,7 @@ export function CheckoutShell() {
           <div className="border-t border-border/80 pt-4">
             <div className="flex items-baseline justify-between">
               <span className="text-sm font-bold">Total</span>
-              <span className="text-2xl font-extrabold">{formatMoney(summary.grandTotal || 5370)}</span>
+              <span className="text-2xl font-extrabold">{formatMoney(summary.grandTotal || 537000)}</span>
             </div>
             <div className="mt-2 rounded-md bg-emerald-50 border border-emerald-100 p-2 text-center text-xs font-semibold text-emerald-700">
               🌱 You saved ৳600 on this order!

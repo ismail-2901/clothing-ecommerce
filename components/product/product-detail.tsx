@@ -97,8 +97,10 @@ export function ProductDetail({ product }: { product: CatalogProduct }) {
     );
   }, [product.variants, selectedColor, selectedSize]);
 
-  const price = activeVariant?.price ?? 2490;
-  const comparePrice = activeVariant?.compareAtPrice ?? 3200;
+  const rawPrice = activeVariant?.price ?? 249000;
+  const price = rawPrice > 0 && rawPrice < 10000 ? rawPrice * 100 : rawPrice;
+  const rawComparePrice = activeVariant?.compareAtPrice ?? 320000;
+  const comparePrice = rawComparePrice > 0 && rawComparePrice < 10000 ? rawComparePrice * 100 : rawComparePrice;
   const discountPct = comparePrice ? Math.round(((comparePrice - price) / comparePrice) * 100) : 22;
 
   const handleAddToCart = () => {

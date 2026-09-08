@@ -31,11 +31,11 @@ type WishlistItemDisplay = {
 };
 
 const mockWishlistDefault: WishlistItemDisplay[] = [
-  { id: "w1", slug: "oversized-hoodie", name: "Oversized Hoodie", price: 2490, original: 3200, discount: "22% OFF", badge: "Bestseller", colors: ["#111111", "#E5DCC5", "#4B5320"], image: "/elaris-women.jpg" },
-  { id: "w2", slug: "ribbed-tank-top", name: "Ribbed Tank Top", price: 1290, badge: "New", colors: ["#F9F9F9", "#F7D0D0", "#111111", "#9CA3AF"], image: "/elaris-women.jpg" },
-  { id: "w3", slug: "knit-sweater", name: "Knit Sweater", price: 2490, colors: ["#F5EFE6", "#D5C7B7", "#6B7280", "#111111"], image: "/elaris-women.jpg" },
-  { id: "w4", slug: "classic-blazer", name: "Classic Blazer", price: 3990, badge: "New", colors: ["#111111", "#78716C"], image: "/elaris-women.jpg" },
-  { id: "w5", slug: "classic-cap", name: "Classic Cap", price: 990, colors: ["#111111", "#E7E5E4", "#D6C7B2"], image: "/elaris-accessories.jpg" }
+  { id: "w1", slug: "oversized-hoodie", name: "Oversized Hoodie", price: 249000, original: 320000, discount: "22% OFF", badge: "Bestseller", colors: ["#111111", "#E5DCC5", "#4B5320"], image: "/elaris-women.jpg" },
+  { id: "w2", slug: "ribbed-tank-top", name: "Ribbed Tank Top", price: 129000, badge: "New", colors: ["#F9F9F9", "#F7D0D0", "#111111", "#9CA3AF"], image: "/elaris-women.jpg" },
+  { id: "w3", slug: "knit-sweater", name: "Knit Sweater", price: 249000, colors: ["#F5EFE6", "#D5C7B7", "#6B7280", "#111111"], image: "/elaris-women.jpg" },
+  { id: "w4", slug: "classic-blazer", name: "Classic Blazer", price: 399000, badge: "New", colors: ["#111111", "#78716C"], image: "/elaris-women.jpg" },
+  { id: "w5", slug: "classic-cap", name: "Classic Cap", price: 99000, colors: ["#111111", "#E7E5E4", "#D6C7B2"], image: "/elaris-accessories.jpg" }
 ];
 
 export default function AccountWishlistPage() {

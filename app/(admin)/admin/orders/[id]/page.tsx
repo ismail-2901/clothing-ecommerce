@@ -122,19 +122,25 @@ export default async function AdminOrderDetailPage({ params }: PageProps) {
               <p className="font-semibold flex items-center gap-2"><Package size={16} /> Items ({order.items.length})</p>
             </div>
             <div className="divide-y divide-border">
-              {order.items.map((item) => (
-                <div key={item.id} className="flex gap-4 p-5">
-                  {item.product.images[0] && (
-                    <img src={item.product.images[0].url} alt={item.product.images[0].alt} className="h-16 w-12 rounded object-cover" />
-                  )}
-                  <div className="flex-1">
-                    <p className="font-medium text-sm">{item.name}</p>
-                    <p className="text-xs text-muted-foreground mt-0.5">{item.variant.color} · {item.variant.size} · SKU: {item.variant.sku}</p>
-                    <p className="text-xs mt-1">{formatMoney(item.unitPrice)} × {item.quantity}</p>
+              {order.items.map((item) => {
+                const snapshot = item.productSnapshot as Record<string, any> | null;
+                const itemImg = snapshot?.image || item.product?.images?.[0]?.url || "/elaris-women.jpg";
+                const itemName = snapshot?.name || item.name;
+                const itemColor = snapshot?.color || item.variant?.color || item.color;
+                const itemSize = snapshot?.size || item.variant?.size || item.size;
+                const itemSku = snapshot?.sku || item.variant?.sku || item.sku;
+                return (
+                  <div key={item.id} className="flex gap-4 p-5">
+                    <img src={itemImg} alt={itemName} className="h-16 w-12 rounded object-cover" />
+                    <div className="flex-1">
+                      <p className="font-medium text-sm">{itemName}</p>
+                      <p className="text-xs text-muted-foreground mt-0.5">{itemColor} · {itemSize} · SKU: {itemSku}</p>
+                      <p className="text-xs mt-1">{formatMoney(item.unitPrice)} × {item.quantity}</p>
+                    </div>
+                    <p className="text-sm font-semibold">{formatMoney(item.lineTotal)}</p>
                   </div>
-                  <p className="text-sm font-semibold">{formatMoney(item.lineTotal)}</p>
-                </div>
-              ))}
+                );
+              })}
             </div>
           </div>
 

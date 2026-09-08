@@ -159,27 +159,32 @@ export default async function AccountOrderDetailPage({ params }: PageProps) {
               </p>
             </div>
             <div className="divide-y divide-border">
-              {order.items.map((item) => (
-                <div key={item.id} className="flex gap-4 p-5">
-                  {item.product.images[0] && (
+              {order.items.map((item) => {
+                const snapshot = item.productSnapshot as Record<string, any> | null;
+                const itemImg = snapshot?.image || item.product?.images?.[0]?.url || "/elaris-women.jpg";
+                const itemName = snapshot?.name || item.name;
+                const itemColor = snapshot?.color || item.color;
+                const itemSize = snapshot?.size || item.size;
+                return (
+                  <div key={item.id} className="flex gap-4 p-5">
                     <img
-                      src={item.product.images[0].url}
-                      alt={item.product.images[0].alt}
+                      src={itemImg}
+                      alt={itemName}
                       className="h-20 w-16 rounded-md object-cover"
                     />
-                  )}
-                  <div className="flex-1">
-                    <p className="font-medium">{item.name}</p>
-                    <p className="mt-0.5 text-sm text-muted-foreground">
-                      {item.color} · {item.size}
-                    </p>
-                    <p className="mt-1 text-sm">
-                      {formatMoney(item.unitPrice)} × {item.quantity}
-                    </p>
+                    <div className="flex-1">
+                      <p className="font-medium">{itemName}</p>
+                      <p className="mt-0.5 text-sm text-muted-foreground">
+                        {itemColor} · {itemSize}
+                      </p>
+                      <p className="mt-1 text-sm">
+                        {formatMoney(item.unitPrice)} × {item.quantity}
+                      </p>
+                    </div>
+                    <p className="font-semibold">{formatMoney(item.lineTotal)}</p>
                   </div>
-                  <p className="font-semibold">{formatMoney(item.lineTotal)}</p>
-                </div>
-              ))}
+                );
+              })}
             </div>
           </div>
         </div>

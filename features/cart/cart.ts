@@ -31,7 +31,10 @@ export type CartSummaryInput = {
 
 export function normalizeCartItem(input: CartItemInput): CartItem {
   const quantity = Number(input.quantity);
-  const price = Number(input.price);
+  let price = Number(input.price);
+  if (Number.isFinite(price) && price > 0 && price < 10000) {
+    price = price * 100;
+  }
 
   return {
     sku: input.sku,

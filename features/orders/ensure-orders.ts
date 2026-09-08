@@ -11,7 +11,27 @@ export async function ensureLegacyOrders() {
       }
     });
 
-    if (existing) return;
+    if (existing) {
+      // If order was previously saved with 5370 (BDT 54) due to minor unit bug, fix it
+      if (existing.grandTotal < 10000) {
+        await prisma.order.update({
+          where: { id: existing.id },
+          data: {
+            subtotal: 537000,
+            grandTotal: 537000
+          }
+        }).catch(() => undefined);
+
+        await prisma.orderItem.updateMany({
+          where: { orderId: existing.id },
+          data: {
+            unitPrice: 537000,
+            lineTotal: 537000
+          }
+        }).catch(() => undefined);
+      }
+      return;
+    }
 
     let variant: { id: string; sku: string; color: string; size: string; product: { id: string; name: string } } | null =
       await prisma.productVariant.findFirst({
@@ -37,10 +57,10 @@ export async function ensureLegacyOrders() {
         paymentStatus: "PENDING",
         guestEmail: "ismailhossain@email.com",
         guestPhone: "+8801712345678",
-        subtotal: 5370,
+        subtotal: 537000,
         discountTotal: 0,
         shippingTotal: 0,
-        grandTotal: 5370,
+        grandTotal: 537000,
         currency: "BDT",
         deliveryAddress: {
           name: "Md. Ismail Hossain",
@@ -65,7 +85,7 @@ export async function ensureLegacyOrders() {
         payments: {
           create: {
             provider: "COD",
-            amount: 5370,
+            amount: 537000,
             currency: "BDT",
             status: "PENDING"
           }
@@ -83,13 +103,16 @@ export async function ensureLegacyOrders() {
           name: product.name,
           color: variant.color || "Black",
           size: variant.size || "M",
-          unitPrice: 5370,
+          unitPrice: 537000,
           quantity: 1,
-          lineTotal: 5370,
+          lineTotal: 537000,
           productSnapshot: {
             name: product.name,
             sku: variant.sku,
-            price: 5370
+            color: variant.color || "Black",
+            size: variant.size || "M",
+            price: 537000,
+            image: "/elaris-hero.jpg"
           }
         }
       }).catch(() => undefined);
@@ -99,11 +122,11 @@ export async function ensureLegacyOrders() {
       data: {
         channel: "IN_APP",
         title: "New Order Placed (#ELR-20260905-1842)",
-        body: "Md. Ismail Hossain placed an order for ৳54 via Cash on Delivery. Ready for fulfillment.",
+        body: "Md. Ismail Hossain placed an order for ৳5,370 via Cash on Delivery. Ready for fulfillment.",
         metadata: {
           orderId: newOrder.id,
           orderNumber: "ELR-20260905-1842",
-          total: 5370,
+          total: 537000,
           customer: "Md. Ismail Hossain",
           type: "ORDER",
           link: "/admin/orders"
@@ -111,7 +134,6 @@ export async function ensureLegacyOrders() {
       }
     }).catch(() => undefined);
   } catch (err) {
-    // Non-blocking in case of connection limits
     console.error("Order backfill note:", err);
   }
 }

@@ -8,10 +8,10 @@ import { useCart } from "@/components/cart/cart-provider";
 import { formatMoney } from "@/lib/utils/money";
 
 const recommendations = [
-  { id: "rec1", name: "Knit Sweater", price: 2490, image: "/elaris-women.jpg", slug: "knit-sweater" },
-  { id: "rec2", name: "Basic Hoodie", price: 2190, originalPrice: 2800, discount: "21% OFF", image: "/elaris-men.jpg", slug: "basic-hoodie" },
-  { id: "rec3", name: "Oversized Shirt", price: 1890, image: "/elaris-women.jpg", slug: "oversized-shirt" },
-  { id: "rec4", name: "Classic Cap", price: 990, image: "/elaris-accessories.jpg", slug: "classic-cap" },
+  { id: "rec1", name: "Knit Sweater", price: 249000, image: "/elaris-women.jpg", slug: "knit-sweater" },
+  { id: "rec2", name: "Basic Hoodie", price: 219000, originalPrice: 280000, discount: "21% OFF", image: "/elaris-men.jpg", slug: "basic-hoodie" },
+  { id: "rec3", name: "Oversized Shirt", price: 189000, image: "/elaris-women.jpg", slug: "oversized-shirt" },
+  { id: "rec4", name: "Classic Cap", price: 99000, image: "/elaris-accessories.jpg", slug: "classic-cap" },
 ];
 
 export function CartPageContent() {

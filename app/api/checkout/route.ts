@@ -27,7 +27,8 @@ const checkoutSchema = z.object({
       quantity: z.number().int().min(1),
       price: z.number().int().min(0),
       size: z.string().optional(),
-      color: z.string().optional()
+      color: z.string().optional(),
+      image: z.string().optional()
     })
   ),
   couponCode: z.string().optional()
@@ -69,13 +70,16 @@ export async function POST(request: Request) {
   }
 
   const summary = calculateCartTotals({
-    lines: data.cartItems.map((item, index) => ({
-      id: `${item.sku}-${index}`,
-      productId: item.productId,
-      name: item.name,
-      unitPrice: item.price,
-      quantity: item.quantity
-    })),
+    lines: data.cartItems.map((item, index) => {
+      const normalizedPrice = item.price > 0 && item.price < 10000 ? item.price * 100 : item.price;
+      return {
+        id: `${item.sku}-${index}`,
+        productId: item.productId,
+        name: item.name,
+        unitPrice: normalizedPrice,
+        quantity: item.quantity
+      };
+    }),
     shippingFee: 8000,
     coupon: data.couponCode
       ? {
@@ -147,29 +151,64 @@ export async function POST(request: Request) {
 
       // 2. Create OrderItems & update stock
       for (const item of data.cartItems) {
-        // Try finding variant by SKU or productId
-        let variant = await tx.productVariant.findFirst({
-          where: {
-            OR: [
-              { sku: item.sku },
-              { productId: item.productId }
-            ]
-          },
-          include: { product: true }
-        });
+        const itemPrice = item.price > 0 && item.price < 10000 ? item.price * 100 : item.price;
+
+        // First try finding variant by exact SKU
+        let variant = item.sku ? await tx.productVariant.findFirst({
+          where: { sku: item.sku },
+          include: { product: { include: { images: true } } }
+        }) : null;
 
         let product = variant?.product ?? null;
         if (!product) {
-          product =
-            (await tx.product.findUnique({
-              where: { id: item.productId }
-            })) || (await tx.product.findFirst());
+          // Look up product by id, slug, or name
+          product = await tx.product.findFirst({
+            where: {
+              OR: [
+                { id: item.productId },
+                { slug: item.productId },
+                { name: item.name }
+              ]
+            },
+            include: { images: true }
+          });
+        }
+
+        // If product not found in DB, create it with user's selected name, price, and image
+        if (!product) {
+          const category = (await tx.category.findFirst()) || (await tx.category.create({
+            data: { name: "Clothing", slug: "clothing" }
+          }));
+          const slug = (item.name || "product").toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "") + `-${Date.now()}`;
+          product = await tx.product.create({
+            data: {
+              name: item.name,
+              slug,
+              description: item.name,
+              basePrice: itemPrice,
+              categoryId: category.id,
+              status: "PUBLISHED",
+              images: item.image ? {
+                create: {
+                  storageKey: `checkout/${slug}.jpg`,
+                  url: item.image,
+                  alt: item.name,
+                  position: 0
+                }
+              } : undefined
+            },
+            include: { images: true }
+          });
         }
 
         if (!variant && product) {
           variant = await tx.productVariant.findFirst({
-            where: { productId: product.id },
-            include: { product: true }
+            where: {
+              productId: product.id,
+              ...(item.color ? { color: { equals: item.color, mode: "insensitive" } } : {}),
+              ...(item.size ? { size: { equals: item.size, mode: "insensitive" } } : {})
+            },
+            include: { product: { include: { images: true } } }
           });
 
           if (!variant) {
@@ -181,30 +220,32 @@ export async function POST(request: Request) {
                 size: item.size || "Regular",
                 stockQuantity: 100
               },
-              include: { product: true }
+              include: { product: { include: { images: true } } }
             });
           }
         }
 
         if (variant && product) {
+          const snapshotImage = item.image || (product.images as any)?.[0]?.url || "";
           await tx.orderItem.create({
             data: {
               orderId: newOrder.id,
               productId: product.id,
               variantId: variant.id,
-              sku: variant.sku,
+              sku: item.sku || variant.sku,
               name: item.name || product.name,
-              color: variant.color,
-              size: variant.size,
-              unitPrice: item.price,
+              color: item.color || variant.color,
+              size: item.size || variant.size,
+              unitPrice: itemPrice,
               quantity: item.quantity,
-              lineTotal: item.price * item.quantity,
+              lineTotal: itemPrice * item.quantity,
               productSnapshot: {
                 name: item.name || product.name,
-                sku: variant.sku,
-                color: variant.color,
-                size: variant.size,
-                price: item.price
+                sku: item.sku || variant.sku,
+                color: item.color || variant.color,
+                size: item.size || variant.size,
+                price: itemPrice,
+                image: snapshotImage
               }
             }
           });

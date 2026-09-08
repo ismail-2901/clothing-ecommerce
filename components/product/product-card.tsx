@@ -21,8 +21,10 @@ const colorMap: Record<string, string> = {
 
 export function ProductCard({ product }: { product: CatalogProduct }) {
   const variant = product.variants[0];
-  const price = variant?.price ?? 2490;
-  const comparePrice = variant?.compareAtPrice ?? (price > 2000 ? Math.round(price * 1.25) : undefined);
+  const rawPrice = variant?.price ?? 249000;
+  const price = rawPrice > 0 && rawPrice < 10000 ? rawPrice * 100 : rawPrice;
+  const rawComparePrice = variant?.compareAtPrice ?? (price > 200000 ? Math.round(price * 1.25) : undefined);
+  const comparePrice = rawComparePrice && rawComparePrice < 10000 ? rawComparePrice * 100 : rawComparePrice;
   const discountPct = comparePrice ? Math.round(((comparePrice - price) / comparePrice) * 100) : null;
   const colors = [...new Set(product.variants.map((item) => item.color.toLowerCase()))];
   const rating = 4.8;

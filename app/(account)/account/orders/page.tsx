@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import {
@@ -41,7 +41,7 @@ const mockOrders: OrderItem[] = [
     orderNumber: "ELR-20260905-1842",
     placedDate: "5 Sep, 2026 | 10:42 PM",
     status: "Processing",
-    total: 5370,
+    total: 537000,
     itemsCount: 5,
     thumbnails: ["/elaris-women.jpg", "/elaris-hero.jpg", "/elaris-women.jpg"],
     steps: [
@@ -57,7 +57,7 @@ const mockOrders: OrderItem[] = [
     orderNumber: "ELR-20260828-1120",
     placedDate: "28 Aug, 2026",
     status: "Delivered",
-    total: 3980,
+    total: 398000,
     itemsCount: 3,
     thumbnails: ["/elaris-women.jpg", "/elaris-accessories.jpg", "/elaris-women.jpg"],
     steps: [
@@ -73,7 +73,7 @@ const mockOrders: OrderItem[] = [
     orderNumber: "ELR-20260812-0956",
     placedDate: "12 Aug, 2026",
     status: "Cancelled",
-    total: 2190,
+    total: 219000,
     itemsCount: 2,
     thumbnails: ["/elaris-men.jpg", "/elaris-women.jpg"],
     steps: [
@@ -89,7 +89,7 @@ const mockOrders: OrderItem[] = [
     orderNumber: "ELR-20260725-2210",
     placedDate: "25 Jul, 2026",
     status: "Delivered",
-    total: 4280,
+    total: 428000,
     itemsCount: 2,
     thumbnails: ["/elaris-women.jpg", "/elaris-women.jpg"],
     steps: [
@@ -105,7 +105,7 @@ const mockOrders: OrderItem[] = [
     orderNumber: "ELR-20260710-1433",
     placedDate: "10 Jul, 2026",
     status: "Delivered",
-    total: 2490,
+    total: 249000,
     itemsCount: 1,
     thumbnails: ["/elaris-men.jpg"],
     steps: [
@@ -119,10 +119,50 @@ const mockOrders: OrderItem[] = [
 ];
 
 export default function AccountOrdersPage() {
+  const [orders, setOrders] = useState<OrderItem[]>(mockOrders);
   const [filterTab, setFilterTab] = useState<string>("all");
   const [searchQuery, setSearchQuery] = useState("");
 
-  const filteredOrders = mockOrders.filter((order) => {
+  useEffect(() => {
+    // If the customer placed an order in this browser session, show it at the top with its real thumbnail
+    if (typeof window !== "undefined") {
+      try {
+        const lastOrderStr = window.sessionStorage.getItem("elaris_last_order");
+        if (lastOrderStr) {
+          const lastOrder = JSON.parse(lastOrderStr);
+          const thumbnails = (lastOrder.items || []).map((i: any) => i.image).filter(Boolean);
+          const newOrderEntry: OrderItem = {
+            id: `session-${lastOrder.orderNumber}`,
+            orderNumber: lastOrder.orderNumber,
+            placedDate: "Just now",
+            status: "Processing",
+            total: lastOrder.total || 537000,
+            itemsCount: (lastOrder.items || []).reduce((acc: number, item: any) => acc + (item.quantity || 1), 0) || 1,
+            thumbnails: thumbnails.length > 0 ? thumbnails : ["/elaris-hero.jpg"],
+            steps: [
+              { label: "Order Placed", date: "Just now", active: true },
+              { label: "Confirmed", active: true },
+              { label: "Processing", date: "In progress", active: true, current: true },
+              { label: "Shipped", active: false },
+              { label: "Delivered", active: false }
+            ]
+          };
+
+          setOrders((prev) => {
+            const exists = prev.some((o) => o.orderNumber === lastOrder.orderNumber);
+            if (exists) {
+              return prev.map((o) => (o.orderNumber === lastOrder.orderNumber ? newOrderEntry : o));
+            }
+            return [newOrderEntry, ...prev];
+          });
+        }
+      } catch {
+        // ignore
+      }
+    }
+  }, []);
+
+  const filteredOrders = orders.filter((order) => {
     if (filterTab !== "all" && order.status.toLowerCase() !== filterTab) return false;
     if (searchQuery.trim() && !order.orderNumber.toLowerCase().includes(searchQuery.toLowerCase())) return false;
     return true;
@@ -376,7 +416,7 @@ export default function AccountOrdersPage() {
               </div>
               <div className="flex justify-between">
                 <span className="text-muted-foreground">Total Spent</span>
-                <span className="font-bold text-foreground">{formatMoney(18310)}</span>
+                <span className="font-bold text-foreground">{formatMoney(1831000)}</span>
               </div>
               <div className="flex justify-between">
                 <span className="text-muted-foreground">Default Address</span>

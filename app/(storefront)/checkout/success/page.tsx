@@ -1,6 +1,6 @@
 "use client";
 
-import { Suspense, useState } from "react";
+import { Suspense, useEffect, useState } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import { useSearchParams } from "next/navigation";
@@ -15,23 +15,124 @@ export default function CheckoutSuccessPage() {
   );
 }
 
+type OrderItemData = {
+  id?: string;
+  name: string;
+  sku?: string;
+  color?: string;
+  size?: string;
+  price: number;
+  quantity: number;
+  lineTotal?: number;
+  image?: string;
+};
+
+type LoadedOrder = {
+  orderNumber: string;
+  customerName: string;
+  email: string;
+  phone: string;
+  address: string;
+  city: string;
+  paymentMethod: string;
+  total: number;
+  subtotal: number;
+  shippingFee: number;
+  dateStr: string;
+  items: OrderItemData[];
+};
+
 function CheckoutSuccessContent() {
   const searchParams = useSearchParams();
-  const orderId = searchParams.get("orderId") || "ELR-20260905-1842";
-  const customerName = searchParams.get("name") || "Ismail";
+  const queryOrderId = searchParams.get("orderId") || "ELR-20260905-1842";
+  const queryName = searchParams.get("name") || "Customer";
+  const queryTotal = Number(searchParams.get("total")) || 537000;
+
   const [copied, setCopied] = useState(false);
+  const [order, setOrder] = useState<LoadedOrder | null>(null);
+
+  useEffect(() => {
+    // 1. Try restoring from sessionStorage for instant zero-latency view
+    if (typeof window !== "undefined") {
+      try {
+        const stored = window.sessionStorage.getItem("elaris_last_order");
+        if (stored) {
+          const parsed = JSON.parse(stored);
+          if (parsed.orderNumber === queryOrderId || !order) {
+            setOrder({
+              orderNumber: parsed.orderNumber || queryOrderId,
+              customerName: parsed.customerName || queryName,
+              email: parsed.email || "",
+              phone: parsed.phone || "",
+              address: parsed.address || "Dhaka",
+              city: parsed.city || "Dhaka",
+              paymentMethod: parsed.paymentMethod || "COD",
+              total: parsed.total || queryTotal,
+              subtotal: parsed.subtotal || parsed.total || queryTotal,
+              shippingFee: parsed.shippingFee ?? 8000,
+              dateStr: new Date().toLocaleDateString("en-BD", { day: "numeric", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit" }),
+              items: parsed.items || []
+            });
+          }
+        }
+      } catch {
+        // ignore storage error
+      }
+    }
+
+    // 2. Fetch fresh order from API
+    if (queryOrderId) {
+      fetch(`/api/orders/${encodeURIComponent(queryOrderId)}`)
+        .then((res) => (res.ok ? res.json() : null))
+        .then((data) => {
+          if (data?.order) {
+            const o = data.order;
+            const addr = o.deliveryAddress || {};
+            setOrder({
+              orderNumber: o.orderNumber,
+              customerName: o.customerName || queryName,
+              email: o.customerEmail || "",
+              phone: o.customerPhone || "",
+              address: [addr.line1, addr.line2, addr.area].filter(Boolean).join(", ") || "Mirpur, Dhaka",
+              city: addr.city || "Dhaka",
+              paymentMethod: o.paymentProvider || "COD",
+              total: o.grandTotal,
+              subtotal: o.subtotal,
+              shippingFee: o.shippingTotal,
+              dateStr: new Date(o.createdAt).toLocaleDateString("en-BD", { day: "numeric", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit" }),
+              items: o.items || []
+            });
+          }
+        })
+        .catch(() => undefined);
+    }
+  }, [queryOrderId, queryName, queryTotal]);
+
+  const activeOrderId = order?.orderNumber || queryOrderId;
+  const activeCustomerName = order?.customerName || queryName;
+  const activeTotal = order?.total || queryTotal;
+  const activeItems = order?.items && order.items.length > 0 ? order.items : [
+    {
+      name: "Black Linen Shirt",
+      color: "Black",
+      size: "M",
+      quantity: 1,
+      price: activeTotal,
+      image: "/elaris-hero.jpg"
+    }
+  ];
 
   const handleCopy = () => {
-    navigator.clipboard.writeText(orderId);
+    navigator.clipboard.writeText(activeOrderId);
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
   };
 
   const recommendations = [
-    { id: "r1", name: "Knit Sweater", price: 2490, image: "/elaris-women.jpg", slug: "knit-sweater" },
-    { id: "r2", name: "Basic Hoodie", price: 2190, original: 2800, discount: "21% OFF", image: "/elaris-men.jpg", slug: "basic-hoodie" },
-    { id: "r3", name: "Oversized Shirt", price: 1890, image: "/elaris-women.jpg", slug: "oversized-shirt" },
-    { id: "r4", name: "Classic Cap", price: 990, image: "/elaris-accessories.jpg", slug: "classic-cap" },
+    { id: "r1", name: "Knit Sweater", price: 249000, image: "/elaris-women.jpg", slug: "knit-sweater" },
+    { id: "r2", name: "Basic Hoodie", price: 219000, original: 280000, discount: "21% OFF", image: "/elaris-men.jpg", slug: "basic-hoodie" },
+    { id: "r3", name: "Oversized Shirt", price: 189000, image: "/elaris-women.jpg", slug: "oversized-shirt" },
+    { id: "r4", name: "Classic Cap", price: 99000, image: "/elaris-accessories.jpg", slug: "classic-cap" },
   ];
 
   return (
@@ -47,7 +148,7 @@ function CheckoutSuccessContent() {
               ORDER PLACED SUCCESSFULLY
             </p>
             <h1 className="text-3xl sm:text-4xl font-extrabold tracking-tight text-foreground">
-              Thank You, {customerName.split(" ")[0]}!
+              Thank You, {activeCustomerName.split(" ")[0]}!
             </h1>
             <p className="text-sm text-muted-foreground leading-relaxed max-w-lg">
               Your order has been placed successfully. We&apos;ll notify you once your order is confirmed.
@@ -68,24 +169,36 @@ function CheckoutSuccessContent() {
             </div>
           </div>
 
-          {/* Editorial Banner Right Column */}
-          <div className="relative hidden lg:flex h-56 rounded-xl overflow-hidden bg-muted/40 items-center justify-between p-6">
-            <div className="space-y-1 z-10">
-              <p className="font-serif italic text-3xl text-foreground tracking-wide">
-                More<br />Than<br />Clothing
-              </p>
-              <p className="text-[10px] font-bold tracking-widest text-foreground pt-2">ELARIS</p>
-              <p className="text-[9px] uppercase tracking-wider text-muted-foreground">Wear Your Story</p>
+          {/* Purchased Items Preview in Hero Banner */}
+          <div className="relative rounded-xl border border-border/80 bg-muted/20 p-5 space-y-3">
+            <div className="flex items-center justify-between text-xs border-b border-border/60 pb-2">
+              <span className="font-bold text-foreground">Purchased Items ({activeItems.length})</span>
+              <span className="font-extrabold text-foreground">{formatMoney(activeTotal)}</span>
             </div>
-            <div className="relative h-full w-48 shrink-0 overflow-hidden rounded-lg">
-              <Image
-                src="/elaris-women.jpg"
-                alt="Elaris Model"
-                fill
-                className="object-cover"
-                sizes="192px"
-              />
+            <div className="flex items-center gap-3 overflow-x-auto py-1">
+              {activeItems.map((item, idx) => (
+                <div key={idx} className="flex items-center gap-2.5 shrink-0 bg-background rounded-lg border border-border p-2 pr-3">
+                  <div className="relative h-12 w-10 shrink-0 overflow-hidden rounded bg-muted">
+                    <Image
+                      src={item.image || "/elaris-women.jpg"}
+                      alt={item.name}
+                      fill
+                      className="object-cover"
+                      sizes="40px"
+                    />
+                  </div>
+                  <div className="text-left max-w-[130px]">
+                    <p className="text-xs font-bold text-foreground truncate">{item.name}</p>
+                    <p className="text-[10px] text-muted-foreground">
+                      {item.size || "M"} · Qty: {item.quantity}
+                    </p>
+                  </div>
+                </div>
+              ))}
             </div>
+            <p className="text-[11px] text-muted-foreground">
+              Payment: <strong className="text-foreground">{order?.paymentMethod || "Cash on Delivery"}</strong>
+            </p>
           </div>
         </div>
       </div>
@@ -96,14 +209,16 @@ function CheckoutSuccessContent() {
         <div className="rounded-xl border border-border bg-background p-6 space-y-6 shadow-sm">
           <div className="flex items-center justify-between border-b border-border/80 pb-4">
             <h2 className="text-base font-bold text-foreground">Order Details</h2>
-            <span className="text-xs text-muted-foreground">Order Date: 5 Sep, 2026 | 10:42 PM</span>
+            <span className="text-xs text-muted-foreground">
+              Order Date: {order?.dateStr || new Date().toLocaleDateString("en-BD", { day: "numeric", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit" })}
+            </span>
           </div>
 
           <div className="grid gap-5 sm:grid-cols-2 text-xs">
             <div>
               <p className="text-muted-foreground">Order Number</p>
               <div className="mt-1 flex items-center gap-2">
-                <span className="font-bold text-sm text-foreground">{orderId}</span>
+                <span className="font-bold text-sm text-foreground">{activeOrderId}</span>
                 <button
                   type="button"
                   onClick={handleCopy}
@@ -125,20 +240,22 @@ function CheckoutSuccessContent() {
 
             <div>
               <p className="text-muted-foreground">Payment Method</p>
-              <p className="mt-1 font-semibold text-foreground">Cash on Delivery</p>
+              <p className="mt-1 font-semibold text-foreground">
+                {order?.paymentMethod === "COD" ? "Cash on Delivery" : (order?.paymentMethod || "Cash on Delivery")}
+              </p>
             </div>
 
             <div>
               <p className="text-muted-foreground">Estimated Delivery</p>
-              <p className="mt-1 font-semibold text-foreground">10 - 14 Sep, 2026</p>
+              <p className="mt-1 font-semibold text-foreground">2 - 4 Business Days</p>
             </div>
 
             <div className="sm:col-span-2">
               <p className="text-muted-foreground">Shipping Address</p>
-              <p className="mt-1 font-medium text-foreground leading-relaxed">
-                Md. Ismail Hossain<br />
-                House 12, Road 5, Block C<br />
-                Mirpur, Dhaka 1216<br />
+              <p className="mt-1 font-medium text-foreground leading-relaxed whitespace-pre-line">
+                {activeCustomerName}
+                {order?.phone ? ` (${order.phone})` : ""}<br />
+                {order?.address ? `${order.address}, ${order.city}` : "Mirpur, Dhaka 1216"}<br />
                 Bangladesh
               </p>
             </div>
@@ -147,7 +264,7 @@ function CheckoutSuccessContent() {
               <div>
                 <p className="text-muted-foreground">Total Amount</p>
                 <p className="text-xl font-extrabold text-foreground">
-                  {formatMoney(Number(searchParams.get("total")) || 5370)}
+                  {formatMoney(activeTotal)}
                 </p>
               </div>
               <span className="text-xs font-semibold text-emerald-600">Verified Order</span>
@@ -171,7 +288,7 @@ function CheckoutSuccessContent() {
                 <Check size={16} strokeWidth={2.5} />
               </div>
               <p className="font-bold text-foreground">Order Placed</p>
-              <p className="text-muted-foreground">5 Sep, 10:42 PM</p>
+              <p className="text-muted-foreground">Today</p>
             </div>
 
             <div className="space-y-1.5">
@@ -225,71 +342,44 @@ function CheckoutSuccessContent() {
       {/* Items In This Order */}
       <div className="rounded-xl border border-border bg-background p-6 space-y-4 shadow-sm">
         <div className="flex items-center justify-between border-b border-border/80 pb-3">
-          <h2 className="text-base font-bold text-foreground">Items in This Order (3)</h2>
-          <Link href="/cart" className="text-xs font-semibold text-muted-foreground hover:text-foreground">
-            View All Items →
+          <h2 className="text-base font-bold text-foreground">Items in This Order ({activeItems.length})</h2>
+          <Link href="/shop" className="text-xs font-semibold text-muted-foreground hover:text-foreground">
+            Continue Shopping →
           </Link>
         </div>
 
         <div className="divide-y divide-border/60">
-          <div className="py-3 flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              <div className="relative h-14 w-12 shrink-0 overflow-hidden rounded bg-muted">
-                <Image src="/elaris-women.jpg" alt="Oversized Hoodie" fill className="object-cover" sizes="48px" />
+          {activeItems.map((item, idx) => (
+            <div key={idx} className="py-3 flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <div className="relative h-14 w-12 shrink-0 overflow-hidden rounded bg-muted">
+                  <Image
+                    src={item.image || "/elaris-women.jpg"}
+                    alt={item.name}
+                    fill
+                    className="object-cover"
+                    sizes="48px"
+                  />
+                </div>
+                <div>
+                  <p className="text-xs font-bold text-foreground">{item.name}</p>
+                  <p className="text-[11px] text-muted-foreground">
+                    Color: {item.color || "Standard"} | Size: {item.size || "Regular"} | Qty: {item.quantity}
+                  </p>
+                </div>
               </div>
-              <div>
-                <p className="text-xs font-bold text-foreground">Oversized Hoodie</p>
-                <p className="text-[11px] text-muted-foreground">Color: Black | Size: M | Qty: 1</p>
-              </div>
-            </div>
-            <div className="text-right">
-              <p className="text-xs font-bold">{formatMoney(2490)}</p>
-              <p className="text-[10px] text-muted-foreground line-through">{formatMoney(3200)}</p>
-            </div>
-          </div>
-
-          <div className="py-3 flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              <div className="relative h-14 w-12 shrink-0 overflow-hidden rounded bg-muted">
-                <Image src="/elaris-women.jpg" alt="Ribbed Tank Top" fill className="object-cover" sizes="48px" />
-              </div>
-              <div>
-                <p className="text-xs font-bold text-foreground">Ribbed Tank Top</p>
-                <p className="text-[11px] text-muted-foreground">Color: White | Size: S | Qty: 1</p>
+              <div className="text-right">
+                <p className="text-xs font-bold">{formatMoney(item.price * item.quantity)}</p>
               </div>
             </div>
-            <div className="text-right">
-              <p className="text-xs font-bold">{formatMoney(1290)}</p>
-            </div>
-          </div>
-
-          <div className="py-3 flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              <div className="relative h-14 w-12 shrink-0 overflow-hidden rounded bg-muted">
-                <Image src="/elaris-women.jpg" alt="Wide Leg Pants" fill className="object-cover" sizes="48px" />
-              </div>
-              <div>
-                <p className="text-xs font-bold text-foreground">Wide Leg Pants</p>
-                <p className="text-[11px] text-muted-foreground">Color: Black | Size: M | Qty: 1</p>
-              </div>
-            </div>
-            <div className="text-right">
-              <p className="text-xs font-bold">{formatMoney(2190)}</p>
-              <p className="text-[10px] text-muted-foreground line-through">{formatMoney(2800)}</p>
-            </div>
-          </div>
+          ))}
         </div>
       </div>
 
-      {/* You Might Also Like Carousel */}
-      <section className="border-t border-border/80 pt-10 space-y-6">
-        <div className="flex items-center justify-between">
-          <h2 className="text-xl font-bold tracking-tight text-foreground">You Might Also Like</h2>
-          <Link href="/shop" className="text-xs font-semibold text-muted-foreground hover:text-foreground">
-            View Collection →
-          </Link>
-        </div>
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+      {/* Recommended Products Carousel */}
+      <div className="space-y-4 pt-4 border-t border-border/80">
+        <h2 className="text-base font-bold text-foreground">You May Also Like</h2>
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
           {recommendations.map((item) => (
             <Link
               key={item.id}
@@ -324,7 +414,7 @@ function CheckoutSuccessContent() {
             </Link>
           ))}
         </div>
-      </section>
+      </div>
     </div>
   );
 }
