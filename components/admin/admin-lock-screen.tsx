@@ -63,7 +63,6 @@ export function AdminLockScreen() {
             id="admin-password"
             type="password"
             label="Master Admin Password"
-            placeholder="••••••••••••"
             required
             autoFocus
             autoComplete="current-password"
