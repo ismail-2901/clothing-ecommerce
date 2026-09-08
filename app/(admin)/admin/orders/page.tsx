@@ -17,6 +17,7 @@ import {
 import { prisma } from "@/db/prisma";
 import { AdminSearchInput } from "@/components/admin/admin-search-input";
 import type { OrderStatus } from "@prisma/client";
+import { ensureLegacyOrders } from "@/features/orders/ensure-orders";
 
 const statusMap: Record<string, { label: string; class: string }> = {
   DELIVERED: { label: "Delivered", class: "bg-emerald-50 text-emerald-700 border-emerald-200" },
@@ -45,6 +46,7 @@ type PageProps = {
 };
 
 export default async function AdminOrdersPage({ searchParams }: PageProps) {
+  await ensureLegacyOrders();
   const { q, status } = (await searchParams) || {};
 
   const whereClause: Record<string, unknown> = {};

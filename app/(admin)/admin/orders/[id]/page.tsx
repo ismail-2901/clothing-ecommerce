@@ -10,6 +10,7 @@ import { isValidAdminSession } from "@/lib/auth/admin-auth";
 import { AdminOrderStatusUpdater } from "@/components/admin/admin-order-status-updater";
 import type { OrderStatus } from "@/features/orders/state-machine";
 import { prisma } from "@/db/prisma";
+import { ensureLegacyOrders } from "@/features/orders/ensure-orders";
 
 type PageProps = { params: Promise<{ id: string }> };
 
@@ -64,10 +65,16 @@ export default async function AdminOrderDetailPage({ params }: PageProps) {
     if (!isAdmin) redirect("/admin");
   }
 
+  await ensureLegacyOrders();
   const { id } = await params;
 
-  const order = await prisma.order.findUnique({
-    where: { id },
+  const order = await prisma.order.findFirst({
+    where: {
+      OR: [
+        { id },
+        { orderNumber: id }
+      ]
+    },
     include: {
       user: { select: { id: true, name: true, email: true, phone: true } },
       items: {

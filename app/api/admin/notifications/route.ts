@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { cookies } from "next/headers";
 import { prisma } from "@/db/prisma";
 import { isValidAdminSession } from "@/lib/auth/admin-auth";
+import { ensureLegacyOrders } from "@/features/orders/ensure-orders";
 
 function formatRelativeTime(date: Date): string {
   const diffSec = Math.floor((Date.now() - date.getTime()) / 1000);
@@ -28,6 +29,8 @@ export async function GET() {
   }
 
   try {
+    await ensureLegacyOrders();
+
     const dbNotifications = await prisma.notification.findMany({
       where: { channel: "IN_APP" },
       orderBy: { createdAt: "desc" },

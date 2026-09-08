@@ -17,8 +17,10 @@ import { formatMoney } from "@/lib/utils/money";
 import { prisma } from "@/db/prisma";
 import Link from "next/link";
 import { AdminDashboardSalesChart } from "@/components/admin/admin-dashboard-sales-chart";
+import { ensureLegacyOrders } from "@/features/orders/ensure-orders";
 
 export default async function AdminDashboardPage() {
+  await ensureLegacyOrders();
   const [
     orderStats,
     customerCount,
@@ -297,8 +299,18 @@ export default async function AdminDashboardPage() {
                           </Link>
                         </td>
                         <td className="py-3.5 px-4">
-                          <p className="font-medium text-foreground">{order.user?.name || "Customer"}</p>
-                          <p className="text-[11px] text-muted-foreground">{order.user?.email || "Guest checkout"}</p>
+                          <p className="font-medium text-foreground">
+                            {order.user?.name ||
+                              (order.customerSnapshot as Record<string, string> | null)?.name ||
+                              (order.deliveryAddress as Record<string, string> | null)?.name ||
+                              "Customer"}
+                          </p>
+                          <p className="text-[11px] text-muted-foreground">
+                            {order.user?.email ||
+                              (order.customerSnapshot as Record<string, string> | null)?.email ||
+                              order.guestEmail ||
+                              "Guest checkout"}
+                          </p>
                         </td>
                         <td className="py-3.5 px-4">
                           <span className={`inline-block px-2 py-0.5 rounded border text-[10px] font-bold ${paymentClass}`}>
