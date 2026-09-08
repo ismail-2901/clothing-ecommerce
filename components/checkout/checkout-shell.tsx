@@ -60,7 +60,9 @@ export function CheckoutShell() {
             productId: item.productId,
             name: item.name,
             quantity: item.quantity,
-            price: item.price
+            price: item.price,
+            size: item.size,
+            color: item.color
           }))
         })
       });
@@ -73,7 +75,7 @@ export function CheckoutShell() {
         return;
       }
 
-      const generatedId = result.orderId || `ELR-${new Date().toISOString().slice(0, 10).replace(/-/g, "")}-1842`;
+      const generatedId = result.orderNumber || result.orderId || `ELR-${new Date().toISOString().slice(0, 10).replace(/-/g, "")}-1842`;
       clearCart();
       router.push(`/checkout/success?orderId=${generatedId}&name=${encodeURIComponent(formData.fullName)}&total=${summary.grandTotal}`);
     } catch (err) {

@@ -146,9 +146,11 @@ function CheckoutSuccessContent() {
             <div className="sm:col-span-2 border-t border-border/80 pt-3 flex items-baseline justify-between">
               <div>
                 <p className="text-muted-foreground">Total Amount</p>
-                <p className="text-xl font-extrabold text-foreground">{formatMoney(5370)}</p>
+                <p className="text-xl font-extrabold text-foreground">
+                  {formatMoney(Number(searchParams.get("total")) || 5370)}
+                </p>
               </div>
-              <span className="text-xs font-semibold text-emerald-600">You saved ৳600</span>
+              <span className="text-xs font-semibold text-emerald-600">Verified Order</span>
             </div>
           </div>
         </div>

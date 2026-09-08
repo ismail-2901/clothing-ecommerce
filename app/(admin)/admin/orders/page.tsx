@@ -83,8 +83,16 @@ export default async function AdminOrdersPage({ searchParams }: PageProps) {
   const orders = rawOrders.map((o) => ({
     id: o.id,
     orderNumber: o.orderNumber || o.id.slice(-6).toUpperCase(),
-    customer: o.user?.name || "Guest Shopper",
-    email: o.user?.email || o.guestEmail || "No email",
+    customer:
+      o.user?.name ||
+      (o.customerSnapshot as Record<string, string> | null)?.name ||
+      (o.deliveryAddress as Record<string, string> | null)?.name ||
+      "Guest Shopper",
+    email:
+      o.user?.email ||
+      (o.customerSnapshot as Record<string, string> | null)?.email ||
+      o.guestEmail ||
+      "No email",
     itemsCount: o.items.reduce((acc, i) => acc + i.quantity, 0),
     firstItem: o.items[0]?.name || "Clothing item",
     total: o.grandTotal,

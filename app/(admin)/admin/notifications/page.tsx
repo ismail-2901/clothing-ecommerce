@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect, useCallback } from "react";
 import Link from "next/link";
 import {
   Bell,
@@ -9,13 +9,10 @@ import {
   ShoppingBag,
   ShieldAlert,
   Star,
-  Mail,
-  Smartphone,
   Check,
   Trash2,
-  ExternalLink
+  RefreshCw
 } from "lucide-react";
-import { Button } from "@/components/ui/button";
 
 type NotificationItem = {
   id: string;
@@ -25,77 +22,84 @@ type NotificationItem = {
   time: string;
   read: boolean;
   link: string;
+  createdAt?: string;
 };
 
-const initialNotifications: NotificationItem[] = [
-  {
-    id: "n1",
-    type: "ORDER",
-    title: "New Order Placed (#ORD-9201)",
-    description: "Farhana Rahman placed an order for ৳4,200 via bKash. Ready for packing.",
-    time: "12m ago",
-    read: false,
-    link: "/admin/orders"
-  },
-  {
-    id: "n2",
-    type: "STOCK",
-    title: "Critical Low Stock Alert",
-    description: "Oversized Heavyweight Hoodie (Black / L) has only 2 units remaining in warehouse.",
-    time: "45m ago",
-    read: false,
-    link: "/admin/inventory"
-  },
-  {
-    id: "n3",
-    type: "SECURITY",
-    title: "High Risk Order Flagged (#ORD-9198)",
-    description: "Unusual shipping address velocity detected. Recommended action: verify by phone.",
-    time: "2h ago",
-    read: false,
-    link: "/admin/risk"
-  },
-  {
-    id: "n4",
-    type: "REVIEW",
-    title: "New 5-Star Review Received",
-    description: "Tanvir Ahmed left a review on Minimalist Linen Shirt: 'Superb fabric drape and cut.'",
-    time: "5h ago",
-    read: true,
-    link: "/admin/reviews"
-  },
-  {
-    id: "n5",
-    type: "ORDER",
-    title: "Order Delivered (#ORD-9189)",
-    description: "Steadfast Courier confirmed delivery in Dhanmondi, Dhaka. Funds deposited.",
-    time: "Yesterday",
-    read: true,
-    link: "/admin/orders"
-  }
-];
-
 export default function AdminNotificationsPage() {
-  const [notifications, setNotifications] = useState<NotificationItem[]>(initialNotifications);
+  const [notifications, setNotifications] = useState<NotificationItem[]>([]);
+  const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState("ALL");
   const [emailAlerts, setEmailAlerts] = useState(true);
   const [smsAlerts, setSmsAlerts] = useState(true);
   const [fraudAlerts, setFraudAlerts] = useState(true);
 
+  const fetchNotifications = useCallback(async (isSilent = false) => {
+    try {
+      if (!isSilent) setLoading(true);
+      const res = await fetch("/api/admin/notifications");
+      if (!res.ok) return;
+      const data = await res.json();
+      if (Array.isArray(data.notifications)) {
+        setNotifications(data.notifications);
+      }
+    } catch {
+      // Background poll failure
+    } finally {
+      if (!isSilent) setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    fetchNotifications();
+    const interval = setInterval(() => {
+      fetchNotifications(true);
+    }, 5000);
+
+    return () => clearInterval(interval);
+  }, [fetchNotifications]);
+
   const unreadCount = notifications.filter((n) => !n.read).length;
 
-  const markAllRead = () => {
+  const markAllRead = async () => {
     setNotifications((prev) => prev.map((n) => ({ ...n, read: true })));
+    try {
+      await fetch("/api/admin/notifications", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ markAll: true })
+      });
+      window.dispatchEvent(new CustomEvent("admin-notifications-refresh"));
+    } catch {
+      // Non-critical
+    }
   };
 
-  const markRead = (id: string) => {
+  const markRead = async (id: string) => {
     setNotifications((prev) =>
       prev.map((n) => (n.id === id ? { ...n, read: true } : n))
     );
+    try {
+      await fetch("/api/admin/notifications", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ id })
+      });
+      window.dispatchEvent(new CustomEvent("admin-notifications-refresh"));
+    } catch {
+      // Non-critical
+    }
   };
 
-  const removeNotification = (id: string) => {
+  const removeNotification = async (id: string) => {
     setNotifications((prev) => prev.filter((n) => n.id !== id));
+    try {
+      await fetch(`/api/admin/notifications?id=${encodeURIComponent(id)}`, {
+        method: "DELETE"
+      });
+      window.dispatchEvent(new CustomEvent("admin-notifications-refresh"));
+    } catch {
+      // Non-critical
+    }
   };
 
   const filtered = notifications.filter((n) => {
@@ -113,24 +117,37 @@ export default function AdminNotificationsPage() {
               Notification Center
             </h1>
             {unreadCount > 0 && (
-              <span className="rounded-full bg-rose-500/10 px-2.5 py-0.5 text-[11px] font-semibold text-rose-600">
+              <span className="rounded-full bg-rose-500/10 px-2.5 py-0.5 text-[11px] font-semibold text-rose-600 animate-pulse">
                 {unreadCount} Unread
               </span>
             )}
           </div>
           <p className="mt-1 text-xs sm:text-sm text-muted-foreground">
-            Real-time store event feeds, low stock warnings, courier tracking alerts, and notification channels
+            Live store event feeds, instant customer checkout alerts, low stock warnings, and courier tracking
           </p>
         </div>
 
-        <button
-          type="button"
-          onClick={markAllRead}
-          className="flex items-center gap-2 rounded-lg border border-border bg-background px-3 py-1.5 text-xs font-medium text-foreground shadow-sm hover:bg-muted/40 transition self-start sm:self-auto"
-        >
-          <Check size={14} />
-          <span>Mark All as Read</span>
-        </button>
+        <div className="flex items-center gap-2">
+          <button
+            type="button"
+            onClick={() => fetchNotifications(false)}
+            className="flex items-center gap-1.5 rounded-lg border border-border bg-background px-3 py-1.5 text-xs font-medium text-muted-foreground hover:text-foreground transition"
+            title="Refresh now"
+          >
+            <RefreshCw size={13} className={loading ? "animate-spin" : ""} />
+            <span>Sync</span>
+          </button>
+
+          <button
+            type="button"
+            onClick={markAllRead}
+            disabled={unreadCount === 0}
+            className="flex items-center gap-2 rounded-lg border border-border bg-background px-3 py-1.5 text-xs font-medium text-foreground shadow-sm hover:bg-muted/40 transition disabled:opacity-50"
+          >
+            <Check size={14} />
+            <span>Mark All as Read</span>
+          </button>
+        </div>
       </div>
 
       {/* 4 KPI Cards */}
@@ -150,7 +167,7 @@ export default function AdminNotificationsPage() {
           <p className="mt-2 text-2xl font-black text-foreground">
             {notifications.filter((n) => n.type === "ORDER").length}
           </p>
-          <p className="mt-1 text-[11px] text-muted-foreground">Checkout and courier feeds</p>
+          <p className="mt-1 text-[11px] text-muted-foreground">Real-time checkout feeds</p>
         </div>
         <div className="rounded-xl border border-border bg-background p-5 shadow-sm">
           <p className="text-xs font-medium text-muted-foreground">Inventory &amp; Security</p>
@@ -189,6 +206,18 @@ export default function AdminNotificationsPage() {
           </div>
 
           <div className="space-y-3">
+            {filtered.length === 0 && (
+              <div className="rounded-xl border border-dashed border-border bg-background p-10 text-center space-y-2">
+                <Bell size={24} className="mx-auto text-muted-foreground/60" />
+                <p className="text-sm font-semibold text-foreground">No notifications found</p>
+                <p className="text-xs text-muted-foreground max-w-sm mx-auto">
+                  {filter === "ALL"
+                    ? "New orders, stock warnings, and transaction activities will arrive here in real time."
+                    : `No alerts matching the "${filter}" filter at this moment.`}
+                </p>
+              </div>
+            )}
+
             {filtered.map((n) => {
               const Icon =
                 n.type === "ORDER"
@@ -201,12 +230,12 @@ export default function AdminNotificationsPage() {
 
               const iconBg =
                 n.type === "ORDER"
-                  ? "bg-blue-50 text-blue-600"
+                  ? "bg-blue-50 text-blue-600 dark:bg-blue-950/40 dark:text-blue-400"
                   : n.type === "STOCK"
-                  ? "bg-amber-50 text-amber-600"
+                  ? "bg-amber-50 text-amber-600 dark:bg-amber-950/40 dark:text-amber-400"
                   : n.type === "SECURITY"
-                  ? "bg-rose-50 text-rose-600"
-                  : "bg-emerald-50 text-emerald-600";
+                  ? "bg-rose-50 text-rose-600 dark:bg-rose-950/40 dark:text-rose-400"
+                  : "bg-emerald-50 text-emerald-600 dark:bg-emerald-950/40 dark:text-emerald-400";
 
               return (
                 <div
@@ -214,7 +243,7 @@ export default function AdminNotificationsPage() {
                   className={`rounded-xl border p-4 shadow-sm transition-all flex items-start justify-between gap-4 ${
                     n.read
                       ? "border-border bg-background"
-                      : "border-foreground/30 bg-muted/20"
+                      : "border-blue-500/40 bg-blue-50/20 dark:bg-blue-950/10"
                   }`}
                 >
                   <div className="flex items-start gap-3.5">
@@ -225,7 +254,7 @@ export default function AdminNotificationsPage() {
                       <div className="flex items-center gap-2">
                         <h4 className="text-xs font-bold text-foreground">{n.title}</h4>
                         {!n.read && (
-                          <span className="h-1.5 w-1.5 rounded-full bg-rose-500" />
+                          <span className="h-2 w-2 rounded-full bg-rose-500 ring-2 ring-background animate-pulse" />
                         )}
                       </div>
                       <p className="text-xs text-muted-foreground leading-relaxed">
@@ -312,7 +341,7 @@ export default function AdminNotificationsPage() {
           </div>
 
           <div className="rounded-lg border border-dashed border-border p-3 text-[11px] text-muted-foreground">
-            Powered by Resend transactional mailer &amp; Bangladeshi SMS Gateway.
+            Real-time feed is active · Synchronizing with PostgreSQL store events every 5 seconds.
           </div>
         </div>
       </div>

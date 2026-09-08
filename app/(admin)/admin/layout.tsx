@@ -24,6 +24,7 @@ import {
 import { isValidAdminSession } from "@/lib/auth/admin-auth";
 import { AdminLockScreen } from "@/components/admin/admin-lock-screen";
 import { AdminLogoutButton } from "@/components/admin/admin-logout-button";
+import { AdminNotificationBell, AdminNotificationNavBadge } from "@/components/admin/admin-notification-bell";
 
 const navGroups = [
   {
@@ -67,7 +68,7 @@ const navGroups = [
     label: "SYSTEM",
     items: [
       { label: "Settings", icon: Settings, href: "/admin/settings" },
-      { label: "Notifications", icon: Bell, href: "/admin/notifications", badge: 3 },
+      { label: "Notifications", icon: Bell, href: "/admin/notifications" },
       { label: "Audit Logs", icon: ScrollText, href: "/admin/audit-logs" },
       { label: "Admins", icon: UserCheck, href: "/admin/admins" },
     ]
@@ -108,7 +109,7 @@ export default async function AdminLayout({
                   {group.label}
                 </p>
                 <nav className="space-y-0.5">
-                  {group.items.map(({ label, icon: Icon, href, badge }: any) => (
+                  {group.items.map(({ label, icon: Icon, href }: any) => (
                     <Link
                       key={href}
                       href={href}
@@ -118,11 +119,7 @@ export default async function AdminLayout({
                         <Icon size={16} />
                         <span>{label}</span>
                       </div>
-                      {badge && (
-                        <span className="flex h-4 min-w-4 items-center justify-center rounded-full bg-rose-500 text-[9px] font-bold text-white px-1">
-                          {badge}
-                        </span>
-                      )}
+                      {href === "/admin/notifications" && <AdminNotificationNavBadge />}
                     </Link>
                   ))}
                 </nav>
@@ -175,15 +172,8 @@ export default async function AdminLayout({
 
           {/* Right Header Controls */}
           <div className="flex items-center gap-4">
-            {/* Notification Bell with Badge */}
-            <Link
-              href="/admin/notifications"
-              className="relative flex h-9 w-9 items-center justify-center rounded-full hover:bg-muted text-muted-foreground hover:text-foreground transition-colors"
-              aria-label="Notifications"
-            >
-              <Bell size={18} />
-              <span className="absolute top-1.5 right-1.5 h-2 w-2 rounded-full bg-rose-500" />
-            </Link>
+            {/* Real-Time Notification Bell with Badge */}
+            <AdminNotificationBell />
 
             {/* Admin Profile & Security Link */}
             <Link
