@@ -211,3 +211,38 @@ export async function sendVerificationEmail(options: {
     text: `Verify your email: ${verifyUrl}`
   });
 }
+
+export async function sendContactEmail(options: {
+  name: string;
+  email: string;
+  message: string;
+}): Promise<void> {
+  const { name, email, message } = options;
+  const SUPPORT_EMAIL = process.env.SUPPORT_EMAIL ?? FROM;
+
+  // Notification to store team
+  await sendEmail({
+    to: SUPPORT_EMAIL,
+    subject: `New contact form message from ${name}`,
+    html: layout(`
+      <h2>New contact form submission</h2>
+      <p><strong>Name:</strong> ${name}</p>
+      <p><strong>Email:</strong> <a href="mailto:${email}">${email}</a></p>
+      <p><strong>Message:</strong></p>
+      <p style="white-space:pre-wrap;">${message.replace(/</g, "&lt;")}</p>
+    `),
+    text: `New contact from ${name} <${email}>:\n\n${message}`
+  });
+
+  // Auto-reply to customer
+  await sendEmail({
+    to: email,
+    subject: `We received your message — ${BRAND_NAME}`,
+    html: layout(`
+      <h2>Thanks for reaching out, ${name.split(" ")[0]}!</h2>
+      <p>We've received your message and will get back to you within 24 hours (Sunday–Thursday, 9 AM – 6 PM BST).</p>
+      <p>If your query is urgent, you can also email us directly at <a href="mailto:support@elarisstore.com">support@elarisstore.com</a>.</p>
+    `),
+    text: `Hi ${name.split(" ")[0]}, we've received your message and will respond within 24 hours.`
+  });
+}

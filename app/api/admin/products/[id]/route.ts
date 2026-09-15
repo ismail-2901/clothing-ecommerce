@@ -1,35 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { prisma } from "@/db/prisma";
-import { getServerSession } from "@/lib/auth/server";
-import { isValidAdminSession } from "@/lib/auth/admin-auth";
-
-async function requireAdmin(request: NextRequest) {
-  const adminCookie = request.cookies.get("admin_session")?.value;
-  if (isValidAdminSession(adminCookie)) {
-    return { error: null, userId: null };
-  }
-
-  const session = await getServerSession();
-  if (!session?.userId) {
-    return { error: NextResponse.json({ error: "Unauthorized" }, { status: 401 }), userId: null };
-  }
-
-  const userRoles = await prisma.userRole.findMany({
-    where: { userId: session.userId },
-    include: { role: true }
-  });
-
-  const isAdmin = userRoles.some(
-    (ur) => ur.role.name === "ADMIN" || ur.role.name === "SUPER_ADMIN"
-  );
-
-  if (!isAdmin) {
-    return { error: NextResponse.json({ error: "Forbidden" }, { status: 403 }), userId: null };
-  }
-
-  return { error: null, userId: session.userId };
-}
+import { requireAdminSession } from "@/lib/auth/server";
 
 type RouteParams = { params: Promise<{ id: string }> };
 
@@ -71,8 +43,8 @@ const patchProductSchema = z.object({
 
 // GET /api/admin/products/[id]
 export async function GET(request: NextRequest, { params }: RouteParams) {
-  const { error } = await requireAdmin(request);
-  if (error) return error;
+  const auth = await requireAdminSession("product:manage");
+  if (!auth.ok) return auth.response;
 
   const { id } = await params;
 
@@ -96,8 +68,9 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
 
 // PUT /api/admin/products/[id] — full replace (used by edit form)
 export async function PUT(request: NextRequest, { params }: RouteParams) {
-  const { error, userId } = await requireAdmin(request);
-  if (error) return error;
+  const auth = await requireAdminSession("product:manage");
+  if (!auth.ok) return auth.response;
+  const { userId } = auth;
 
   const { id } = await params;
 
@@ -224,8 +197,9 @@ export async function PUT(request: NextRequest, { params }: RouteParams) {
 
 // PATCH /api/admin/products/[id] — partial field update
 export async function PATCH(request: NextRequest, { params }: RouteParams) {
-  const { error, userId } = await requireAdmin(request);
-  if (error) return error;
+  const auth = await requireAdminSession("product:manage");
+  if (!auth.ok) return auth.response;
+  const { userId } = auth;
 
   const { id } = await params;
 
@@ -273,8 +247,9 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
 
 // DELETE /api/admin/products/[id] — soft delete
 export async function DELETE(request: NextRequest, { params }: RouteParams) {
-  const { error, userId } = await requireAdmin(request);
-  if (error) return error;
+  const auth = await requireAdminSession("product:manage");
+  if (!auth.ok) return auth.response;
+  const { userId } = auth;
 
   const { id } = await params;
 

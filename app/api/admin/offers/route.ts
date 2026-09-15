@@ -1,35 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { prisma } from "@/db/prisma";
-import { getServerSession } from "@/lib/auth/server";
-import { isValidAdminSession } from "@/lib/auth/admin-auth";
-
-async function requireAdmin(request: NextRequest) {
-  const adminCookie = request.cookies.get("admin_session")?.value;
-  if (isValidAdminSession(adminCookie)) {
-    return { error: null, userId: null };
-  }
-
-  const session = await getServerSession();
-  if (!session?.userId) {
-    return { error: NextResponse.json({ error: "Unauthorized" }, { status: 401 }), userId: null };
-  }
-
-  const userRoles = await prisma.userRole.findMany({
-    where: { userId: session.userId },
-    include: { role: true }
-  });
-
-  const isAdmin = userRoles.some((ur) =>
-    ur.role.name === "ADMIN" || ur.role.name === "SUPER_ADMIN"
-  );
-
-  if (!isAdmin) {
-    return { error: NextResponse.json({ error: "Forbidden" }, { status: 403 }), userId: null };
-  }
-
-  return { error: null, userId: session.userId };
-}
+import { requireAdminSession } from "@/lib/auth/server";
 
 const createOfferSchema = z.object({
   code: z.string().min(2).max(30).regex(/^[A-Z0-9_-]+$/i),
@@ -42,8 +14,8 @@ const createOfferSchema = z.object({
 });
 
 export async function GET(request: NextRequest) {
-  const { error } = await requireAdmin(request);
-  if (error) return error;
+  const auth = await requireAdminSession("offer:manage");
+  if (!auth.ok) return auth.response;
 
   const coupons = await prisma.coupon.findMany({
     where: { deletedAt: null },
@@ -54,8 +26,8 @@ export async function GET(request: NextRequest) {
 }
 
 export async function POST(request: NextRequest) {
-  const { error } = await requireAdmin(request);
-  if (error) return error;
+  const auth = await requireAdminSession("offer:manage");
+  if (!auth.ok) return auth.response;
 
   let body: unknown;
   try {

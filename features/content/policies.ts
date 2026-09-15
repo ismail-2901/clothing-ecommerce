@@ -1,3 +1,5 @@
+export { storePolicies } from "@/config/store";
+
 export const faqItems = [
   {
     category: "Orders",
@@ -27,7 +29,7 @@ export const faqItems = [
     category: "Delivery",
     question: "Do you offer free shipping?",
     answer:
-      "Yes. Use code SHIPFREE for free shipping on orders over ৳2,000. Free shipping eligibility is always verified server-side at checkout."
+      "Yes. Free shipping is available on orders over ৳3,000 (or use code SHIPFREE). Free shipping eligibility is always verified server-side at checkout."
   },
   {
     category: "Returns",
@@ -70,7 +72,7 @@ export const shippingPolicy = {
     },
     {
       heading: "Shipping fees",
-      body: "A flat shipping fee applies to orders below the free-shipping threshold. The exact fee is shown at checkout before you confirm your order. Use code SHIPFREE on qualifying orders for free delivery."
+      body: "A flat shipping fee applies to orders below the free-shipping threshold (৳3,000). The exact fee is shown at checkout before you confirm your order. Orders of ৳3,000 or more qualify for free delivery."
     },
     {
       heading: "Order tracking",

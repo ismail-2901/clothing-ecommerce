@@ -17,10 +17,8 @@ import { formatMoney } from "@/lib/utils/money";
 import { prisma } from "@/db/prisma";
 import Link from "next/link";
 import { AdminDashboardSalesChart } from "@/components/admin/admin-dashboard-sales-chart";
-import { ensureLegacyOrders } from "@/features/orders/ensure-orders";
 
 export default async function AdminDashboardPage() {
-  await ensureLegacyOrders();
   const [
     orderStats,
     customerCount,
@@ -160,13 +158,14 @@ export default async function AdminDashboardPage() {
             <Calendar size={14} />
             <span>Last 30 Days</span>
           </div>
-          <button
-            type="button"
+          <a
+            href="/api/admin/export/orders"
+            download
             className="flex items-center gap-2 rounded-lg border border-border bg-background px-3 py-1.5 text-xs font-medium text-foreground shadow-sm hover:bg-muted/40 transition"
           >
             <Download size={14} />
             <span>Export CSV</span>
-          </button>
+          </a>
         </div>
       </div>
 

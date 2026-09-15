@@ -1,20 +1,26 @@
 import { NextResponse, type NextRequest } from "next/server";
+import { auth } from "@/lib/auth/auth";
 
-import { isValidAdminSession } from "@/lib/auth/admin-auth";
-
-export function proxy(request: NextRequest) {
+export async function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl;
 
-  // Protect /api/admin/* endpoints (except auth routes like /api/admin/auth/login and migration endpoints)
+  // Protect /api/admin/* endpoints (except the Better Auth sign-in route)
   if (
     pathname.startsWith("/api/admin") &&
-    !pathname.startsWith("/api/admin/auth") &&
-    !pathname.startsWith("/api/admin/fix-sizes")
+    !pathname.startsWith("/api/admin/auth")
   ) {
-    const token = request.cookies.get("admin_session")?.value;
-    if (!isValidAdminSession(token)) {
+    const session = await auth.api.getSession({
+      headers: request.headers
+    });
+
+    const userId = session?.user?.id;
+    if (!userId) {
       return NextResponse.json({ error: "Unauthorized admin access." }, { status: 401 });
     }
+
+    // Role check is enforced inside each route via requireAdminSession().
+    // Middleware only verifies a valid session exists so unauthenticated
+    // requests never reach route handlers.
   }
 
   const response = NextResponse.next();

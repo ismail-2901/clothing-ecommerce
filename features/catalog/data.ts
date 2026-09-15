@@ -1,6 +1,7 @@
 import { prisma } from "@/db/prisma";
 
 export type CatalogVariant = {
+  id: string;
   sku: string;
   color: string;
   size: string;
@@ -27,11 +28,30 @@ export type CatalogProduct = {
   variants: CatalogVariant[];
 };
 
+export type ProductReviewItem = {
+  id: string;
+  rating: number;
+  title: string | null;
+  body: string | null;
+  authorName: string;
+  createdAt: string;
+  isVerifiedPurchase: boolean;
+};
+
+export type ProductReviewSummary = {
+  averageRating: number;
+  totalCount: number;
+  verifiedCount: number;
+  reviews: ProductReviewItem[];
+};
+
 export type CatalogFilter = {
   category?: string;
   color?: string;
   size?: string;
   q?: string;
+  minPrice?: number; // in paisa (smallest unit)
+  maxPrice?: number; // in paisa
 };
 
 const defaultCategories = [
@@ -88,6 +108,7 @@ export async function getAllProducts(): Promise<CatalogProduct[]> {
         : [{ src: "https://images.unsplash.com/photo-1521572163474-6864f9cf17ab?auto=format&fit=crop&w=1200&q=80", alt: p.name }];
 
       const rawVariants = p.variants.map((v) => ({
+        id: v.id,
         sku: v.sku,
         color: v.color,
         size: v.size.trim(),
@@ -144,12 +165,25 @@ export async function getFilteredProducts(filter: CatalogFilter): Promise<Catalo
     const matchesCategory = filter.category
       ? product.categorySlug === filter.category
       : true;
-    const matchesColor = filter.color
-      ? product.variants.some((variant) => variant.color.toLowerCase() === filter.color?.toLowerCase())
-      : true;
+
+    // Size: if a size filter is active only show products that have a variant in that size
     const matchesSize = filter.size
       ? product.variants.some((variant) => variant.size.toLowerCase() === filter.size?.toLowerCase())
       : true;
+
+    // Color: same pattern
+    const matchesColor = filter.color
+      ? product.variants.some((variant) => variant.color.toLowerCase() === filter.color?.toLowerCase())
+      : true;
+
+    // Price range: use the minimum price across all variants
+    const minVariantPrice = Math.min(...product.variants.map((v) => v.price));
+    const rawPrice = minVariantPrice > 0 && minVariantPrice < 10000
+      ? minVariantPrice * 100
+      : minVariantPrice;
+    const matchesMinPrice = filter.minPrice !== undefined ? rawPrice >= filter.minPrice : true;
+    const matchesMaxPrice = filter.maxPrice !== undefined ? rawPrice <= filter.maxPrice : true;
+
     const query = filter.q?.trim().toLowerCase();
     const matchesQuery = query
       ? [product.name, product.description, product.category, product.collection, ...product.tags]
@@ -158,13 +192,104 @@ export async function getFilteredProducts(filter: CatalogFilter): Promise<Catalo
           .includes(query)
       : true;
 
-    return matchesCategory && matchesColor && matchesSize && matchesQuery;
+    return matchesCategory && matchesColor && matchesSize && matchesMinPrice && matchesMaxPrice && matchesQuery;
   });
 }
 
 export async function getProductBySlug(slug: string): Promise<CatalogProduct | undefined> {
   const products = await getAllProducts();
   return products.find((product) => product.slug === slug);
+}
+
+export async function getProductReviews(productId: string): Promise<ProductReviewSummary> {
+  try {
+    const reviews = await prisma.review.findMany({
+      where: {
+        productId,
+        isVisible: true,
+        deletedAt: null
+      },
+      include: {
+        user: {
+          select: {
+            id: true,
+            name: true
+          }
+        }
+      },
+      orderBy: { createdAt: "desc" }
+    });
+
+    if (reviews.length === 0) {
+      return {
+        averageRating: 0,
+        totalCount: 0,
+        verifiedCount: 0,
+        reviews: []
+      };
+    }
+
+    const userIds = reviews
+      .map((r) => r.userId)
+      .filter((id): id is string => Boolean(id));
+
+    const verifiedUserIds = new Set<string>();
+
+    if (userIds.length > 0) {
+      const verifiedOrders = await prisma.orderItem.findMany({
+        where: {
+          productId,
+          order: {
+            userId: { in: userIds },
+            paymentStatus: "PAID"
+          }
+        },
+        select: {
+          order: {
+            select: { userId: true }
+          }
+        }
+      });
+
+      for (const item of verifiedOrders) {
+        if (item.order?.userId) {
+          verifiedUserIds.add(item.order.userId);
+        }
+      }
+    }
+
+    const totalCount = reviews.length;
+    const sumRating = reviews.reduce((sum, r) => sum + r.rating, 0);
+    const averageRating = Number((sumRating / totalCount).toFixed(1));
+    const verifiedCount = reviews.filter(
+      (r) => r.userId && verifiedUserIds.has(r.userId)
+    ).length;
+
+    const formattedReviews: ProductReviewItem[] = reviews.map((r) => ({
+      id: r.id,
+      rating: r.rating,
+      title: r.title,
+      body: r.body,
+      authorName: r.user?.name || "Customer",
+      createdAt: r.createdAt.toISOString(),
+      isVerifiedPurchase: Boolean(r.userId && verifiedUserIds.has(r.userId))
+    }));
+
+    return {
+      averageRating,
+      totalCount,
+      verifiedCount,
+      reviews: formattedReviews
+    };
+  } catch (err) {
+    console.error("[catalog:reviews]", err);
+    return {
+      averageRating: 0,
+      totalCount: 0,
+      verifiedCount: 0,
+      reviews: []
+    };
+  }
 }
 
 export async function getCatalogHighlights() {

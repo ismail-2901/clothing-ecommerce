@@ -3,10 +3,9 @@
 import { FormEvent, useRef, useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
-import { MessageSquareText, Send, ShoppingBag, X } from "lucide-react";
+import { MessageSquareText, Send, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Spinner } from "@/components/ui/spinner";
-import { useCart } from "@/components/cart/cart-provider";
 
 type ProductCard = {
   id: string;
@@ -36,7 +35,6 @@ export function FloatingAssistant() {
   const [loading, setLoading] = useState(false);
   const [history, setHistory] = useState<ChatMessage[]>([]);
   const inputRef = useRef<HTMLInputElement>(null);
-  const { addItem } = useCart();
 
   async function send(text: string) {
     const trimmed = text.trim();
@@ -167,32 +165,13 @@ export function FloatingAssistant() {
                             {!product.available && (
                               <p className="mt-0.5 text-xs text-danger">Out of stock</p>
                             )}
-                            <div className="mt-2.5 flex gap-2">
+                            <div className="mt-2.5">
                               <Link
                                 href={`/products/${product.slug}`}
-                                className="flex-1 rounded-md border border-border py-1.5 text-center text-xs font-semibold hover:bg-muted transition"
+                                className="block w-full rounded-md bg-foreground py-1.5 text-center text-xs font-semibold text-background hover:bg-zinc-800 transition"
                               >
-                                View
+                                View Product
                               </Link>
-                              <button
-                                type="button"
-                                disabled={!product.available}
-                                className="flex items-center justify-center gap-1 rounded-md bg-foreground px-3 py-1.5 text-xs font-semibold text-background hover:bg-zinc-800 disabled:opacity-40 transition"
-                                onClick={() => {
-                                  addItem({
-                                    sku: `${product.id}_default`,
-                                    productId: product.id,
-                                    name: product.name,
-                                    image: product.image,
-                                    color: "",
-                                    size: "",
-                                    price: 0,
-                                    quantity: 1
-                                  });
-                                }}
-                              >
-                                <ShoppingBag size={12} /> Add
-                              </button>
                             </div>
                           </div>
                         </div>

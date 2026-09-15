@@ -1,5 +1,6 @@
 import { PrismaPg } from "@prisma/adapter-pg";
 import { PrismaClient, ProductStatus, RoleName } from "@prisma/client";
+import { hashPassword } from "better-auth/crypto";
 
 if (!process.env.DATABASE_URL) {
   throw new Error("DATABASE_URL must be set before running seed");
@@ -71,13 +72,35 @@ async function main() {
     );
   }
 
+  const adminEmail = process.env.SEED_ADMIN_EMAIL || "admin@example.com";
+  const adminPassword = process.env.SEED_ADMIN_PASSWORD || "Admin123456!";
+  const hashedPassword = await hashPassword(adminPassword);
+
   const admin = await prisma.user.upsert({
-    where: { email: "admin@example.com" },
-    update: {},
+    where: { email: adminEmail },
+    update: { emailVerified: true },
     create: {
       name: "Seed Admin",
-      email: "admin@example.com",
+      email: adminEmail,
       emailVerified: true
+    }
+  });
+
+  await prisma.account.upsert({
+    where: {
+      providerId_accountId: {
+        providerId: "credential",
+        accountId: admin.id
+      }
+    },
+    update: {
+      password: hashedPassword
+    },
+    create: {
+      userId: admin.id,
+      accountId: admin.id,
+      providerId: "credential",
+      password: hashedPassword
     }
   });
 

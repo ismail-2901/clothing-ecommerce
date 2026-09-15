@@ -3,9 +3,13 @@
 import { useState } from "react";
 import Link from "next/link";
 import Image from "next/image";
-import { Minus, Plus, Trash2, ArrowRight, ShieldCheck, RotateCcw, Truck, Tag } from "lucide-react";
+import { Minus, Plus, Trash2, ArrowRight, ShieldCheck, RotateCcw, Truck, Tag, X } from "lucide-react";
 import { useCart } from "@/components/cart/cart-provider";
+import { useWishlist } from "@/components/wishlist/wishlist-provider";
 import { formatMoney } from "@/lib/utils/money";
+import { storePolicies } from "@/config/store";
+
+type AppliedCoupon = { code: string; discountAmount: number; title: string };
 
 const recommendations = [
   { id: "rec1", name: "Knit Sweater", price: 249000, image: "/elaris-women.jpg", slug: "knit-sweater" },
@@ -16,25 +20,57 @@ const recommendations = [
 
 export function CartPageContent() {
   const { items, summary, updateQuantity, removeItem } = useCart();
+  const wishlist = useWishlist();
   const [selectedItems, setSelectedItems] = useState<Record<string, boolean>>(() =>
-    items.reduce((acc, item) => ({ ...acc, [item.sku]: true }), {})
+    items.reduce((acc, item) => ({ ...acc, [item.id || item.sku]: true }), {})
   );
   const [couponCode, setCouponCode] = useState("");
-  const [couponApplied, setCouponApplied] = useState(false);
+  const [appliedCoupon, setAppliedCoupon] = useState<AppliedCoupon | null>(null);
+  const [couponError, setCouponError] = useState<string | null>(null);
+  const [couponLoading, setCouponLoading] = useState(false);
 
   const toggleSelectAll = (checked: boolean) => {
     const updated: Record<string, boolean> = {};
     items.forEach((item) => {
-      updated[item.sku] = checked;
+      updated[item.id || item.sku] = checked;
     });
     setSelectedItems(updated);
   };
 
-  const handleApplyCoupon = (e: React.FormEvent) => {
+  const handleApplyCoupon = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (couponCode.trim()) {
-      setCouponApplied(true);
+    const code = couponCode.trim().toUpperCase();
+    if (!code) return;
+    setCouponError(null);
+    setCouponLoading(true);
+    try {
+      const res = await fetch("/api/coupons/validate", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          code,
+          cartSubtotal: summary.subtotal,
+          shippingFee: summary.shippingFee
+        })
+      });
+      const data = await res.json() as { valid?: boolean; error?: string; code?: string; title?: string; discountAmount?: number };
+      if (!res.ok || !data.valid) {
+        setCouponError(data.error ?? "Invalid coupon code.");
+        setAppliedCoupon(null);
+      } else {
+        setAppliedCoupon({ code: data.code!, discountAmount: data.discountAmount!, title: data.title! });
+        setCouponCode("");
+      }
+    } catch {
+      setCouponError("Could not validate coupon. Please try again.");
+    } finally {
+      setCouponLoading(false);
     }
+  };
+
+  const handleRemoveCoupon = () => {
+    setAppliedCoupon(null);
+    setCouponError(null);
   };
 
   const selectedCount = Object.values(selectedItems).filter(Boolean).length;
@@ -97,16 +133,18 @@ export function CartPageContent() {
           {/* Items Rows */}
           <div className="divide-y divide-border/60">
             {items.map((item) => {
-              const isChecked = selectedItems[item.sku] ?? true;
+              const itemKey = item.id || item.sku;
+              const isChecked = selectedItems[itemKey] ?? true;
+              const price = item.unitPrice ?? item.price;
               return (
-                <div key={item.sku} className="py-5 grid grid-cols-1 sm:grid-cols-[1.6fr_1fr_1fr_1fr] items-center gap-4">
+                <div key={itemKey} className="py-5 grid grid-cols-1 sm:grid-cols-[1.6fr_1fr_1fr_1fr] items-center gap-4">
                   {/* Product Info */}
                   <div className="flex items-center gap-3">
                     <input
                       type="checkbox"
                       checked={isChecked}
                       onChange={(e) =>
-                        setSelectedItems((prev) => ({ ...prev, [item.sku]: e.target.checked }))
+                        setSelectedItems((prev) => ({ ...prev, [itemKey]: e.target.checked }))
                       }
                       className="h-4 w-4 rounded border-border text-foreground accent-foreground cursor-pointer"
                     />
@@ -129,13 +167,26 @@ export function CartPageContent() {
                       <div className="flex items-center gap-3 pt-1 text-xs text-muted-foreground">
                         <button
                           type="button"
-                          onClick={() => removeItem(item.sku)}
+                          onClick={() => removeItem(itemKey)}
                           className="hover:text-red-600 transition-colors"
                         >
                           Remove
                         </button>
                         <span>|</span>
-                        <button type="button" className="hover:text-foreground transition-colors">
+                        <button
+                          type="button"
+                          onClick={() => {
+                            wishlist.addItem({
+                              productId: item.productId || itemKey,
+                              name: item.name,
+                              price: price,
+                              image: item.image,
+                              slug: item.productSlug || ""
+                            });
+                            removeItem(itemKey);
+                          }}
+                          className="hover:text-foreground transition-colors"
+                        >
                           Save for Later
                         </button>
                       </div>
@@ -144,9 +195,9 @@ export function CartPageContent() {
 
                   {/* Price */}
                   <div className="text-center">
-                    <p className="text-sm font-bold">{formatMoney(item.price)}</p>
+                    <p className="text-sm font-bold">{formatMoney(price)}</p>
                     <p className="text-xs text-muted-foreground line-through">
-                      {formatMoney(Math.round(item.price * 1.25))}
+                      {formatMoney(Math.round(price * 1.25))}
                     </p>
                     <span className="inline-block mt-1 rounded bg-black px-1.5 py-0.5 text-[9px] font-bold text-white uppercase">
                       20% OFF
@@ -158,7 +209,7 @@ export function CartPageContent() {
                     <div className="inline-flex items-center rounded-md border border-border bg-background">
                       <button
                         type="button"
-                        onClick={() => updateQuantity(item.sku, item.quantity - 1)}
+                        onClick={() => updateQuantity(itemKey, item.quantity - 1)}
                         className="px-2.5 py-1.5 hover:bg-muted text-muted-foreground hover:text-foreground transition-colors"
                         aria-label="Decrease quantity"
                       >
@@ -167,7 +218,7 @@ export function CartPageContent() {
                       <span className="w-8 text-center text-xs font-semibold">{item.quantity}</span>
                       <button
                         type="button"
-                        onClick={() => updateQuantity(item.sku, item.quantity + 1)}
+                        onClick={() => updateQuantity(itemKey, item.quantity + 1)}
                         className="px-2.5 py-1.5 hover:bg-muted text-muted-foreground hover:text-foreground transition-colors"
                         aria-label="Increase quantity"
                       >
@@ -179,7 +230,7 @@ export function CartPageContent() {
                   {/* Total */}
                   <div className="text-right">
                     <p className="text-sm sm:text-base font-extrabold">
-                      {formatMoney(item.price * item.quantity)}
+                      {formatMoney(price * item.quantity)}
                     </p>
                   </div>
                 </div>
@@ -200,7 +251,7 @@ export function CartPageContent() {
             </label>
             <button
               type="button"
-              onClick={() => items.forEach((i) => removeItem(i.sku))}
+              onClick={() => items.forEach((i) => removeItem(i.id || i.sku))}
               className="flex items-center gap-1.5 text-muted-foreground hover:text-red-600 transition-colors"
             >
               <Trash2 size={14} /> Remove Selected
@@ -218,10 +269,12 @@ export function CartPageContent() {
               <span>Subtotal ({items.length} items)</span>
               <span className="font-semibold text-foreground">{formatMoney(summary.subtotal)}</span>
             </div>
-            <div className="flex justify-between text-emerald-600">
-              <span>Discount</span>
-              <span className="font-semibold">- {formatMoney(summary.couponDiscount || 600)}</span>
-            </div>
+            {appliedCoupon && appliedCoupon.discountAmount > 0 && (
+              <div className="flex justify-between text-emerald-600">
+                <span>Coupon ({appliedCoupon.code})</span>
+                <span className="font-semibold">- {formatMoney(appliedCoupon.discountAmount)}</span>
+              </div>
+            )}
             <div className="flex justify-between text-muted-foreground">
               <span>Shipping</span>
               <span className="font-semibold text-foreground">
@@ -229,7 +282,7 @@ export function CartPageContent() {
               </span>
             </div>
             <p className="text-[11px] text-muted-foreground">
-              Free shipping on orders over ৳3000
+              {storePolicies.shipping.freeDeliveryText}
             </p>
           </div>
 
@@ -237,36 +290,59 @@ export function CartPageContent() {
           <div className="border-t border-border/80 pt-4">
             <div className="flex items-baseline justify-between">
               <span className="text-base font-bold">Total</span>
-              <span className="text-2xl font-extrabold">{formatMoney(summary.grandTotal)}</span>
+              <span className="text-2xl font-extrabold">
+                {formatMoney(Math.max(0, summary.grandTotal - (appliedCoupon?.discountAmount ?? 0)))}
+              </span>
             </div>
-            <p className="mt-1 text-xs text-emerald-600 font-semibold">
-              🌱 You saved ৳600 on this order!
-            </p>
+            {appliedCoupon && appliedCoupon.discountAmount > 0 && (
+              <p className="mt-1 text-xs text-emerald-600 font-semibold">
+                🌱 You saved {formatMoney(appliedCoupon.discountAmount)} with {appliedCoupon.code}!
+              </p>
+            )}
           </div>
 
           {/* Coupon Input */}
-          <form onSubmit={handleApplyCoupon} className="flex gap-2">
-            <div className="relative flex-1">
-              <Tag size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
-              <input
-                type="text"
-                value={couponCode}
-                onChange={(e) => setCouponCode(e.target.value)}
-                placeholder="Enter coupon code"
-                className="h-10 w-full rounded-md border border-border bg-muted/20 pl-9 pr-3 text-xs placeholder:text-muted-foreground focus:border-foreground focus:outline-none"
-              />
+          {appliedCoupon ? (
+            <div className="flex items-center justify-between rounded-md border border-emerald-200 bg-emerald-50 px-3 py-2">
+              <div className="flex items-center gap-2">
+                <Tag size={13} className="text-emerald-600" />
+                <span className="text-xs font-semibold text-emerald-700">{appliedCoupon.code}</span>
+                <span className="text-xs text-emerald-600">— {appliedCoupon.title}</span>
+              </div>
+              <button
+                type="button"
+                onClick={handleRemoveCoupon}
+                aria-label="Remove coupon"
+                className="text-emerald-500 hover:text-red-500 transition-colors"
+              >
+                <X size={13} />
+              </button>
             </div>
-            <button
-              type="submit"
-              className="h-10 rounded-md bg-foreground px-5 text-xs font-bold uppercase tracking-wider text-background hover:bg-foreground/90 transition-colors"
-            >
-              Apply
-            </button>
-          </form>
-          {couponApplied && (
-            <p className="text-xs font-medium text-emerald-600">
-              Coupon applied successfully! ৳600 discount saved.
-            </p>
+          ) : (
+            <form onSubmit={handleApplyCoupon} className="space-y-1.5">
+              <div className="flex gap-2">
+                <div className="relative flex-1">
+                  <Tag size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
+                  <input
+                    type="text"
+                    value={couponCode}
+                    onChange={(e) => { setCouponCode(e.target.value); setCouponError(null); }}
+                    placeholder="Enter coupon code"
+                    className="h-10 w-full rounded-md border border-border bg-muted/20 pl-9 pr-3 text-xs placeholder:text-muted-foreground focus:border-foreground focus:outline-none"
+                  />
+                </div>
+                <button
+                  type="submit"
+                  disabled={couponLoading || !couponCode.trim()}
+                  className="h-10 rounded-md bg-foreground px-5 text-xs font-bold uppercase tracking-wider text-background hover:bg-foreground/90 disabled:opacity-50 transition-colors"
+                >
+                  {couponLoading ? "…" : "Apply"}
+                </button>
+              </div>
+              {couponError && (
+                <p className="text-xs font-medium text-red-600">{couponError}</p>
+              )}
+            </form>
           )}
 
           {/* Checkout CTA */}
@@ -282,12 +358,12 @@ export function CartPageContent() {
             <div className="space-y-1">
               <Truck size={18} className="mx-auto text-foreground/80" />
               <p className="font-bold text-foreground">Free Delivery</p>
-              <p>On orders over ৳3000</p>
+              <p>{storePolicies.shipping.freeDeliveryText}</p>
             </div>
             <div className="space-y-1">
               <RotateCcw size={18} className="mx-auto text-foreground/80" />
               <p className="font-bold text-foreground">Easy Returns</p>
-              <p>7 days return policy</p>
+              <p>{storePolicies.returns.description}</p>
             </div>
             <div className="space-y-1">
               <ShieldCheck size={18} className="mx-auto text-foreground/80" />

@@ -5,9 +5,15 @@ import { getServerSession } from "@/lib/auth/server";
 import { calculateCartTotals } from "@/features/pricing/pricing";
 import { generateOrderNumber } from "@/features/orders/order-service";
 import { scoreOrderRisk } from "@/features/risk/risk-score";
+import { getPaymentProvider } from "@/lib/payments/providers";
+import { storeConfig, storePolicies } from "@/config/store";
 import { cookies } from "next/headers";
 import { sendOrderConfirmationEmail } from "@/lib/notifications/notification-service";
 import { trackCustomerEventAsync } from "@/features/admin/customer-events";
+import { generateRandomString } from "better-auth/crypto";
+
+const GUEST_ORDER_TOKEN_COOKIE = "guest_order_token";
+const GUEST_ORDER_TOKEN_TTL_SECONDS = 60 * 60 * 24 * 7; // 7 days
 
 const ANON_COOKIE = "cart_anon_id";
 const ORDER_PREFIX = process.env.ORDER_PREFIX ?? "ATC";
@@ -24,9 +30,16 @@ const createOrderSchema = z.object({
     postalCode: z.string().max(20).optional(),
     country: z.string().length(2).default("BD")
   }),
-  shippingFee: z.int().min(0),
+  shippingFee: z.number().int().min(0).default(8000),
   couponCode: z.string().max(50).optional(),
-  paymentProvider: z.enum(["COD", "SSLCOMMERZ", "BKASH", "NAGAD", "CARD"])
+  paymentProvider: z.enum(["COD", "SSLCOMMERZ", "BKASH", "NAGAD", "CARD"]),
+  // Inline cart: used when no server-side Cart record exists (localStorage-based storefront)
+  cartItems: z.array(
+    z.object({
+      variantId: z.string().min(1),
+      quantity: z.number().int().min(1).max(50)
+    })
+  ).optional()
 });
 
 export async function POST(request: NextRequest) {
@@ -47,36 +60,117 @@ export async function POST(request: NextRequest) {
   const cookieStore = await cookies();
   const anonymousId = cookieStore.get(ANON_COOKIE)?.value;
 
-  // Resolve cart — authenticated or anonymous
+  // -----------------------------------------------------------------------
+  // Cart resolution: DB cart first, fall back to inline cartItems
+  // -----------------------------------------------------------------------
   const cartWhere = session?.userId
     ? { userId: session.userId, status: "ACTIVE" as const }
     : anonymousId
       ? { anonymousId, status: "ACTIVE" as const }
       : null;
 
-  if (!cartWhere) {
-    return NextResponse.json({ error: "No active cart found." }, { status: 400 });
-  }
-
-  const cart = await prisma.cart.findFirst({
-    where: cartWhere,
-    include: {
-      items: {
+  const dbCart = cartWhere
+    ? await prisma.cart.findFirst({
+        where: cartWhere,
         include: {
-          variant: { include: { product: true } }
+          items: { include: { variant: { include: { product: true } } } },
+          coupon: true
         }
-      },
-      coupon: true
-    }
-  });
+      })
+    : null;
 
-  if (!cart || cart.items.length === 0) {
+  const hasDbCart = !!dbCart && dbCart.items.length > 0;
+  const hasInlineCart = !!input.cartItems && input.cartItems.length > 0;
+
+  if (!hasDbCart && !hasInlineCart) {
     return NextResponse.json({ error: "Cart is empty." }, { status: 400 });
   }
 
-  // Validate coupon if provided
+  // -----------------------------------------------------------------------
+  // Build resolved cart lines — DB or inline (never trust client prices)
+  // -----------------------------------------------------------------------
+  type ResolvedLine = {
+    id: string;
+    productId: string;
+    name: string;
+    unitPrice: number;
+    quantity: number;
+    variantId: string;
+    variantSku: string;
+    variantColor: string;
+    variantSize: string;
+    snapshotImage: string;
+    productSlug: string;
+  };
+
+  let resolvedLines: ResolvedLine[] = [];
+  let cartId: string | null = hasDbCart ? dbCart!.id : null;
+
+  if (hasDbCart) {
+    resolvedLines = dbCart!.items.map((item) => ({
+      id: item.id,
+      productId: item.variant.productId,
+      name: item.variant.product.name,
+      unitPrice: item.variant.priceOverride ?? item.variant.product.basePrice,
+      quantity: item.quantity,
+      variantId: item.variant.id,
+      variantSku: item.variant.sku,
+      variantColor: item.variant.color,
+      variantSize: item.variant.size,
+      snapshotImage: "",
+      productSlug: item.variant.product.slug
+    }));
+  } else {
+    // Inline cart: resolve all from DB — never trust any client-provided price/name/image
+    const variantIds = input.cartItems!.map((i) => i.variantId);
+    const variants = await prisma.productVariant.findMany({
+      where: {
+        id: { in: variantIds },
+        isAvailable: true,
+        deletedAt: null,
+        product: { status: "PUBLISHED", deletedAt: null }
+      },
+      include: { product: { include: { images: { orderBy: { position: "asc" }, take: 1 } } } }
+    });
+
+    const variantMap = new Map(variants.map((v) => [v.id, v]));
+
+    for (const item of input.cartItems!) {
+      const variant = variantMap.get(item.variantId);
+      if (!variant) {
+        return NextResponse.json(
+          { error: "Product variant not found or unavailable.", variantId: item.variantId },
+          { status: 422 }
+        );
+      }
+      const available = variant.stockQuantity - variant.reservedQuantity;
+      if (available < item.quantity) {
+        return NextResponse.json(
+          { error: `Insufficient stock for "${variant.product.name}" (${variant.color} / ${variant.size}). Available: ${available}.`, variantId: item.variantId },
+          { status: 422 }
+        );
+      }
+      resolvedLines.push({
+        id: `inline-${variant.id}`,
+        productId: variant.productId,
+        name: variant.product.name,
+        unitPrice: variant.priceOverride ?? variant.product.basePrice,
+        quantity: item.quantity,
+        variantId: variant.id,
+        variantSku: variant.sku,
+        variantColor: variant.color,
+        variantSize: variant.size,
+        snapshotImage: (variant.product.images as any[])?.[0]?.url ?? "",
+        productSlug: variant.product.slug
+      });
+    }
+  }
+
+  // -----------------------------------------------------------------------
+  // Coupon validation
+  // -----------------------------------------------------------------------
   let couponId: string | null = null;
-  let resolvedCoupon = cart.coupon ?? null;
+  let resolvedCoupon = (hasDbCart ? dbCart!.coupon : null) ?? null;
 
   if (input.couponCode && !resolvedCoupon) {
     resolvedCoupon = await prisma.coupon.findUnique({
@@ -98,18 +192,6 @@ export async function POST(request: NextRequest) {
     couponId = resolvedCoupon.id;
   }
 
-  // Build pricing lines from DB (never trust client prices)
-  const pricingLines = cart.items.map((item) => {
-    const unitPrice = item.variant.priceOverride ?? item.variant.product.basePrice;
-    return {
-      id: item.id,
-      productId: item.variant.productId,
-      name: item.variant.product.name,
-      unitPrice,
-      quantity: item.quantity
-    };
-  });
-
   const couponRule = resolvedCoupon
     ? {
         code: resolvedCoupon.code,
@@ -122,49 +204,85 @@ export async function POST(request: NextRequest) {
       }
     : undefined;
 
+  // -----------------------------------------------------------------------
+  // Pricing engine (DB prices only)
+  // -----------------------------------------------------------------------
   let pricing;
   try {
-    pricing = calculateCartTotals({ lines: pricingLines, coupon: couponRule, shippingFee: input.shippingFee });
+    const subtotal = resolvedLines.reduce((acc, l) => acc + l.unitPrice * l.quantity, 0);
+    const resolvedShippingFee = subtotal >= storePolicies.shipping.freeThreshold * 100 ? 0 : input.shippingFee;
+    pricing = calculateCartTotals({
+      lines: resolvedLines.map(({ id, productId, name, unitPrice, quantity }) => ({ id, productId, name, unitPrice, quantity })),
+      coupon: couponRule,
+      shippingFee: resolvedShippingFee
+    });
   } catch (err) {
     const message = err instanceof Error ? err.message : "Pricing error.";
     return NextResponse.json({ error: message }, { status: 422 });
   }
 
-  // DB transaction: validate stock + decrement + create order
+  // -----------------------------------------------------------------------
+  // Payment
+  // -----------------------------------------------------------------------
+  const orderNumber = generateOrderNumber(ORDER_PREFIX);
+  const paymentProvider = getPaymentProvider(input.paymentProvider);
+  let paymentResult;
+  try {
+    paymentResult = await paymentProvider.createPayment({
+      orderId: orderNumber,
+      amount: pricing.grandTotal,
+      currency: storeConfig.currency,
+      customerEmail: input.email,
+      customerPhone: input.phone,
+      description: `Order ${orderNumber}`,
+      returnUrl: `${storeConfig.url}/checkout/confirm`
+    });
+  } catch (err) {
+    const message = err instanceof Error ? err.message : "Payment initialisation failed.";
+    return NextResponse.json({ error: message }, { status: 502 });
+  }
+
+  if (paymentResult.status === "FAILED") {
+    return NextResponse.json({ error: paymentResult.error || "Payment failed." }, { status: 400 });
+  }
+
+  // -----------------------------------------------------------------------
+  // DB transaction: validate stock + reserve + create order
+  // -----------------------------------------------------------------------
   let order;
   try {
     order = await prisma.$transaction(async (tx) => {
-      // Lock and validate each variant stock
-      for (const item of cart.items) {
-        const variant = await tx.productVariant.findUnique({ where: { id: item.variant.id } });
+      // Lock and validate each variant stock inside transaction (race-condition safe)
+      for (const line of resolvedLines) {
+        const variant = await tx.productVariant.findUnique({ where: { id: line.variantId } });
         if (!variant || !variant.isAvailable) {
-          throw new Error(`${item.variant.product.name} (${item.variant.size}/${item.variant.color}) is no longer available.`);
+          throw new Error(`${line.name} (${line.variantSize}/${line.variantColor}) is no longer available.`);
         }
         const available = variant.stockQuantity - variant.reservedQuantity;
-        if (available < item.quantity) {
-          throw new Error(`Only ${available} unit(s) of ${item.variant.product.name} (${item.variant.size}) are available.`);
+        if (available < line.quantity) {
+          throw new Error(`Only ${available} unit(s) of ${line.name} (${line.variantSize}) are available.`);
         }
       }
 
-      // Decrement inventory (reservedQuantity) for each variant
-      for (const item of cart.items) {
+      // Reserve inventory for each variant
+      for (const line of resolvedLines) {
         await tx.productVariant.update({
-          where: { id: item.variant.id },
-          data: { reservedQuantity: { increment: item.quantity } }
+          where: { id: line.variantId },
+          data: { reservedQuantity: { increment: line.quantity } }
         });
 
         await tx.inventoryMovement.create({
           data: {
-            variantId: item.variant.id,
+            variantId: line.variantId,
             actorId: session?.userId ?? null,
             type: "RESERVATION",
-            quantity: item.quantity,
+            quantity: line.quantity,
             reason: "Order checkout reservation"
           }
         });
       }
 
-      // Increment coupon usage
+      // Coupon usage
       if (couponId) {
         await tx.coupon.update({
           where: { id: couponId },
@@ -173,20 +291,22 @@ export async function POST(request: NextRequest) {
       }
 
       // Create order
-      const orderNumber = generateOrderNumber(ORDER_PREFIX);
       const newOrder = await tx.order.create({
         data: {
           orderNumber,
           userId: session?.userId ?? null,
           couponId,
           status: "PENDING",
-          paymentStatus: "PENDING",
+          paymentStatus: (input.paymentProvider === "COD" || paymentResult.status === "PENDING") ? "PENDING" : "PAID",
           guestEmail: session ? null : input.email,
           guestPhone: session ? null : input.phone,
+          // Opaque token for guest order retrieval — only set for unauthenticated orders
+          guestToken: session ? null : await generateRandomString(48),
           subtotal: pricing.subtotal,
           discountTotal: pricing.couponDiscount,
           shippingTotal: pricing.shippingFee,
           grandTotal: pricing.grandTotal,
+          currency: storeConfig.currency,
           deliveryAddress: input.deliveryAddress,
           customerSnapshot: {
             email: input.email,
@@ -197,33 +317,45 @@ export async function POST(request: NextRequest) {
       });
 
       // Create order items
-      for (const item of cart.items) {
-        const unitPrice = item.variant.priceOverride ?? item.variant.product.basePrice;
+      for (const line of resolvedLines) {
         await tx.orderItem.create({
           data: {
             orderId: newOrder.id,
-            productId: item.variant.productId,
-            variantId: item.variant.id,
-            sku: item.variant.sku,
-            name: item.variant.product.name,
-            color: item.variant.color,
-            size: item.variant.size,
-            unitPrice,
-            quantity: item.quantity,
-            lineTotal: unitPrice * item.quantity,
+            productId: line.productId,
+            variantId: line.variantId,
+            sku: line.variantSku,
+            name: line.name,
+            color: line.variantColor,
+            size: line.variantSize,
+            unitPrice: line.unitPrice,
+            quantity: line.quantity,
+            lineTotal: line.unitPrice * line.quantity,
             productSnapshot: {
-              name: item.variant.product.name,
-              slug: item.variant.product.slug,
-              sku: item.variant.sku,
-              color: item.variant.color,
-              size: item.variant.size,
-              price: unitPrice
+              name: line.name,
+              slug: line.productSlug,
+              sku: line.variantSku,
+              color: line.variantColor,
+              size: line.variantSize,
+              price: line.unitPrice,
+              image: line.snapshotImage
             }
           }
         });
       }
 
-      // Initial status history
+      // Payment record
+      await tx.payment.create({
+        data: {
+          orderId: newOrder.id,
+          provider: input.paymentProvider,
+          amount: pricing.grandTotal,
+          currency: storeConfig.currency,
+          status: (input.paymentProvider === "COD" || paymentResult.status === "PENDING") ? "PENDING" : "PAID",
+          providerPaymentId: paymentResult.redirectUrl ?? null
+        }
+      });
+
+      // Status history
       await tx.orderStatusHistory.create({
         data: {
           orderId: newOrder.id,
@@ -234,8 +366,10 @@ export async function POST(request: NextRequest) {
         }
       });
 
-      // Mark cart as checked out
-      await tx.cart.update({ where: { id: cart.id }, data: { status: "CHECKED_OUT" } });
+      // Mark DB cart as checked out (no-op for inline-cart path)
+      if (cartId) {
+        await tx.cart.update({ where: { id: cartId }, data: { status: "CHECKED_OUT" } });
+      }
 
       return newOrder;
     });
@@ -244,22 +378,20 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: message }, { status: 422 });
   }
 
-  // Background: compute risk score for COD orders (non-blocking)
+  // Background: risk score for COD orders
   if (input.paymentProvider === "COD" && session?.userId) {
     computeAndStoreRisk(order.id, session.userId).catch(() => undefined);
   }
 
   // Fire-and-forget: confirmation email + customer event
-  const confirmEmail = input.email;
-  const confirmName = input.deliveryAddress.name;
-  const itemCount = cart.items.reduce((s, i) => s + i.quantity, 0);
+  const itemCount = resolvedLines.reduce((s, l) => s + l.quantity, 0);
   sendOrderConfirmationEmail({
-    to: confirmEmail,
+    to: input.email,
     orderNumber: order.orderNumber,
     orderId: order.id,
     grandTotal: order.grandTotal,
     itemCount,
-    deliveryName: confirmName
+    deliveryName: input.deliveryAddress.name
   }).catch(() => undefined);
 
   if (session?.userId) {
@@ -270,45 +402,69 @@ export async function POST(request: NextRequest) {
     });
   }
 
-  // Clear anon cookie if guest converted
   const response = NextResponse.json({
     orderId: order.id,
     orderNumber: order.orderNumber,
     status: order.status,
-    grandTotal: order.grandTotal
+    grandTotal: order.grandTotal,
+    paymentStatus: paymentResult.status,
+    paymentUrl: paymentResult.redirectUrl ?? null
   }, { status: 201 });
 
   if (!session) {
     response.cookies.delete(ANON_COOKIE);
+    // Set the guest order token as a short-lived HttpOnly cookie.
+    // The GET /api/orders/[id] endpoint will verify this token for unauthenticated access.
+    if (order.guestToken) {
+      response.cookies.set(GUEST_ORDER_TOKEN_COOKIE, order.guestToken, {
+        httpOnly: true,
+        secure: process.env.NODE_ENV === "production",
+        sameSite: "lax",
+        path: "/",
+        maxAge: GUEST_ORDER_TOKEN_TTL_SECONDS
+      });
+    }
   }
 
   return response;
 }
 
+
 async function computeAndStoreRisk(orderId: string, userId: string) {
+  const now = Date.now();
   const [failedDeliveries, codRefusals, cancellations, returns, paymentFailures, recentOrders, user] =
     await Promise.all([
+      // Orders that physically failed delivery
       prisma.order.count({ where: { userId, status: "FAILED_DELIVERY" } }),
-      prisma.order.count({ where: { userId, status: "FAILED_DELIVERY" } }), // placeholder — refine with payment field
+      // COD orders that were cancelled after dispatch (proxy for refusal at door)
       prisma.order.count({
-        where: { userId, status: "CANCELLED", createdAt: { gte: new Date(Date.now() - 90 * 86400000) } }
+        where: {
+          userId,
+          status: "CANCELLED",
+          payments: { some: { provider: "COD" } },
+          // Only count cancellations that happened after order was confirmed (i.e. after dispatch, not pre-fulfillment)
+          history: { some: { newStatus: "CONFIRMED" } }
+        }
+      }),
+      prisma.order.count({
+        where: { userId, status: "CANCELLED", createdAt: { gte: new Date(now - 90 * 86400000) } }
       }),
       prisma.order.count({
         where: {
           userId,
           status: { in: ["RETURN_REQUESTED", "RETURNED"] },
-          createdAt: { gte: new Date(Date.now() - 180 * 86400000) }
+          createdAt: { gte: new Date(now - 180 * 86400000) }
         }
       }),
       prisma.payment.count({
         where: {
           order: { userId },
           status: "FAILED",
-          createdAt: { gte: new Date(Date.now() - 30 * 86400000) }
+          createdAt: { gte: new Date(now - 30 * 86400000) }
         }
       }),
       prisma.order.count({
-        where: { userId, createdAt: { gte: new Date(Date.now() - 86400000) } }
+        where: { userId, createdAt: { gte: new Date(now - 86400000) } }
       }),
       prisma.user.findUnique({ where: { id: userId } })
     ]);
@@ -332,6 +488,19 @@ async function computeAndStoreRisk(orderId: string, userId: string) {
 
   // Delete and recreate assessment (upsert can't handle nested relation signals cleanly)
   await prisma.riskAssessment.deleteMany({ where: { orderId } });
+
+  // Score weights mirror risk-score.ts so the DB stores meaningful signal weights
+  const SIGNAL_WEIGHTS: Record<string, number> = {
+    "Multiple failed deliveries": 22,
+    "Repeated COD refusals": 18,
+    "High recent cancellation frequency": 16,
+    "Elevated return frequency": 12,
+    "Recent payment failures": 12,
+    "Unusual order velocity": 10,
+    "New account with high order value": 10,
+    "Order value is far above customer average": 10
+  };
+
   await prisma.riskAssessment.create({
     data: {
       orderId,
@@ -340,7 +509,7 @@ async function computeAndStoreRisk(orderId: string, userId: string) {
       level: result.level,
       recommendedAction: result.recommendedAction,
       signals: {
-        create: result.signals.map((label) => ({ label, weight: 0 }))
+        create: result.signals.map((label) => ({ label, weight: SIGNAL_WEIGHTS[label] ?? 0 }))
       }
     }
   });

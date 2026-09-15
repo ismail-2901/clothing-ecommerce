@@ -3,14 +3,17 @@
 import { useState, type FormEvent } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { Lock, ArrowLeft, ShieldCheck } from "lucide-react";
+import { Lock, ArrowLeft, ShieldCheck, LogOut } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Spinner } from "@/components/ui/spinner";
 import { storeConfig } from "@/config/store";
+import { signIn, signOut, useSession } from "@/lib/auth/client";
 
 export function AdminLockScreen() {
   const router = useRouter();
+  const { data: session } = useSession();
+  const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -21,17 +24,19 @@ export function AdminLockScreen() {
     setLoading(true);
 
     try {
-      const res = await fetch("/api/admin/auth/login", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ password })
+      const result = await signIn.email({
+        email: email.trim().toLowerCase(),
+        password
       });
 
       setLoading(false);
 
-      if (!res.ok) {
-        const data = await res.json().catch(() => ({}));
-        setError(data.error || "Incorrect password. Access denied.");
+      if (result.error) {
+        setError(
+          result.error.message === "Email not verified"
+            ? "Your account email is not verified."
+            : "Invalid administrator email or password."
+        );
         return;
       }
 
@@ -39,6 +44,16 @@ export function AdminLockScreen() {
     } catch {
       setLoading(false);
       setError("An unexpected network error occurred.");
+    }
+  }
+
+  async function handleSignOut() {
+    setLoading(true);
+    try {
+      await signOut();
+    } finally {
+      setLoading(false);
+      router.refresh();
     }
   }
 
@@ -54,17 +69,48 @@ export function AdminLockScreen() {
           </p>
           <h1 className="mt-2 text-2xl font-semibold tracking-tight">Admin Authorization</h1>
           <p className="mt-2 text-sm text-muted-foreground">
-            This area is restricted. Enter your master administrator password to unlock the dashboard.
+            This area is restricted to authorized personnel. Sign in with your administrator credentials.
           </p>
         </div>
 
+        {session?.user && (
+          <div className="mb-5 rounded-lg border border-amber-200 bg-amber-50 p-3 text-xs text-amber-900 dark:border-amber-900/50 dark:bg-amber-950/30 dark:text-amber-200">
+            <p className="font-medium">
+              Signed in as <span className="font-semibold">{session.user.email}</span>
+            </p>
+            <p className="mt-1 text-[11px] text-amber-700 dark:text-amber-300">
+              This account does not have administrator privileges. Please sign in with an administrator account.
+            </p>
+            <button
+              type="button"
+              onClick={handleSignOut}
+              disabled={loading}
+              className="mt-2 inline-flex items-center gap-1.5 font-medium underline hover:text-amber-950 dark:hover:text-amber-100"
+            >
+              <LogOut size={12} />
+              <span>Sign out of current account</span>
+            </button>
+          </div>
+        )}
+
         <form onSubmit={handleSubmit} className="grid gap-5">
+          <Input
+            id="admin-email"
+            type="email"
+            label="Administrator Email"
+            placeholder="admin@example.com"
+            required
+            autoFocus
+            autoComplete="email"
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+          />
+
           <Input
             id="admin-password"
             type="password"
-            label="Master Admin Password"
+            label="Password"
             required
-            autoFocus
             autoComplete="current-password"
             value={password}
             onChange={(e) => setPassword(e.target.value)}

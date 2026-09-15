@@ -15,10 +15,8 @@ import {
   Sparkles
 } from "lucide-react";
 import { formatMoney } from "@/lib/utils/money";
-import { getServerSession } from "@/lib/auth/server";
+import { getServerUser } from "@/lib/auth/server";
 import { prisma } from "@/db/prisma";
-import { cookies } from "next/headers";
-import { isValidAdminSession } from "@/lib/auth/admin-auth";
 import { AdminDashboardSalesChart } from "@/components/admin/admin-dashboard-sales-chart";
 
 function subDays(days: number) {
@@ -26,21 +24,11 @@ function subDays(days: number) {
 }
 
 export default async function AdminAnalyticsPage() {
-  const cookieStore = await cookies();
-  const token = cookieStore.get("admin_session")?.value;
-  const isMasterAdmin = isValidAdminSession(token);
-
-  if (!isMasterAdmin) {
-    const session = await getServerSession();
-    if (!session?.userId) redirect("/login");
-
-    const userRoles = await prisma.userRole.findMany({
-      where: { userId: session.userId },
-      include: { role: true }
-    });
-    const isAdmin = userRoles.some((ur) => ur.role.name === "ADMIN" || ur.role.name === "SUPER_ADMIN");
-    if (!isAdmin) redirect("/admin");
-  }
+  const user = await getServerUser();
+  const isAdmin = user?.roles?.some(
+    (ur) => ur.role.name === "ADMIN" || ur.role.name === "SUPER_ADMIN"
+  ) ?? false;
+  if (!isAdmin) redirect("/login");
 
   // Aggregations
   const [
@@ -151,13 +139,14 @@ export default async function AdminAnalyticsPage() {
             <Calendar size={14} />
             <span>Last 30 Days</span>
           </div>
-          <button
-            type="button"
+          <a
+            href="/api/admin/export/orders"
+            download
             className="flex items-center gap-2 rounded-lg border border-border bg-background px-3 py-1.5 text-xs font-medium text-foreground shadow-sm hover:bg-muted/40 transition"
           >
             <Download size={14} />
             <span>Export Report</span>
-          </button>
+          </a>
         </div>
       </div>
 

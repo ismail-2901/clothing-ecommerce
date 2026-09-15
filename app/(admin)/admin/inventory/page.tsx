@@ -94,13 +94,14 @@ export default async function AdminInventoryPage({ searchParams }: PageProps) {
         </div>
 
         <div className="flex items-center gap-2.5">
-          <button
-            type="button"
+          <a
+            href="/api/admin/export/inventory"
+            download
             className="flex items-center gap-2 rounded-lg border border-border bg-background px-3 py-1.5 text-xs font-medium text-foreground shadow-sm hover:bg-muted/40 transition"
           >
             <Download size={14} />
             <span>Export CSV</span>
-          </button>
+          </a>
           <Button asChild className="text-xs h-8">
             <Link href="/admin/products/new">
               <Plus size={14} /> Add Product

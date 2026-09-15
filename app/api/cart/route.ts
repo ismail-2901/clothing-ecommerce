@@ -65,6 +65,7 @@ function serializeCart(cart: Awaited<ReturnType<typeof getOrCreateCart>>) {
       variantId: item.variantId,
       sku: item.variant.sku,
       productId: item.variant.productId,
+      name: item.variant.product.name,
       productName: item.variant.product.name,
       productSlug: item.variant.product.slug,
       color: item.variant.color,
@@ -192,6 +193,54 @@ export async function DELETE(request: NextRequest) {
   }
 
   await prisma.cartItem.delete({ where: { id: parsed.data.cartItemId } });
+
+  const updatedCart = await getOrCreateCart(userId, anonymousId);
+  const response = NextResponse.json(serializeCart(updatedCart));
+  response.cookies.set(ANON_COOKIE, anonymousId, { maxAge: COOKIE_MAX_AGE, httpOnly: true, sameSite: "lax" });
+  return response;
+}
+
+const updateItemSchema = z.object({
+  cartItemId: z.string().min(1),
+  quantity: z.number().int().min(0).max(99)
+});
+
+// PATCH /api/cart — update item quantity (quantity=0 removes the item)
+export async function PATCH(request: NextRequest) {
+  let body: unknown;
+  try {
+    body = await request.json();
+  } catch {
+    return NextResponse.json({ error: "Invalid request body" }, { status: 400 });
+  }
+
+  const parsed = updateItemSchema.safeParse(body);
+  if (!parsed.success) {
+    return NextResponse.json({ error: "cartItemId and quantity required" }, { status: 422 });
+  }
+
+  const { cartItemId, quantity } = parsed.data;
+  const { userId, anonymousId } = await resolveCartIdentity(request);
+  const cart = await getOrCreateCart(userId, anonymousId);
+
+  // IDOR protection — item must belong to this cart
+  const item = cart.items.find((i) => i.id === cartItemId);
+  if (!item) {
+    return NextResponse.json({ error: "Item not found in cart." }, { status: 404 });
+  }
+
+  if (quantity === 0) {
+    await prisma.cartItem.delete({ where: { id: cartItemId } });
+  } else {
+    const available = item.variant.stockQuantity - item.variant.reservedQuantity;
+    if (quantity > available) {
+      return NextResponse.json(
+        { error: `Only ${available} unit(s) available.` },
+        { status: 422 }
+      );
+    }
+    await prisma.cartItem.update({ where: { id: cartItemId }, data: { quantity } });
+  }
 
   const updatedCart = await getOrCreateCart(userId, anonymousId);
   const response = NextResponse.json(serializeCart(updatedCart));

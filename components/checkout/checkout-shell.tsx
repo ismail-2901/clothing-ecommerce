@@ -4,9 +4,10 @@ import { FormEvent, useState } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import { useRouter } from "next/navigation";
-import { Lock, ArrowRight, ShieldCheck, RotateCcw, Truck, Headphones, Tag } from "lucide-react";
+import { Lock, ArrowRight, ShieldCheck, RotateCcw, Truck, Headphones, Tag, CreditCard, Wallet, Banknote } from "lucide-react";
 import { useCart } from "@/components/cart/cart-provider";
 import { formatMoney } from "@/lib/utils/money";
+import { storePolicies } from "@/config/store";
 
 export function CheckoutShell() {
   const router = useRouter();
@@ -18,14 +19,14 @@ export function CheckoutShell() {
   const [couponApplied, setCouponApplied] = useState(false);
 
   const [formData, setFormData] = useState({
-    fullName: "Md. Ismail Hossain",
-    email: "ismailhossain@email.com",
-    phone: "1712345678",
-    saveInfo: true,
-    address: "House 12, Road 5, Block C",
-    city: "Dhaka",
-    division: "Dhaka",
-    postalCode: "1216",
+    fullName: "",
+    email: "",
+    phone: "",
+    saveInfo: false,
+    address: "",
+    city: "",
+    division: "",
+    postalCode: "",
     country: "Bangladesh",
     sameBilling: true,
     paymentMethod: "COD"
@@ -44,27 +45,29 @@ export function CheckoutShell() {
     setLoading(true);
 
     try {
-      const response = await fetch("/api/checkout", {
+      const response = await fetch("/api/orders", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           email: formData.email,
           phone: `+880${formData.phone}`,
-          deliveryName: formData.fullName,
-          deliveryLine1: formData.address,
-          deliveryCity: formData.city,
-          deliveryCountry: "BD",
+          deliveryAddress: {
+            name: formData.fullName,
+            line1: formData.address,
+            city: formData.city,
+            area: formData.division,
+            postalCode: formData.postalCode,
+            country: "BD"
+          },
           paymentProvider: formData.paymentMethod,
-          cartItems: items.map((item) => ({
-            sku: item.sku,
-            productId: item.productId,
-            name: item.name,
-            quantity: item.quantity,
-            price: item.price,
-            size: item.size,
-            color: item.color,
-            image: item.image
-          }))
+          couponCode: couponApplied && couponCode.trim() ? couponCode.trim() : undefined,
+          // variantId + quantity only — server resolves price, name, stock from DB
+          cartItems: items
+            .filter((item) => !!item.variantId)
+            .map((item) => ({
+              variantId: item.variantId!,
+              quantity: item.quantity
+            }))
         })
       });
 
@@ -77,6 +80,7 @@ export function CheckoutShell() {
       }
 
       const generatedId = result.orderNumber || result.orderId || `ELR-${new Date().toISOString().slice(0, 10).replace(/-/g, "")}-1842`;
+      const confirmedTotal = result.grandTotal ?? summary.grandTotal;
 
       // Save order snapshot to sessionStorage for reliable instant feedback on success page
       if (typeof window !== "undefined") {
@@ -89,8 +93,8 @@ export function CheckoutShell() {
             address: formData.address,
             city: formData.city,
             paymentMethod: formData.paymentMethod,
-            total: summary.grandTotal || 537000,
-            subtotal: summary.subtotal || 597000,
+            total: confirmedTotal,
+            subtotal: summary.subtotal || 0,
             shippingFee: summary.shippingFee,
             items: items.map((item) => ({
               name: item.name,
@@ -98,7 +102,7 @@ export function CheckoutShell() {
               color: item.color,
               size: item.size,
               quantity: item.quantity,
-              price: item.price,
+              price: item.unitPrice ?? item.price,
               image: item.image
             }))
           }));
@@ -108,7 +112,13 @@ export function CheckoutShell() {
       }
 
       clearCart();
-      router.push(`/checkout/success?orderId=${generatedId}&name=${encodeURIComponent(formData.fullName)}&total=${summary.grandTotal}`);
+
+      if (result.paymentUrl) {
+        window.location.href = result.paymentUrl;
+        return;
+      }
+
+      router.push(`/checkout/success?orderId=${generatedId}&name=${encodeURIComponent(formData.fullName)}&total=${confirmedTotal}`);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Checkout failed.");
       setLoading(false);
@@ -333,6 +343,90 @@ export function CheckoutShell() {
             </div>
           </div>
 
+          {/* Payment Method Selection Card */}
+          <div className="rounded-xl border border-border bg-background p-6 space-y-4 shadow-sm">
+            <div>
+              <h2 className="text-sm sm:text-base font-bold text-foreground">Payment Method</h2>
+              <p className="text-xs text-muted-foreground">
+                Select how you would like to pay for your order.
+              </p>
+            </div>
+
+            <div className="grid gap-3 pt-2">
+              {[
+                {
+                  id: "COD",
+                  name: "Cash on Delivery",
+                  desc: "Pay in cash when your order arrives. Standard Bangladesh delivery.",
+                  badge: "Most Popular",
+                  icon: Banknote
+                },
+                {
+                  id: "BKASH",
+                  name: "bKash",
+                  desc: "Instant payment using your personal bKash mobile wallet.",
+                  badge: "Instant",
+                  icon: Wallet
+                },
+                {
+                  id: "NAGAD",
+                  name: "Nagad",
+                  desc: "Fast checkout using your Nagad account with 0% extra fee.",
+                  badge: "Instant",
+                  icon: Wallet
+                },
+                {
+                  id: "SSLCOMMERZ",
+                  name: "SSLCommerz Gateway",
+                  desc: "All BD cards, internet banking, and mobile financial services.",
+                  badge: "Multi-Gateway",
+                  icon: ShieldCheck
+                },
+                {
+                  id: "CARD",
+                  name: "Credit / Debit Card",
+                  desc: "Direct card payment via Visa, MasterCard, or American Express.",
+                  badge: "Encrypted",
+                  icon: CreditCard
+                }
+              ].map((method) => {
+                const Icon = method.icon;
+                const isSelected = formData.paymentMethod === method.id;
+                return (
+                  <label
+                    key={method.id}
+                    className={`flex items-start gap-3.5 rounded-xl border p-4 cursor-pointer transition-all ${
+                      isSelected
+                        ? "border-foreground bg-foreground/[0.03] shadow-sm ring-1 ring-foreground"
+                        : "border-border hover:border-foreground/40 bg-background"
+                    }`}
+                  >
+                    <input
+                      type="radio"
+                      name="paymentMethod"
+                      value={method.id}
+                      checked={isSelected}
+                      onChange={(e) => setFormData({ ...formData, paymentMethod: e.target.value })}
+                      className="mt-1 h-4 w-4 border-border text-foreground accent-foreground cursor-pointer"
+                    />
+                    <div className="flex-1 space-y-1">
+                      <div className="flex items-center gap-2">
+                        <Icon size={16} className={isSelected ? "text-foreground" : "text-muted-foreground"} />
+                        <span className="text-xs font-bold text-foreground">{method.name}</span>
+                        {method.badge && (
+                          <span className="rounded bg-muted px-1.5 py-0.5 text-[9px] font-bold text-foreground uppercase">
+                            {method.badge}
+                          </span>
+                        )}
+                      </div>
+                      <p className="text-[11px] text-muted-foreground">{method.desc}</p>
+                    </div>
+                  </label>
+                );
+              })}
+            </div>
+          </div>
+
           {/* Action Buttons */}
           <div className="space-y-3">
             <button
@@ -340,7 +434,13 @@ export function CheckoutShell() {
               disabled={loading}
               className="flex h-12 w-full items-center justify-center gap-2 rounded-md bg-foreground text-xs font-bold uppercase tracking-widest text-background hover:bg-foreground/90 disabled:opacity-50 transition-colors shadow-md"
             >
-              {loading ? "Processing Order..." : "Continue to Payment"} <ArrowRight size={15} />
+              {loading ? (
+                "Processing Order..."
+              ) : formData.paymentMethod === "COD" ? (
+                <>Place Order (Cash on Delivery) <ArrowRight size={15} /></>
+              ) : (
+                <>Proceed to {formData.paymentMethod} Payment <ArrowRight size={15} /></>
+              )}
             </button>
             <Link
               href="/cart"
@@ -364,34 +464,37 @@ export function CheckoutShell() {
 
           {/* Items List */}
           <div className="divide-y divide-border/60 max-h-72 overflow-y-auto pr-1">
-            {items.map((item) => (
-              <div key={item.sku} className="py-3 flex items-center justify-between gap-3">
-                <div className="flex items-center gap-3">
-                  <div className="relative h-14 w-12 shrink-0 overflow-hidden rounded bg-muted">
-                    {item.image ? (
-                      <Image src={item.image} alt={item.name} fill className="object-cover" sizes="48px" />
-                    ) : (
-                      <div className="h-full w-full bg-zinc-200" />
-                    )}
+            {items.map((item) => {
+              const itemPrice = item.unitPrice ?? item.price;
+              return (
+                <div key={item.id || item.sku} className="py-3 flex items-center justify-between gap-3">
+                  <div className="flex items-center gap-3">
+                    <div className="relative h-14 w-12 shrink-0 overflow-hidden rounded bg-muted">
+                      {item.image ? (
+                        <Image src={item.image} alt={item.name} fill className="object-cover" sizes="48px" />
+                      ) : (
+                        <div className="h-full w-full bg-zinc-200" />
+                      )}
+                    </div>
+                    <div>
+                      <p className="text-xs font-bold text-foreground">{item.name}</p>
+                      <p className="text-[11px] text-muted-foreground">
+                        {item.color || "Black"} | Size: {item.size || "M"} | Qty: {item.quantity}
+                      </p>
+                      <span className="inline-block rounded bg-black px-1 py-0.2 text-[8px] font-bold text-white">
+                        22% OFF
+                      </span>
+                    </div>
                   </div>
-                  <div>
-                    <p className="text-xs font-bold text-foreground">{item.name}</p>
-                    <p className="text-[11px] text-muted-foreground">
-                      {item.color || "Black"} | Size: {item.size || "M"} | Qty: {item.quantity}
+                  <div className="text-right">
+                    <p className="text-xs font-bold">{formatMoney(itemPrice * item.quantity)}</p>
+                    <p className="text-[10px] text-muted-foreground line-through">
+                      {formatMoney(Math.round(itemPrice * item.quantity * 1.25))}
                     </p>
-                    <span className="inline-block rounded bg-black px-1 py-0.2 text-[8px] font-bold text-white">
-                      22% OFF
-                    </span>
                   </div>
                 </div>
-                <div className="text-right">
-                  <p className="text-xs font-bold">{formatMoney(item.price * item.quantity)}</p>
-                  <p className="text-[10px] text-muted-foreground line-through">
-                    {formatMoney(Math.round(item.price * item.quantity * 1.25))}
-                  </p>
-                </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
 
           {/* Subtotal, discount, shipping */}
@@ -449,12 +552,12 @@ export function CheckoutShell() {
             <div className="space-y-1">
               <Truck size={16} className="mx-auto text-foreground/80" />
               <p className="font-bold text-foreground">Free Delivery</p>
-              <p>Over ৳3000</p>
+              <p>{storePolicies.shipping.freeDeliveryShort}</p>
             </div>
             <div className="space-y-1">
               <RotateCcw size={16} className="mx-auto text-foreground/80" />
               <p className="font-bold text-foreground">Easy Returns</p>
-              <p>Within 7 days</p>
+              <p>{storePolicies.returns.shortLabel}</p>
             </div>
             <div className="space-y-1">
               <ShieldCheck size={16} className="mx-auto text-foreground/80" />

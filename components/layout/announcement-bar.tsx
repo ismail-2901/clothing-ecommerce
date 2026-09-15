@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { ChevronLeft, ChevronRight } from "lucide-react";
+import { storePolicies } from "@/config/store";
 
 export function AnnouncementBar() {
   return (
@@ -12,7 +13,7 @@ export function AnnouncementBar() {
             <ChevronLeft size={12} />
           </button>
           <p className="elaris-ann-text">
-            Free delivery on orders over ৳3000&nbsp;&nbsp;|&nbsp;&nbsp;Easy return within 7 days&nbsp;&nbsp;|&nbsp;&nbsp;New collection now live
+            {storePolicies.shipping.freeDeliveryText}&nbsp;&nbsp;|&nbsp;&nbsp;Easy return within {storePolicies.returns.days} days&nbsp;&nbsp;|&nbsp;&nbsp;New collection now live
           </p>
           <button type="button" className="elaris-ann-btn hidden sm:flex" aria-label="Next announcement">
             <ChevronRight size={12} />

@@ -1,37 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { prisma } from "@/db/prisma";
-import { getServerSession } from "@/lib/auth/server";
-
-import { isValidAdminSession } from "@/lib/auth/admin-auth";
-
-async function requireAdmin(request: NextRequest) {
-  // Check master admin password session first
-  const adminCookie = request.cookies.get("admin_session")?.value;
-  if (isValidAdminSession(adminCookie)) {
-    return { error: null, userId: null };
-  }
-
-  const session = await getServerSession();
-  if (!session?.userId) {
-    return { error: NextResponse.json({ error: "Unauthorized" }, { status: 401 }), userId: null };
-  }
-
-  const userRoles = await prisma.userRole.findMany({
-    where: { userId: session.userId },
-    include: { role: true }
-  });
-
-  const isAdmin = userRoles.some((ur) =>
-    ur.role.name === "ADMIN" || ur.role.name === "SUPER_ADMIN"
-  );
-
-  if (!isAdmin) {
-    return { error: NextResponse.json({ error: "Forbidden" }, { status: 403 }), userId: null };
-  }
-
-  return { error: null, userId: session.userId };
-}
+import { requireAdminSession } from "@/lib/auth/server";
 
 const variantSchema = z.object({
   sku: z.string().min(1).max(100),
@@ -63,8 +33,8 @@ const createProductSchema = z.object({
 
 // GET /api/admin/products — paginated list
 export async function GET(request: NextRequest) {
-  const { error } = await requireAdmin(request);
-  if (error) return error;
+  const auth = await requireAdminSession("product:manage");
+  if (!auth.ok) return auth.response;
 
   const { searchParams } = request.nextUrl;
   const page = Math.max(1, Number(searchParams.get("page") ?? 1));
@@ -104,8 +74,9 @@ export async function GET(request: NextRequest) {
 
 // POST /api/admin/products — create product
 export async function POST(request: NextRequest) {
-  const { error, userId } = await requireAdmin(request);
-  if (error) return error;
+  const auth = await requireAdminSession("product:manage");
+  if (!auth.ok) return auth.response;
+  const { userId } = auth;
 
   let body: unknown;
   try {

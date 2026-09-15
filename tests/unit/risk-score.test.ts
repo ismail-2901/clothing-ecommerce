@@ -34,6 +34,7 @@ describe("risk scoring", () => {
     expect(result.score).toBeGreaterThanOrEqual(80);
     expect(result.level).toBe("CRITICAL");
     expect(result.signals).toContain("Multiple failed deliveries");
+    expect(result.signals).toContain("Repeated COD refusals");
   });
 
   it("maps score bands correctly", () => {

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useRef } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import {
@@ -21,6 +21,7 @@ import { Button } from "@/components/ui/button";
 
 export default function AdminContentCreatePage() {
   const router = useRouter();
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
   const [title, setTitle] = useState("");
   const [slug, setSlug] = useState("");
   const [type, setType] = useState("LOOKBOOK");
@@ -30,6 +31,22 @@ export default function AdminContentCreatePage() {
   const [metaTitle, setMetaTitle] = useState("");
   const [metaDesc, setMetaDesc] = useState("");
   const [saved, setSaved] = useState(false);
+
+  const applyFormat = (prefix: string, suffix = "", placeholder = "text") => {
+    const el = textareaRef.current;
+    if (!el) return;
+    const start = el.selectionStart;
+    const end = el.selectionEnd;
+    const selected = content.substring(start, end) || placeholder;
+    const replacement = `${prefix}${selected}${suffix}`;
+    const newContent = content.substring(0, start) + replacement + content.substring(end);
+    setContent(newContent);
+    setTimeout(() => {
+      el.focus();
+      const cursorStart = start + prefix.length;
+      el.setSelectionRange(cursorStart, cursorStart + selected.length);
+    }, 0);
+  };
 
   const handleTitleChange = (val: string) => {
     setTitle(val);
@@ -129,16 +146,59 @@ export default function AdminContentCreatePage() {
                 Editorial Body Content
               </label>
               <div className="flex items-center gap-1 rounded-lg border border-border bg-muted/30 p-1 text-muted-foreground">
-                <button type="button" className="p-1 hover:text-foreground rounded"><Bold size={13} /></button>
-                <button type="button" className="p-1 hover:text-foreground rounded"><Italic size={13} /></button>
-                <button type="button" className="p-1 hover:text-foreground rounded"><Heading size={13} /></button>
-                <button type="button" className="p-1 hover:text-foreground rounded"><List size={13} /></button>
-                <button type="button" className="p-1 hover:text-foreground rounded"><Quote size={13} /></button>
-                <button type="button" className="p-1 hover:text-foreground rounded"><Link2 size={13} /></button>
+                <button
+                  type="button"
+                  title="Bold (**text**)"
+                  onClick={() => applyFormat("**", "**", "bold text")}
+                  className="p-1 hover:text-foreground hover:bg-muted rounded transition-colors"
+                >
+                  <Bold size={13} />
+                </button>
+                <button
+                  type="button"
+                  title="Italic (*text*)"
+                  onClick={() => applyFormat("*", "*", "italic text")}
+                  className="p-1 hover:text-foreground hover:bg-muted rounded transition-colors"
+                >
+                  <Italic size={13} />
+                </button>
+                <button
+                  type="button"
+                  title="Heading (### Heading)"
+                  onClick={() => applyFormat("### ", "", "Heading")}
+                  className="p-1 hover:text-foreground hover:bg-muted rounded transition-colors"
+                >
+                  <Heading size={13} />
+                </button>
+                <button
+                  type="button"
+                  title="Bullet List (- Item)"
+                  onClick={() => applyFormat("- ", "", "List item")}
+                  className="p-1 hover:text-foreground hover:bg-muted rounded transition-colors"
+                >
+                  <List size={13} />
+                </button>
+                <button
+                  type="button"
+                  title="Quote (> Quote)"
+                  onClick={() => applyFormat("> ", "", "Quote text")}
+                  className="p-1 hover:text-foreground hover:bg-muted rounded transition-colors"
+                >
+                  <Quote size={13} />
+                </button>
+                <button
+                  type="button"
+                  title="Link ([text](url))"
+                  onClick={() => applyFormat("[", "](https://example.com)", "link text")}
+                  className="p-1 hover:text-foreground hover:bg-muted rounded transition-colors"
+                >
+                  <Link2 size={13} />
+                </button>
               </div>
             </div>
 
             <textarea
+              ref={textareaRef}
               rows={12}
               placeholder="Write your editorial story, styling notes, fabric descriptions, or policy guidelines here…"
               value={content}

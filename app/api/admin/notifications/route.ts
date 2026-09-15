@@ -1,8 +1,6 @@
 import { NextResponse } from "next/server";
-import { cookies } from "next/headers";
 import { prisma } from "@/db/prisma";
-import { isValidAdminSession } from "@/lib/auth/admin-auth";
-import { ensureLegacyOrders } from "@/features/orders/ensure-orders";
+import { requireAdminSession } from "@/lib/auth/server";
 
 function formatRelativeTime(date: Date): string {
   const diffSec = Math.floor((Date.now() - date.getTime()) / 1000);
@@ -16,21 +14,11 @@ function formatRelativeTime(date: Date): string {
   return `${diffDays}d ago`;
 }
 
-async function verifyAdmin() {
-  const cookieStore = await cookies();
-  const token = cookieStore.get("admin_session")?.value;
-  return isValidAdminSession(token);
-}
-
 export async function GET() {
-  const isAuthed = await verifyAdmin();
-  if (!isAuthed) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
+  const auth = await requireAdminSession("order:manage");
+  if (!auth.ok) return auth.response;
 
   try {
-    await ensureLegacyOrders();
-
     const dbNotifications = await prisma.notification.findMany({
       where: { channel: "IN_APP" },
       orderBy: { createdAt: "desc" },
@@ -107,10 +95,8 @@ export async function GET() {
 }
 
 export async function PATCH(request: Request) {
-  const isAuthed = await verifyAdmin();
-  if (!isAuthed) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
+  const auth = await requireAdminSession("order:manage");
+  if (!auth.ok) return auth.response;
 
   try {
     const body = (await request.json().catch(() => ({}))) as { id?: string; markAll?: boolean };
@@ -139,10 +125,8 @@ export async function PATCH(request: Request) {
 }
 
 export async function DELETE(request: Request) {
-  const isAuthed = await verifyAdmin();
-  if (!isAuthed) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
+  const auth = await requireAdminSession("order:manage");
+  if (!auth.ok) return auth.response;
 
   try {
     const { searchParams } = new URL(request.url);

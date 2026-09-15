@@ -64,3 +64,46 @@ export function releaseInventory(
   };
 }
 
+/**
+ * DELIVERED: moves qty from reserved into sold.
+ * Both stockQuantity and reservedQuantity decrease by the same amount.
+ */
+export function commitSale(
+  snapshot: InventorySnapshot,
+  request: InventoryRequest
+): InventorySnapshot {
+  if (snapshot.sku !== request.sku) {
+    throw new InventoryError("Inventory SKU mismatch.");
+  }
+  if (!Number.isInteger(request.quantity) || request.quantity < 1) {
+    throw new InventoryError("Commit quantity must be positive.");
+  }
+
+  return {
+    ...snapshot,
+    stockQuantity: Math.max(0, snapshot.stockQuantity - request.quantity),
+    reservedQuantity: Math.max(0, snapshot.reservedQuantity - request.quantity)
+  };
+}
+
+/**
+ * RETURNED / REFUNDED: physical goods back in warehouse.
+ * Only stockQuantity increases; reservedQuantity was already zeroed at DELIVERED.
+ */
+export function restoreReturn(
+  snapshot: InventorySnapshot,
+  request: InventoryRequest
+): InventorySnapshot {
+  if (snapshot.sku !== request.sku) {
+    throw new InventoryError("Inventory SKU mismatch.");
+  }
+  if (!Number.isInteger(request.quantity) || request.quantity < 1) {
+    throw new InventoryError("Restore quantity must be positive.");
+  }
+
+  return {
+    ...snapshot,
+    stockQuantity: snapshot.stockQuantity + request.quantity
+  };
+}
+

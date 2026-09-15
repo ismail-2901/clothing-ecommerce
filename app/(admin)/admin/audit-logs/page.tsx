@@ -44,13 +44,14 @@ export default async function AdminAuditLogsPage() {
           </p>
         </div>
 
-        <button
-          type="button"
+        <a
+          href="/api/admin/export/audit-logs"
+          download
           className="flex items-center gap-2 rounded-lg border border-border bg-background px-3 py-1.5 text-xs font-medium text-foreground shadow-sm hover:bg-muted/40 transition self-start sm:self-auto"
         >
           <Download size={14} />
           <span>Export Logs</span>
-        </button>
+        </a>
       </div>
 
       {/* 4 KPI Cards */}

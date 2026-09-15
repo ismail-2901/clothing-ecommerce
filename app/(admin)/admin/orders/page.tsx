@@ -17,7 +17,6 @@ import {
 import { prisma } from "@/db/prisma";
 import { AdminSearchInput } from "@/components/admin/admin-search-input";
 import type { OrderStatus } from "@prisma/client";
-import { ensureLegacyOrders } from "@/features/orders/ensure-orders";
 
 const statusMap: Record<string, { label: string; class: string }> = {
   DELIVERED: { label: "Delivered", class: "bg-emerald-50 text-emerald-700 border-emerald-200" },
@@ -46,7 +45,6 @@ type PageProps = {
 };
 
 export default async function AdminOrdersPage({ searchParams }: PageProps) {
-  await ensureLegacyOrders();
   const { q, status } = (await searchParams) || {};
 
   const whereClause: Record<string, unknown> = {};
@@ -131,13 +129,14 @@ export default async function AdminOrdersPage({ searchParams }: PageProps) {
         </div>
 
         <div className="flex items-center gap-2.5">
-          <button
-            type="button"
+          <a
+            href="/api/admin/export/orders"
+            download
             className="flex items-center gap-2 rounded-lg border border-border bg-background px-3 py-1.5 text-xs font-medium text-foreground shadow-sm hover:bg-muted/40 transition"
           >
             <Download size={14} />
             <span>Export Orders</span>
-          </button>
+          </a>
         </div>
       </div>
 

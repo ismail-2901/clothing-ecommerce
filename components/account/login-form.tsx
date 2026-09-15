@@ -36,6 +36,12 @@ export function LoginForm() {
       return;
     }
 
+    try {
+      await fetch("/api/cart/merge", { method: "POST" });
+    } catch {
+      // ignore merge network failure
+    }
+
     router.push("/account");
     router.refresh();
   }

@@ -4,6 +4,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { LogOut } from "lucide-react";
 import { Spinner } from "@/components/ui/spinner";
+import { signOut } from "@/lib/auth/client";
 
 export function AdminLogoutButton() {
   const router = useRouter();
@@ -12,7 +13,8 @@ export function AdminLogoutButton() {
   async function handleLogout() {
     setLoading(true);
     try {
-      await fetch("/api/admin/auth/logout", { method: "POST" });
+      await signOut();
+      await fetch("/api/admin/auth/logout", { method: "POST" }).catch(() => {});
     } finally {
       setLoading(false);
       router.refresh();

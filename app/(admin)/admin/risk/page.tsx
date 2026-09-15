@@ -15,9 +15,7 @@ import {
   Eye,
   ArrowRight
 } from "lucide-react";
-import { getServerSession } from "@/lib/auth/server";
-import { cookies } from "next/headers";
-import { isValidAdminSession } from "@/lib/auth/admin-auth";
+import { getServerUser } from "@/lib/auth/server";
 import { prisma } from "@/db/prisma";
 
 function scoreBadge(score: number, level: string) {
@@ -57,21 +55,11 @@ const ACTION_LABEL: Record<string, string> = {
 };
 
 export default async function AdminRiskPage() {
-  const cookieStore = await cookies();
-  const token = cookieStore.get("admin_session")?.value;
-  const isMasterAdmin = isValidAdminSession(token);
-
-  if (!isMasterAdmin) {
-    const session = await getServerSession();
-    if (!session?.userId) redirect("/login");
-
-    const userRoles = await prisma.userRole.findMany({
-      where: { userId: session.userId },
-      include: { role: true }
-    });
-    const isAdmin = userRoles.some((ur) => ur.role.name === "ADMIN" || ur.role.name === "SUPER_ADMIN");
-    if (!isAdmin) redirect("/admin");
-  }
+  const user = await getServerUser();
+  const isAdmin = user?.roles?.some(
+    (ur) => ur.role.name === "ADMIN" || ur.role.name === "SUPER_ADMIN"
+  ) ?? false;
+  if (!isAdmin) redirect("/login");
 
   const [riskAssessments, totalAssessed, criticalCount, highCount] = await Promise.all([
     prisma.riskAssessment.findMany({
@@ -103,12 +91,9 @@ export default async function AdminRiskPage() {
             <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-foreground">
               Risk &amp; Fraud Center
             </h1>
-            <span className="rounded-full bg-rose-500/10 px-2.5 py-0.5 text-[11px] font-semibold text-rose-600">
-              Active Protection
-            </span>
           </div>
           <p className="mt-1 text-xs sm:text-sm text-muted-foreground">
-            Automated delivery failure prevention, suspicious checkout scoring, and manual verification triggers
+            Behavioural risk scoring based on order history. Scores flag orders for manual review before dispatch.
           </p>
         </div>
       </div>
@@ -118,7 +103,7 @@ export default async function AdminRiskPage() {
         <div className="rounded-xl border border-border bg-background p-5 shadow-sm">
           <p className="text-xs font-medium text-muted-foreground">Critical Risk Flagged</p>
           <div className="mt-2 flex items-baseline gap-2">
-            <span className="text-2xl font-black text-rose-600">{criticalCount || 2}</span>
+            <span className="text-2xl font-black text-rose-600">{criticalCount}</span>
             <span className="text-xs font-semibold text-rose-700 bg-rose-50 px-1.5 py-0.5 rounded">
               Urgent Hold
             </span>
@@ -128,7 +113,7 @@ export default async function AdminRiskPage() {
         <div className="rounded-xl border border-border bg-background p-5 shadow-sm">
           <p className="text-xs font-medium text-muted-foreground">High Risk Orders</p>
           <div className="mt-2 flex items-baseline gap-2">
-            <span className="text-2xl font-black text-orange-600">{highCount || 4}</span>
+            <span className="text-2xl font-black text-orange-600">{highCount}</span>
             <span className="text-xs font-semibold text-orange-700 bg-orange-50 px-1.5 py-0.5 rounded">
               Call Required
             </span>
@@ -137,13 +122,13 @@ export default async function AdminRiskPage() {
         </div>
         <div className="rounded-xl border border-border bg-background p-5 shadow-sm">
           <p className="text-xs font-medium text-muted-foreground">Medium Risk Reviews</p>
-          <p className="mt-2 text-2xl font-black text-amber-600">{mediumCount || 6}</p>
-          <p className="mt-1 text-[11px] text-muted-foreground">First-time high value shoppers</p>
+          <p className="mt-2 text-2xl font-black text-amber-600">{mediumCount}</p>
+          <p className="mt-1 text-[11px] text-muted-foreground">First-time or elevated-pattern shoppers</p>
         </div>
         <div className="rounded-xl border border-border bg-background p-5 shadow-sm">
-          <p className="text-xs font-medium text-muted-foreground">Fraud Loss Prevented</p>
-          <p className="mt-2 text-2xl font-black text-foreground">৳38,400</p>
-          <p className="mt-1 text-[11px] text-muted-foreground">Saved in courier return fees</p>
+          <p className="text-xs font-medium text-muted-foreground">Total Assessed</p>
+          <p className="mt-2 text-2xl font-black text-foreground">{totalAssessed}</p>
+          <p className="mt-1 text-[11px] text-muted-foreground">COD orders scored at checkout</p>
         </div>
       </div>
 
@@ -151,7 +136,7 @@ export default async function AdminRiskPage() {
       <div className="flex items-start gap-3 rounded-xl border border-amber-200 bg-amber-50/80 p-4 text-xs text-amber-900 shadow-sm">
         <Info size={16} className="shrink-0 mt-0.5 text-amber-600" />
         <p className="leading-relaxed">
-          <strong>Risk Advisory:</strong> Risk scores are predictive signals based on IP geography, disposable emails, COD delivery refusal history, and order velocity. Orders on hold require one click to release once customer is verified by phone.
+          <strong>Signals measured:</strong> failed deliveries, cancellation frequency (90 days), return frequency (180 days), payment failures (30 days), order velocity (24 hours), account age, and order value vs. customer average. Scores are computed at order creation for COD orders only.
         </p>
       </div>
 

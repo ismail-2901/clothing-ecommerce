@@ -345,10 +345,11 @@ model Product {
   variants   ProductVariant[]
   images     ProductImage[]
   tags       ProductTag[]
-  orderItems OrderItem[]
-  reviews    Review[]
-  discounts  Discount[]
+  orderItems    OrderItem[]
+  reviews       Review[]
+  discounts     Discount[]
   recommendations AIRecommendation[]
+  wishlistItems WishlistItem[]
 
   @@index([categoryId, status])
   @@index([collectionId])
@@ -475,8 +476,10 @@ model WishlistItem {
   createdAt  DateTime @default(now())
 
   wishlist Wishlist @relation(fields: [wishlistId], references: [id], onDelete: Cascade)
+  product  Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
 
   @@unique([wishlistId, productId])
+  @@index([productId])
 }
 
 model Coupon {
@@ -546,6 +549,7 @@ model Order {
   paymentStatus     PaymentStatus @default(PENDING)
   guestEmail        String?
   guestPhone        String?
+  guestToken        String?       @unique
   subtotal          Int
   discountTotal     Int           @default(0)
   shippingTotal     Int           @default(0)

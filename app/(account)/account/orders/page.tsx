@@ -1,13 +1,10 @@
-"use client";
-
-import { useEffect, useState } from "react";
+import { redirect } from "next/navigation";
 import Link from "next/link";
 import Image from "next/image";
 import {
   Search,
   Check,
   X,
-  Clock,
   Truck,
   RotateCcw,
   MapPin,
@@ -19,154 +16,193 @@ import {
   Heart,
   Bell,
   Settings,
-  HelpCircle,
-  ArrowRight
+  HelpCircle
 } from "lucide-react";
 import { formatMoney } from "@/lib/utils/money";
+import { getServerUser } from "@/lib/auth/server";
+import { prisma } from "@/db/prisma";
 
-type OrderItem = {
-  id: string;
-  orderNumber: string;
-  placedDate: string;
-  status: "Processing" | "Delivered" | "Cancelled" | "Shipped";
-  total: number;
-  itemsCount: number;
-  thumbnails: string[];
-  steps: Array<{ label: string; date?: string; active: boolean; current?: boolean; cancelled?: boolean }>;
-};
+export const dynamic = "force-dynamic";
 
-const mockOrders: OrderItem[] = [
-  {
-    id: "o1",
-    orderNumber: "ELR-20260905-1842",
-    placedDate: "5 Sep, 2026 | 10:42 PM",
-    status: "Processing",
-    total: 537000,
-    itemsCount: 5,
-    thumbnails: ["/elaris-women.jpg", "/elaris-hero.jpg", "/elaris-women.jpg"],
-    steps: [
-      { label: "Order Placed", date: "5 Sep, 10:42 PM", active: true },
-      { label: "Confirmed", active: true },
-      { label: "Processing", date: "In progress", active: true, current: true },
-      { label: "Shipped", active: false },
-      { label: "Delivered", active: false }
-    ]
-  },
-  {
-    id: "o2",
-    orderNumber: "ELR-20260828-1120",
-    placedDate: "28 Aug, 2026",
-    status: "Delivered",
-    total: 398000,
-    itemsCount: 3,
-    thumbnails: ["/elaris-women.jpg", "/elaris-accessories.jpg", "/elaris-women.jpg"],
-    steps: [
-      { label: "Order Placed", date: "28 Aug", active: true },
-      { label: "Confirmed", date: "28 Aug", active: true },
-      { label: "Shipped", date: "29 Aug", active: true },
-      { label: "Out for Delivery", date: "31 Aug", active: true },
-      { label: "Delivered", date: "1 Sep", active: true }
-    ]
-  },
-  {
-    id: "o3",
-    orderNumber: "ELR-20260812-0956",
-    placedDate: "12 Aug, 2026",
-    status: "Cancelled",
-    total: 219000,
-    itemsCount: 2,
-    thumbnails: ["/elaris-men.jpg", "/elaris-women.jpg"],
-    steps: [
-      { label: "Order Placed", date: "12 Aug", active: true },
-      { label: "Cancelled", date: "13 Aug", active: true, cancelled: true },
+// ── OrderStatus enum values from schema ───────────────────────────────────────
+type DBOrderStatus =
+  | "PENDING"
+  | "CONFIRMED"
+  | "PROCESSING"
+  | "PACKED"
+  | "SHIPPED"
+  | "OUT_FOR_DELIVERY"
+  | "DELIVERED"
+  | "CANCELLED"
+  | "RETURN_REQUESTED"
+  | "RETURNED"
+  | "REFUNDED"
+  | "FAILED_DELIVERY";
+
+type StepDef = { label: string; date?: string; active: boolean; current?: boolean; cancelled?: boolean };
+
+// Maps DB status to a human label used for tab filtering
+function displayStatus(status: DBOrderStatus): string {
+  switch (status) {
+    case "PENDING":
+    case "CONFIRMED":
+    case "PROCESSING":
+    case "PACKED":
+      return "Processing";
+    case "SHIPPED":
+      return "Shipped";
+    case "OUT_FOR_DELIVERY":
+      return "Shipped";
+    case "DELIVERED":
+      return "Delivered";
+    case "CANCELLED":
+      return "Cancelled";
+    case "RETURN_REQUESTED":
+      return "Return Requested";
+    case "RETURNED":
+      return "Returned";
+    case "REFUNDED":
+      return "Refunded";
+    case "FAILED_DELIVERY":
+      return "Failed Delivery";
+  }
+}
+
+// Build stepper steps from DB status + history timestamps
+function buildSteps(
+  status: DBOrderStatus,
+  history: Array<{ newStatus: string; createdAt: Date }>
+): StepDef[] {
+  const historyMap = Object.fromEntries(
+    history.map((h) => [h.newStatus, h.createdAt])
+  );
+
+  const fmt = (d: Date | undefined) =>
+    d
+      ? d.toLocaleDateString("en-GB", { day: "numeric", month: "short" })
+      : undefined;
+
+  const isCancelled = status === "CANCELLED" || status === "FAILED_DELIVERY";
+  const isReturn = status === "RETURN_REQUESTED" || status === "RETURNED" || status === "REFUNDED";
+
+  if (isCancelled) {
+    return [
+      { label: "Order Placed", date: fmt(historyMap["PENDING"]), active: true },
+      { label: "Cancelled", date: fmt(historyMap["CANCELLED"] ?? historyMap["FAILED_DELIVERY"]), active: true, cancelled: true },
       { label: "Processing", active: false },
       { label: "Shipped", active: false },
       { label: "Delivered", active: false }
-    ]
-  },
-  {
-    id: "o4",
-    orderNumber: "ELR-20260725-2210",
-    placedDate: "25 Jul, 2026",
-    status: "Delivered",
-    total: 428000,
-    itemsCount: 2,
-    thumbnails: ["/elaris-women.jpg", "/elaris-women.jpg"],
-    steps: [
-      { label: "Order Placed", date: "25 Jul", active: true },
-      { label: "Confirmed", active: true },
-      { label: "Shipped", date: "26 Jul", active: true },
-      { label: "Out for Delivery", date: "28 Jul", active: true },
-      { label: "Delivered", date: "29 Jul", active: true }
-    ]
-  },
-  {
-    id: "o5",
-    orderNumber: "ELR-20260710-1433",
-    placedDate: "10 Jul, 2026",
-    status: "Delivered",
-    total: 249000,
-    itemsCount: 1,
-    thumbnails: ["/elaris-men.jpg"],
-    steps: [
-      { label: "Order Placed", date: "10 Jul", active: true },
-      { label: "Confirmed", active: true },
-      { label: "Shipped", active: true },
-      { label: "Out for Delivery", date: "13 Jul", active: true },
-      { label: "Delivered", date: "14 Jul", active: true }
-    ]
+    ];
   }
-];
 
-export default function AccountOrdersPage() {
-  const [orders, setOrders] = useState<OrderItem[]>(mockOrders);
-  const [filterTab, setFilterTab] = useState<string>("all");
-  const [searchQuery, setSearchQuery] = useState("");
-
-  useEffect(() => {
-    // If the customer placed an order in this browser session, show it at the top with its real thumbnail
-    if (typeof window !== "undefined") {
-      try {
-        const lastOrderStr = window.sessionStorage.getItem("elaris_last_order");
-        if (lastOrderStr) {
-          const lastOrder = JSON.parse(lastOrderStr);
-          const thumbnails = (lastOrder.items || []).map((i: any) => i.image).filter(Boolean);
-          const newOrderEntry: OrderItem = {
-            id: `session-${lastOrder.orderNumber}`,
-            orderNumber: lastOrder.orderNumber,
-            placedDate: "Just now",
-            status: "Processing",
-            total: lastOrder.total || 537000,
-            itemsCount: (lastOrder.items || []).reduce((acc: number, item: any) => acc + (item.quantity || 1), 0) || 1,
-            thumbnails: thumbnails.length > 0 ? thumbnails : ["/elaris-hero.jpg"],
-            steps: [
-              { label: "Order Placed", date: "Just now", active: true },
-              { label: "Confirmed", active: true },
-              { label: "Processing", date: "In progress", active: true, current: true },
-              { label: "Shipped", active: false },
-              { label: "Delivered", active: false }
-            ]
-          };
-
-          setOrders((prev) => {
-            const exists = prev.some((o) => o.orderNumber === lastOrder.orderNumber);
-            if (exists) {
-              return prev.map((o) => (o.orderNumber === lastOrder.orderNumber ? newOrderEntry : o));
-            }
-            return [newOrderEntry, ...prev];
-          });
-        }
-      } catch {
-        // ignore
+  if (isReturn) {
+    return [
+      { label: "Delivered", date: fmt(historyMap["DELIVERED"]), active: true },
+      { label: "Return Requested", date: fmt(historyMap["RETURN_REQUESTED"]), active: true },
+      {
+        label: "Returned",
+        date: fmt(historyMap["RETURNED"]),
+        active: status === "RETURNED" || status === "REFUNDED",
+        current: status === "RETURNED"
+      },
+      {
+        label: "Refunded",
+        date: fmt(historyMap["REFUNDED"]),
+        active: status === "REFUNDED",
+        current: status === "REFUNDED"
       }
-    }
-  }, []);
+    ];
+  }
 
-  const filteredOrders = orders.filter((order) => {
-    if (filterTab !== "all" && order.status.toLowerCase() !== filterTab) return false;
-    if (searchQuery.trim() && !order.orderNumber.toLowerCase().includes(searchQuery.toLowerCase())) return false;
-    return true;
+  const STEPS: Array<{ status: DBOrderStatus; label: string }> = [
+    { status: "PENDING", label: "Order Placed" },
+    { status: "CONFIRMED", label: "Confirmed" },
+    { status: "PROCESSING", label: "Processing" },
+    { status: "SHIPPED", label: "Shipped" },
+    { status: "OUT_FOR_DELIVERY", label: "Out for Delivery" },
+    { status: "DELIVERED", label: "Delivered" }
+  ];
+
+  const ORDER: DBOrderStatus[] = [
+    "PENDING", "CONFIRMED", "PROCESSING", "PACKED", "SHIPPED", "OUT_FOR_DELIVERY", "DELIVERED"
+  ];
+  const currentIndex = ORDER.indexOf(status);
+
+  return STEPS.map((s) => {
+    const stepIndex = ORDER.indexOf(s.status);
+    const active = stepIndex <= currentIndex;
+    const current = stepIndex === currentIndex;
+    return {
+      label: s.label,
+      date: fmt(historyMap[s.status]),
+      active,
+      current: current && status !== "DELIVERED" ? true : undefined
+    };
   });
+}
+
+function StatusBadge({ status }: { status: DBOrderStatus }) {
+  const label = displayStatus(status);
+  const style: Record<string, string> = {
+    Processing: "bg-blue-50 text-blue-700",
+    Shipped: "bg-purple-50 text-purple-700",
+    Delivered: "bg-emerald-50 text-emerald-700",
+    Cancelled: "bg-rose-50 text-rose-700",
+    "Failed Delivery": "bg-rose-50 text-rose-700",
+    "Return Requested": "bg-amber-50 text-amber-700",
+    Returned: "bg-amber-50 text-amber-700",
+    Refunded: "bg-teal-50 text-teal-700"
+  };
+  const dotStyle: Record<string, string> = {
+    Processing: "bg-blue-600",
+    Shipped: "bg-purple-600",
+    Delivered: "bg-emerald-600",
+    Cancelled: "bg-rose-600",
+    "Failed Delivery": "bg-rose-600",
+    "Return Requested": "bg-amber-600",
+    Returned: "bg-amber-600",
+    Refunded: "bg-teal-600"
+  };
+  return (
+    <span className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 font-semibold text-xs ${style[label] ?? "bg-muted text-muted-foreground"}`}>
+      <span className={`h-2 w-2 rounded-full ${dotStyle[label] ?? "bg-muted-foreground"}`} />
+      {label}
+    </span>
+  );
+}
+
+export default async function AccountOrdersPage() {
+  const user = await getServerUser();
+  if (!user) redirect("/login");
+
+  const [orders, totalSpentAgg] = await Promise.all([
+    prisma.order.findMany({
+      where: { userId: user.id },
+      orderBy: { createdAt: "desc" },
+      include: {
+        items: {
+          select: {
+            id: true,
+            quantity: true,
+            productSnapshot: true
+          }
+        },
+        history: {
+          select: { newStatus: true, createdAt: true },
+          orderBy: { createdAt: "asc" }
+        }
+      }
+    }),
+    prisma.order.aggregate({
+      where: { userId: user.id, status: { not: "CANCELLED" } },
+      _sum: { grandTotal: true }
+    })
+  ]);
+
+  const totalSpent = totalSpentAgg._sum.grandTotal ?? 0;
+  const memberSince = user.createdAt
+    ? new Date(user.createdAt).toLocaleDateString("en-GB", { month: "short", year: "numeric" })
+    : "—";
 
   return (
     <div className="container-shell py-8 space-y-8">
@@ -179,17 +215,18 @@ export default function AccountOrdersPage() {
         <span className="text-foreground">My Orders</span>
       </nav>
 
-      {/* 3-Column Layout: Left Nav | Center Orders List | Right Account Overview */}
+      {/* 3-Column Layout */}
       <div className="grid gap-8 lg:grid-cols-[220px_1fr_260px] items-start">
-        {/* Left Customer Sidebar */}
+
+        {/* Left Sidebar */}
         <aside className="space-y-6">
           <div className="rounded-xl border border-border bg-background p-4 flex items-center gap-3 shadow-sm">
-            <div className="relative h-11 w-11 rounded-full overflow-hidden bg-muted shrink-0 border border-border">
-              <Image src="/elaris-hero.jpg" alt="Ismail" fill className="object-cover" sizes="44px" />
+            <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-muted border border-border text-sm font-bold text-foreground uppercase">
+              {user.name?.charAt(0) ?? "?"}
             </div>
             <div className="overflow-hidden">
-              <p className="text-xs font-bold text-foreground truncate">Md. Ismail Hossain</p>
-              <p className="text-[10px] text-muted-foreground truncate">ismailhossain@email.com</p>
+              <p className="text-xs font-bold text-foreground truncate">{user.name ?? "Customer"}</p>
+              <p className="text-[10px] text-muted-foreground truncate">{user.email}</p>
               <Link href="/account" className="text-[10px] font-semibold text-foreground hover:underline flex items-center gap-0.5 pt-0.5">
                 Edit Profile →
               </Link>
@@ -210,9 +247,6 @@ export default function AccountOrdersPage() {
               <div className="flex items-center gap-2.5">
                 <Heart size={15} /> Wishlist
               </div>
-              <span className="flex h-4 min-w-4 items-center justify-center rounded-full bg-foreground text-[9px] font-bold text-background px-1">
-                5
-              </span>
             </Link>
             <Link href="/account" className="flex items-center gap-2.5 rounded-lg px-3 py-2 hover:bg-muted hover:text-foreground transition-colors">
               <Bell size={15} /> Notifications
@@ -225,7 +259,6 @@ export default function AccountOrdersPage() {
             </Link>
           </div>
 
-          {/* Sidebar newsletter prompt */}
           <div className="rounded-xl border border-border bg-background p-4 space-y-2 text-xs shadow-sm">
             <p className="font-bold text-foreground">Be the first to know</p>
             <p className="text-[11px] text-muted-foreground">Get exclusive offers &amp; style tips.</p>
@@ -239,171 +272,123 @@ export default function AccountOrdersPage() {
         {/* Center Orders List */}
         <section className="space-y-6">
           <div>
-            <h1 className="text-2xl sm:text-3xl font-extrabold tracking-tight text-foreground">
-              My Orders
-            </h1>
+            <h1 className="text-2xl sm:text-3xl font-extrabold tracking-tight text-foreground">My Orders</h1>
             <p className="mt-0.5 text-xs text-muted-foreground">
               Track, manage and view all your orders in one place.
             </p>
           </div>
 
-          {/* Search bar & Filter tabs */}
-          <div className="space-y-4">
-            <div className="relative">
-              <Search size={15} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-muted-foreground" />
-              <input
-                type="text"
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                placeholder="Search by order number..."
-                className="h-10 w-full rounded-md border border-border bg-background pl-9 pr-4 text-xs placeholder:text-muted-foreground focus:border-foreground focus:outline-none"
-              />
+          {orders.length === 0 ? (
+            <div className="flex flex-col items-center justify-center rounded-xl border border-dashed border-border bg-background p-12 text-center shadow-sm">
+              <Package size={40} className="text-muted-foreground mb-3" />
+              <h2 className="text-base font-bold text-foreground">No Orders Yet</h2>
+              <p className="mt-1 max-w-sm text-xs text-muted-foreground">
+                You haven&apos;t placed any orders. Start shopping and your orders will appear here.
+              </p>
+              <Link
+                href="/shop"
+                className="mt-4 rounded-md bg-foreground px-4 py-2 text-xs font-bold text-background hover:bg-foreground/90 transition-colors"
+              >
+                Browse Products →
+              </Link>
             </div>
+          ) : (
+            <div className="space-y-4">
+              {orders.map((order) => {
+                const status = order.status as DBOrderStatus;
+                const steps = buildSteps(status, order.history as Array<{ newStatus: string; createdAt: Date }>);
+                const itemCount = order.items.reduce((acc, i) => acc + i.quantity, 0);
+                const thumbnails = order.items
+                  .slice(0, 3)
+                  .map((i) => {
+                    const snap = i.productSnapshot as { image?: string } | null;
+                    return snap?.image ?? null;
+                  })
+                  .filter((src): src is string => !!src);
+                const placedDate = order.createdAt.toLocaleDateString("en-GB", {
+                  day: "numeric",
+                  month: "short",
+                  year: "numeric"
+                });
 
-            <div className="flex flex-wrap items-center justify-between gap-4 border-b border-border/80 pb-2">
-              <div className="flex flex-wrap gap-2 text-xs font-semibold">
-                <button
-                  type="button"
-                  onClick={() => setFilterTab("all")}
-                  className={`rounded-md px-3 py-1.5 transition-colors ${filterTab === "all" ? "bg-foreground text-background" : "text-muted-foreground hover:text-foreground"}`}
-                >
-                  All Orders (5)
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setFilterTab("processing")}
-                  className={`rounded-md px-3 py-1.5 transition-colors ${filterTab === "processing" ? "bg-foreground text-background" : "text-muted-foreground hover:text-foreground"}`}
-                >
-                  Processing (1)
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setFilterTab("shipped")}
-                  className={`rounded-md px-3 py-1.5 transition-colors ${filterTab === "shipped" ? "bg-foreground text-background" : "text-muted-foreground hover:text-foreground"}`}
-                >
-                  Shipped (1)
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setFilterTab("delivered")}
-                  className={`rounded-md px-3 py-1.5 transition-colors ${filterTab === "delivered" ? "bg-foreground text-background" : "text-muted-foreground hover:text-foreground"}`}
-                >
-                  Delivered (2)
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setFilterTab("cancelled")}
-                  className={`rounded-md px-3 py-1.5 transition-colors ${filterTab === "cancelled" ? "bg-foreground text-background" : "text-muted-foreground hover:text-foreground"}`}
-                >
-                  Cancelled (1)
-                </button>
-              </div>
+                return (
+                  <div key={order.id} className="rounded-xl border border-border bg-background p-5 space-y-4 shadow-sm">
+                    <div className="flex flex-wrap items-center justify-between gap-2 border-b border-border/60 pb-3 text-xs">
+                      <div>
+                        <span className="font-bold text-foreground text-sm">Order #{order.orderNumber}</span>
+                        <p className="text-[11px] text-muted-foreground">Placed on {placedDate}</p>
+                      </div>
+                      <StatusBadge status={status} />
+                    </div>
 
-              <select className="rounded-md border border-border bg-background px-2.5 py-1 text-xs text-muted-foreground focus:outline-none">
-                <option>Sort by: Latest</option>
-                <option>Sort by: Oldest</option>
-              </select>
+                    {/* Thumbnails + Stepper */}
+                    <div className="grid gap-6 md:grid-cols-[auto_1fr] items-center">
+                      <div className="flex items-center gap-2">
+                        {thumbnails.length > 0 ? (
+                          thumbnails.map((src, i) => (
+                            <div key={i} className="relative h-14 w-12 rounded-md overflow-hidden bg-muted border border-border">
+                              <Image src={src} alt="Product" fill className="object-cover" sizes="48px" />
+                            </div>
+                          ))
+                        ) : (
+                          <div className="flex h-14 w-12 items-center justify-center rounded-md border border-border bg-muted/30 text-[11px] font-bold text-muted-foreground">
+                            {itemCount} item{itemCount !== 1 ? "s" : ""}
+                          </div>
+                        )}
+                        {itemCount > thumbnails.length && thumbnails.length > 0 && (
+                          <div className="flex h-14 w-12 items-center justify-center rounded-md border border-border bg-muted/30 text-[11px] font-bold text-muted-foreground">
+                            +{itemCount - thumbnails.length}
+                          </div>
+                        )}
+                      </div>
+
+                      <div className={`grid gap-1 text-center text-[9px]`} style={{ gridTemplateColumns: `repeat(${steps.length}, 1fr)` }}>
+                        {steps.map((step, idx) => (
+                          <div key={idx} className="space-y-1">
+                            <div
+                              className={`mx-auto flex h-6 w-6 items-center justify-center rounded-full text-[10px] ${
+                                step.cancelled
+                                  ? "bg-rose-600 text-white"
+                                  : step.current
+                                  ? "border-2 border-blue-600 bg-blue-50 text-blue-600"
+                                  : step.active
+                                  ? "bg-foreground text-background"
+                                  : "border border-border bg-muted/40 text-muted-foreground"
+                              }`}
+                            >
+                              {step.cancelled ? <X size={12} /> : step.active ? <Check size={12} /> : null}
+                            </div>
+                            <p className={`font-semibold ${step.active ? "text-foreground" : "text-muted-foreground"}`}>
+                              {step.label}
+                            </p>
+                            {step.date && <p className="text-[9px] text-muted-foreground">{step.date}</p>}
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+
+                    {/* Footer */}
+                    <div className="flex items-center justify-between border-t border-border/60 pt-3">
+                      <div>
+                        <span className="text-[11px] text-muted-foreground">Total Amount</span>
+                        <p className="text-sm font-extrabold text-foreground">{formatMoney(order.grandTotal)}</p>
+                      </div>
+                      <Link
+                        href={`/account/orders/${order.id}`}
+                        className="flex items-center gap-1.5 rounded-md bg-foreground px-4 py-2 text-xs font-bold text-background hover:bg-foreground/90 transition-colors"
+                      >
+                        View Details →
+                      </Link>
+                    </div>
+                  </div>
+                );
+              })}
             </div>
-          </div>
-
-          {/* Order Cards */}
-          <div className="space-y-4">
-            {filteredOrders.map((order) => (
-              <div key={order.id} className="rounded-xl border border-border bg-background p-5 space-y-4 shadow-sm">
-                <div className="flex flex-wrap items-center justify-between gap-2 border-b border-border/60 pb-3 text-xs">
-                  <div>
-                    <span className="font-bold text-foreground text-sm">Order #{order.orderNumber}</span>
-                    <p className="text-[11px] text-muted-foreground">Placed on {order.placedDate}</p>
-                  </div>
-
-                  {/* Status Badge */}
-                  <div>
-                    {order.status === "Processing" && (
-                      <span className="inline-flex items-center gap-1.5 rounded-full bg-blue-50 px-2.5 py-0.5 font-semibold text-blue-700 text-xs">
-                        <span className="h-2 w-2 rounded-full bg-blue-600" /> Processing
-                      </span>
-                    )}
-                    {order.status === "Delivered" && (
-                      <span className="inline-flex items-center gap-1.5 rounded-full bg-emerald-50 px-2.5 py-0.5 font-semibold text-emerald-700 text-xs">
-                        <span className="h-2 w-2 rounded-full bg-emerald-600" /> Delivered
-                      </span>
-                    )}
-                    {order.status === "Cancelled" && (
-                      <span className="inline-flex items-center gap-1.5 rounded-full bg-rose-50 px-2.5 py-0.5 font-semibold text-rose-700 text-xs">
-                        <span className="h-2 w-2 rounded-full bg-rose-600" /> Cancelled
-                      </span>
-                    )}
-                    {order.status === "Shipped" && (
-                      <span className="inline-flex items-center gap-1.5 rounded-full bg-purple-50 px-2.5 py-0.5 font-semibold text-purple-700 text-xs">
-                        <span className="h-2 w-2 rounded-full bg-purple-600" /> Shipped
-                      </span>
-                    )}
-                  </div>
-                </div>
-
-                {/* Middle Row: Thumbnails + Stepper */}
-                <div className="grid gap-6 md:grid-cols-[auto_1fr] items-center">
-                  {/* Thumbnails */}
-                  <div className="flex items-center gap-2">
-                    {order.thumbnails.map((src, i) => (
-                      <div key={i} className="relative h-14 w-12 rounded-md overflow-hidden bg-muted border border-border">
-                        <Image src={src} alt="Product" fill className="object-cover" sizes="48px" />
-                      </div>
-                    ))}
-                    {order.itemsCount > order.thumbnails.length && (
-                      <div className="flex h-14 w-12 items-center justify-center rounded-md border border-border bg-muted/30 text-[11px] font-bold text-muted-foreground">
-                        +{order.itemsCount - order.thumbnails.length} items
-                      </div>
-                    )}
-                  </div>
-
-                  {/* Tracking Stepper */}
-                  <div className="grid grid-cols-5 gap-1 text-center text-[9px]">
-                    {order.steps.map((step, idx) => (
-                      <div key={idx} className="space-y-1">
-                        <div
-                          className={`mx-auto flex h-6 w-6 items-center justify-center rounded-full text-[10px] ${
-                            step.cancelled
-                              ? "bg-rose-600 text-white"
-                              : step.current
-                              ? "border-2 border-blue-600 bg-blue-50 text-blue-600"
-                              : step.active
-                              ? "bg-foreground text-background"
-                              : "border border-border bg-muted/40 text-muted-foreground"
-                          }`}
-                        >
-                          {step.cancelled ? <X size={12} /> : step.active ? <Check size={12} /> : null}
-                        </div>
-                        <p className={`font-semibold ${step.active ? "text-foreground" : "text-muted-foreground"}`}>
-                          {step.label}
-                        </p>
-                        {step.date && <p className="text-[9px] text-muted-foreground">{step.date}</p>}
-                      </div>
-                    ))}
-                  </div>
-                </div>
-
-                {/* Card Footer: Amount & View Details */}
-                <div className="flex items-center justify-between border-t border-border/60 pt-3">
-                  <div>
-                    <span className="text-[11px] text-muted-foreground">Total Amount</span>
-                    <p className="text-sm font-extrabold text-foreground">{formatMoney(order.total)}</p>
-                  </div>
-                  <Link
-                    href={`/checkout/success?orderId=${order.orderNumber}`}
-                    className="flex items-center gap-1.5 rounded-md bg-foreground px-4 py-2 text-xs font-bold text-background hover:bg-foreground/90 transition-colors"
-                  >
-                    View Details →
-                  </Link>
-                </div>
-              </div>
-            ))}
-          </div>
+          )}
         </section>
 
-        {/* Right Sidebar: Account Overview & Quick Actions */}
+        {/* Right Sidebar */}
         <aside className="space-y-6">
-          {/* Account Overview Widget */}
           <div className="rounded-xl border border-border bg-background p-5 space-y-4 shadow-sm text-xs">
             <div>
               <h2 className="font-bold text-foreground">Account Overview</h2>
@@ -412,24 +397,19 @@ export default function AccountOrdersPage() {
             <div className="space-y-2.5 border-t border-border/60 pt-3">
               <div className="flex justify-between">
                 <span className="text-muted-foreground">Total Orders</span>
-                <span className="font-bold text-foreground">5</span>
+                <span className="font-bold text-foreground">{orders.length}</span>
               </div>
               <div className="flex justify-between">
                 <span className="text-muted-foreground">Total Spent</span>
-                <span className="font-bold text-foreground">{formatMoney(1831000)}</span>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-muted-foreground">Default Address</span>
-                <span className="font-semibold text-foreground">Mirpur, Dhaka</span>
+                <span className="font-bold text-foreground">{formatMoney(totalSpent)}</span>
               </div>
               <div className="flex justify-between">
                 <span className="text-muted-foreground">Member Since</span>
-                <span className="font-semibold text-foreground">Jul 2026</span>
+                <span className="font-semibold text-foreground">{memberSince}</span>
               </div>
             </div>
           </div>
 
-          {/* Quick Actions */}
           <div className="rounded-xl border border-border bg-background p-5 space-y-3 shadow-sm text-xs">
             <h2 className="font-bold text-foreground">Quick Actions</h2>
             <div className="space-y-2">
@@ -451,7 +431,6 @@ export default function AccountOrdersPage() {
             </div>
           </div>
 
-          {/* Support widget */}
           <div className="rounded-xl border border-border bg-background p-5 space-y-3 shadow-sm text-xs">
             <div className="flex items-center gap-2 text-foreground font-bold">
               <Headphones size={16} /> Need Help?
@@ -469,4 +448,3 @@ export default function AccountOrdersPage() {
     </div>
   );
 }
-

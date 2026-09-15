@@ -6,9 +6,10 @@ const globalForPrisma = globalThis as unknown as {
 };
 
 function createClient(): PrismaClient {
-  // DATABASE_URL is always defined at build and runtime:
-  // - In development/production: set in .env
-  // - In CI builds without a DB: set via next.config.ts env fallback
+  // DATABASE_URL is read directly from the process environment.
+  // For CI builds without a real DB, set a placeholder in the build environment
+  // (e.g. via a build-step env var or .env.local) so Prisma can instantiate.
+  // The placeholder is never used for real queries; all queries are dynamic at runtime.
   const connectionString =
     process.env.DATABASE_URL ??
     "postgresql://placeholder:placeholder@localhost:5432/placeholder";

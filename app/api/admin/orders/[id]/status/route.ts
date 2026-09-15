@@ -1,37 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { prisma } from "@/db/prisma";
-import { getServerSession } from "@/lib/auth/server";
+import { requireAdminSession } from "@/lib/auth/server";
 import { transitionOrderStatus, type OrderStatus } from "@/features/orders/state-machine";
-
-import { isValidAdminSession } from "@/lib/auth/admin-auth";
-
-async function requireAdmin(request: NextRequest) {
-  const adminCookie = request.cookies.get("admin_session")?.value;
-  if (isValidAdminSession(adminCookie)) {
-    return { error: null, userId: null };
-  }
-
-  const session = await getServerSession();
-  if (!session?.userId) {
-    return { error: NextResponse.json({ error: "Unauthorized" }, { status: 401 }), userId: null };
-  }
-
-  const userRoles = await prisma.userRole.findMany({
-    where: { userId: session.userId },
-    include: { role: true }
-  });
-
-  const isAdmin = userRoles.some((ur) =>
-    ur.role.name === "ADMIN" || ur.role.name === "SUPER_ADMIN"
-  );
-
-  if (!isAdmin) {
-    return { error: NextResponse.json({ error: "Forbidden" }, { status: 403 }), userId: null };
-  }
-
-  return { error: null, userId: session.userId };
-}
 
 const statusUpdateSchema = z.object({
   newStatus: z.enum([
@@ -46,8 +17,9 @@ type RouteParams = { params: Promise<{ id: string }> };
 
 // PATCH /api/admin/orders/[id]/status
 export async function PATCH(request: NextRequest, { params }: RouteParams) {
-  const { error, userId } = await requireAdmin(request);
-  if (error) return error;
+  const auth = await requireAdminSession("order:manage");
+  if (!auth.ok) return auth.response;
+  const { userId } = auth;
 
   const { id } = await params;
 
@@ -79,12 +51,49 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
     return NextResponse.json({ error: message }, { status: 422 });
   }
 
+  // ---------------------------------------------------------------------------
+  // REFUNDED: call payment provider before opening the DB transaction.
+  // A provider failure aborts cleanly without leaving DB in a partial state.
+  // ---------------------------------------------------------------------------
+  let refundReference: string | null = null;
+  if (resolvedStatus === "REFUNDED") {
+    try {
+      const { getPaymentProvider } = await import("@/lib/payments/providers");
+      const payment = await prisma.payment.findFirst({
+        where: { orderId: id },
+        orderBy: { createdAt: "desc" }
+      });
+      if (payment) {
+        const provider = getPaymentProvider(
+          payment.provider as import("@/lib/payments/payment-provider").PaymentProviderCode
+        );
+        const refundResult = await provider.refund({
+          orderId: id,
+          amount: order.grandTotal,
+          reason: note ?? `Order ${order.orderNumber} refunded`,
+          paymentReference: payment.providerPaymentId ?? undefined
+        });
+        if (!refundResult.success) {
+          return NextResponse.json(
+            { error: `Payment provider refund failed: ${refundResult.error ?? "unknown error"}` },
+            { status: 502 }
+          );
+        }
+        refundReference = refundResult.refundId;
+      }
+    } catch (err) {
+      const message = err instanceof Error ? err.message : "Refund call failed.";
+      return NextResponse.json({ error: message }, { status: 502 });
+    }
+  }
+
   await prisma.$transaction(async (tx) => {
     await tx.order.update({
       where: { id },
       data: {
         status: resolvedStatus,
-        ...(resolvedStatus === "CANCELLED" ? { cancelledAt: new Date() } : {})
+        ...(resolvedStatus === "CANCELLED" ? { cancelledAt: new Date() } : {}),
+        ...(resolvedStatus === "REFUNDED" ? { paymentStatus: "REFUNDED" } : {})
       }
     });
 
@@ -109,7 +118,9 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
       }
     });
 
-    // Release inventory reservation on cancellation
+    // -------------------------------------------------------------------------
+    // CANCELLED: release reservation (goods never left warehouse)
+    // -------------------------------------------------------------------------
     if (resolvedStatus === "CANCELLED") {
       const items = await tx.orderItem.findMany({ where: { orderId: id } });
       for (const item of items) {
@@ -130,7 +141,9 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
       }
     }
 
-    // Commit inventory (reduce stockQuantity) on delivery
+    // -------------------------------------------------------------------------
+    // DELIVERED: commit sale — decrement stockQuantity and clear reservation
+    // -------------------------------------------------------------------------
     if (resolvedStatus === "DELIVERED") {
       const items = await tx.orderItem.findMany({ where: { orderId: id } });
       for (const item of items) {
@@ -151,6 +164,67 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
             reason: `Order ${order.orderNumber} delivered`
           }
         });
+      }
+    }
+
+    // -------------------------------------------------------------------------
+    // RETURNED: physical goods back in warehouse — restore stockQuantity.
+    // reservedQuantity was zeroed at DELIVERED; do not decrement it again.
+    // -------------------------------------------------------------------------
+    if (resolvedStatus === "RETURNED") {
+      const items = await tx.orderItem.findMany({ where: { orderId: id } });
+      for (const item of items) {
+        await tx.productVariant.update({
+          where: { id: item.variantId },
+          data: { stockQuantity: { increment: item.quantity } }
+        });
+
+        await tx.inventoryMovement.create({
+          data: {
+            variantId: item.variantId,
+            actorId: userId ?? null,
+            type: "RETURN",
+            quantity: item.quantity,
+            reason: `Order ${order.orderNumber} returned`
+          }
+        });
+      }
+    }
+
+    // -------------------------------------------------------------------------
+    // REFUNDED: mark payment as refunded and persist provider refund reference.
+    // If transitioning RETURN_REQUESTED → REFUNDED directly (no RETURNED step),
+    // also restore stock because the refund implies the goods came back.
+    // If RETURNED already ran, stock was restored there — do not double-restore.
+    // -------------------------------------------------------------------------
+    if (resolvedStatus === "REFUNDED") {
+      await tx.payment.updateMany({
+        where: { orderId: id },
+        data: {
+          status: "REFUNDED",
+          ...(refundReference ? { providerPaymentId: refundReference } : {})
+        }
+      });
+
+      // Direct skip: RETURN_REQUESTED → REFUNDED (goods implied returned)
+      if (order.status === "RETURN_REQUESTED") {
+        const items = await tx.orderItem.findMany({ where: { orderId: id } });
+        for (const item of items) {
+          await tx.productVariant.update({
+            where: { id: item.variantId },
+            data: { stockQuantity: { increment: item.quantity } }
+          });
+
+          await tx.inventoryMovement.create({
+            data: {
+              variantId: item.variantId,
+              actorId: userId ?? null,
+              type: "RETURN",
+              quantity: item.quantity,
+              reason: `Order ${order.orderNumber} refunded directly — stock restored`
+            }
+          });
+        }
       }
     }
   });

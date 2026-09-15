@@ -17,7 +17,7 @@ vi.spyOn(catalogData, "getAllProducts").mockResolvedValue([
     tags: ["shirt", "black"],
     images: [{ src: "/shirt.jpg", alt: "Black shirt" }],
     variants: [
-      { sku: "BLS-M", color: "black", size: "M", price: 245000, stock: 5 }
+      { id: "test-variant-1", sku: "BLS-M", color: "black", size: "M", price: 245000, stock: 5 }
     ]
   }
 ]);

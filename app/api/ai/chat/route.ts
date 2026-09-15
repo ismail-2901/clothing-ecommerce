@@ -4,6 +4,7 @@ import { detectShoppingIntent } from "@/lib/ai/intent";
 import { matchProducts } from "@/lib/ai/recommendation";
 import { getAllProducts } from "@/features/catalog/data";
 import { formatMoney } from "@/lib/utils/money";
+import { storePolicies } from "@/config/store";
 
 const bodySchema = z.object({
   message: z.string().min(1).max(500)
@@ -11,9 +12,9 @@ const bodySchema = z.object({
 
 // Store knowledge base for RAG-style answers
 const storeKnowledge: Record<string, string> = {
-  shipping: "We offer standard delivery (3–5 business days) and express (1–2 days). Free shipping on orders over ৳2,000 with code SHIPFREE.",
-  return: "You may return any unworn, unwashed item within 14 days of delivery. Start your return from the Account → Orders section.",
-  refund: "Refunds are processed within 5–7 business days after we receive and inspect the returned item.",
+  shipping: `We deliver across Bangladesh (${storePolicies.shipping.dhakaDays} within Dhaka, ${storePolicies.shipping.outsideDhakaDays} outside Dhaka). Free delivery on orders over ৳${storePolicies.shipping.freeThreshold.toLocaleString()} (or with code ${storePolicies.shipping.freeShippingCode}).`,
+  return: `You may return any unworn, unwashed item within ${storePolicies.returns.days} days of delivery. Start your return from the Account → Orders section.`,
+  refund: `Refunds are processed within ${storePolicies.returns.refundDays} after we receive and inspect the returned item.`,
   size: "Our size guide is available on each product page. We carry XS, S, M, L, and XL. When in doubt, size up for relaxed fits.",
   payment: "We accept Cash on Delivery (COD), bKash, Nagad, SSLCommerz, and card payments.",
   contact: "Email us at support@elarisstore.com or use the Contact page. We respond within 24 hours."

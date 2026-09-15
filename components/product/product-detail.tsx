@@ -25,8 +25,9 @@ import {
 } from "lucide-react";
 import { useCart } from "@/components/cart/cart-provider";
 import { useWishlist } from "@/components/wishlist/wishlist-provider";
-import type { CatalogProduct, CatalogVariant } from "@/features/catalog/data";
+import type { CatalogProduct, CatalogVariant, ProductReviewSummary } from "@/features/catalog/data";
 import { formatMoney } from "@/lib/utils/money";
+import { storePolicies } from "@/config/store";
 
 const SIZE_SORT_ORDER = ["XS", "S", "M", "L", "XL", "XXL"];
 
@@ -50,7 +51,13 @@ const recommendations = [
   { id: "r4", name: "Zip Hoodie", price: 2890, original: 3500, discount: "17% OFF", image: "/elaris-women.jpg", slug: "zip-hoodie" },
 ];
 
-export function ProductDetail({ product }: { product: CatalogProduct }) {
+export function ProductDetail({
+  product,
+  reviewSummary
+}: {
+  product: CatalogProduct;
+  reviewSummary?: ProductReviewSummary;
+}) {
   const { addItem } = useCart();
   const { toggleItem, isSaved } = useWishlist();
 
@@ -106,6 +113,7 @@ export function ProductDetail({ product }: { product: CatalogProduct }) {
   const handleAddToCart = () => {
     addItem({
       sku: activeVariant?.sku || `${product.id}_${selectedColor}_${selectedSize}`,
+      variantId: activeVariant?.id,
       productId: product.id,
       name: product.name,
       size: selectedSize,
@@ -235,13 +243,46 @@ export function ProductDetail({ product }: { product: CatalogProduct }) {
 
             {/* Ratings */}
             <div className="flex items-center gap-2 text-xs">
-              <div className="flex items-center text-amber-400">
-                {[...Array(5)].map((_, i) => (
-                  <Star key={i} size={14} className="fill-amber-400" />
-                ))}
-              </div>
-              <span className="font-bold text-foreground">4.8</span>
-              <span className="text-muted-foreground">(124 reviews)</span>
+              {reviewSummary && reviewSummary.totalCount > 0 ? (
+                <>
+                  <div className="flex items-center text-amber-400">
+                    {[1, 2, 3, 4, 5].map((star) => (
+                      <Star
+                        key={star}
+                        size={14}
+                        className={
+                          star <= Math.round(reviewSummary.averageRating)
+                            ? "fill-amber-400 text-amber-400"
+                            : "text-muted-foreground/30"
+                        }
+                      />
+                    ))}
+                  </div>
+                  <span className="font-bold text-foreground">
+                    {reviewSummary.averageRating.toFixed(1)}
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => setActiveTab("reviews")}
+                    className="text-muted-foreground hover:text-foreground underline-offset-2 hover:underline transition-colors"
+                  >
+                    ({reviewSummary.totalCount} {reviewSummary.totalCount === 1 ? "review" : "reviews"})
+                  </button>
+                </>
+              ) : (
+                <button
+                  type="button"
+                  onClick={() => setActiveTab("reviews")}
+                  className="flex items-center gap-1.5 text-muted-foreground hover:text-foreground transition-colors"
+                >
+                  <div className="flex items-center text-muted-foreground/30">
+                    {[1, 2, 3, 4, 5].map((star) => (
+                      <Star key={star} size={14} />
+                    ))}
+                  </div>
+                  <span>No reviews yet</span>
+                </button>
+              )}
             </div>
 
             {/* Price */}
@@ -401,14 +442,14 @@ export function ProductDetail({ product }: { product: CatalogProduct }) {
               <Truck size={18} className="text-foreground shrink-0 mt-0.5" />
               <div>
                 <p className="font-bold text-foreground">Free Delivery</p>
-                <p className="text-[11px] text-muted-foreground">On orders over ৳3000</p>
+                <p className="text-[11px] text-muted-foreground">{storePolicies.shipping.freeDeliveryText}</p>
               </div>
             </div>
             <div className="flex items-start gap-2.5 rounded-lg border border-border/60 bg-muted/20 p-3">
               <RotateCcw size={18} className="text-foreground shrink-0 mt-0.5" />
               <div>
                 <p className="font-bold text-foreground">Easy Returns</p>
-                <p className="text-[11px] text-muted-foreground">7 days return policy</p>
+                <p className="text-[11px] text-muted-foreground">{storePolicies.returns.description}</p>
               </div>
             </div>
             <div className="flex items-start gap-2.5 rounded-lg border border-border/60 bg-muted/20 p-3">
@@ -485,7 +526,7 @@ export function ProductDetail({ product }: { product: CatalogProduct }) {
                 : "text-muted-foreground hover:text-foreground"
             }`}
           >
-            Reviews (362)
+            Reviews ({reviewSummary?.totalCount ?? 0})
           </button>
         </div>
 
@@ -521,21 +562,114 @@ export function ProductDetail({ product }: { product: CatalogProduct }) {
 
           {activeTab === "shipping" && (
             <p>
-              Orders placed before 2 PM are dispatched the same business day. Delivery across Bangladesh takes 2–4 business days. Returns and size exchanges are accepted within 7 days of delivery.
+              Orders placed before {storePolicies.shipping.dispatchCutoff} are dispatched the same business day. Delivery takes {storePolicies.shipping.dhakaDays} within Dhaka and {storePolicies.shipping.outsideDhakaDays} outside Dhaka. Returns and size exchanges are accepted within {storePolicies.returns.days} days of delivery.
             </p>
           )}
 
           {activeTab === "reviews" && (
-            <div className="space-y-3">
-              <div className="flex items-center gap-2">
-                <span className="text-lg font-bold text-foreground">4.8 out of 5</span>
-                <div className="flex text-amber-400">
-                  {[...Array(5)].map((_, i) => (
-                    <Star key={i} size={14} className="fill-amber-400" />
-                  ))}
+            <div className="space-y-6">
+              {reviewSummary && reviewSummary.totalCount > 0 ? (
+                <>
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 rounded-xl border border-border/70 bg-muted/20 p-5">
+                    <div className="space-y-1">
+                      <div className="flex items-center gap-3">
+                        <span className="text-3xl font-black text-foreground">
+                          {reviewSummary.averageRating.toFixed(1)}
+                        </span>
+                        <div>
+                          <div className="flex items-center text-amber-400">
+                            {[1, 2, 3, 4, 5].map((star) => (
+                              <Star
+                                key={star}
+                                size={15}
+                                className={
+                                  star <= Math.round(reviewSummary.averageRating)
+                                    ? "fill-amber-400 text-amber-400"
+                                    : "text-muted-foreground/30"
+                                }
+                              />
+                            ))}
+                          </div>
+                          <span className="text-xs text-muted-foreground">
+                            Based on {reviewSummary.totalCount} {reviewSummary.totalCount === 1 ? "review" : "reviews"}
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+                    {reviewSummary.verifiedCount > 0 && (
+                      <div className="flex items-center gap-1.5 text-xs text-emerald-600 dark:text-emerald-400 font-medium">
+                        <ShieldCheck size={16} />
+                        <span>{reviewSummary.verifiedCount} verified {reviewSummary.verifiedCount === 1 ? "purchase" : "purchases"}</span>
+                      </div>
+                    )}
+                  </div>
+
+                  <div className="divide-y divide-border/60">
+                    {reviewSummary.reviews.map((rev) => (
+                      <div key={rev.id} className="py-4 space-y-2">
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center gap-2">
+                            <span className="font-semibold text-foreground text-sm">
+                              {rev.authorName}
+                            </span>
+                            {rev.isVerifiedPurchase && (
+                              <span className="inline-flex items-center gap-1 rounded-full bg-emerald-50 px-2 py-0.5 text-[10px] font-semibold text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-300">
+                                <ShieldCheck size={12} />
+                                Verified Buyer
+                              </span>
+                            )}
+                          </div>
+                          <time className="text-xs text-muted-foreground">
+                            {new Date(rev.createdAt).toLocaleDateString("en-US", {
+                              month: "short",
+                              day: "numeric",
+                              year: "numeric"
+                            })}
+                          </time>
+                        </div>
+
+                        <div className="flex items-center text-amber-400">
+                          {[1, 2, 3, 4, 5].map((star) => (
+                            <Star
+                              key={star}
+                              size={12}
+                              className={
+                                star <= rev.rating
+                                  ? "fill-amber-400 text-amber-400"
+                                  : "text-muted-foreground/30"
+                              }
+                            />
+                          ))}
+                        </div>
+
+                        {rev.title && (
+                          <h4 className="font-medium text-foreground text-sm">
+                            {rev.title}
+                          </h4>
+                        )}
+
+                        {rev.body && (
+                          <p className="text-muted-foreground text-xs leading-relaxed">
+                            {rev.body}
+                          </p>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                </>
+              ) : (
+                <div className="rounded-xl border border-dashed border-border/80 p-8 text-center space-y-2">
+                  <div className="flex justify-center text-muted-foreground/30">
+                    {[1, 2, 3, 4, 5].map((star) => (
+                      <Star key={star} size={20} />
+                    ))}
+                  </div>
+                  <h4 className="font-semibold text-foreground text-sm">No reviews yet</h4>
+                  <p className="text-xs text-muted-foreground max-w-sm mx-auto">
+                    There are no reviews for this product yet. Verified buyers will be able to share their thoughts here.
+                  </p>
                 </div>
-              </div>
-              <p>Over 98% of customers recommend this item for comfort and fit.</p>
+              )}
             </div>
           )}
         </div>
