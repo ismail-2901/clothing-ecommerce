@@ -19,48 +19,62 @@ import Link from "next/link";
 import { AdminDashboardSalesChart } from "@/components/admin/admin-dashboard-sales-chart";
 
 export default async function AdminDashboardPage() {
-  const [
-    orderStats,
-    customerCount,
-    pendingConfirmationCount,
-    packedTodayCount,
-    failedDeliveryCount,
-    riskCount,
-    lowStockVariants,
-    recentOrders,
-    categories
-  ] = await Promise.all([
-    prisma.order.aggregate({
-      where: { status: { notIn: ["CANCELLED", "FAILED_DELIVERY"] } },
-      _sum: { grandTotal: true },
-      _count: { id: true }
-    }),
-    prisma.user.count({ where: { deletedAt: null } }),
-    prisma.order.count({ where: { status: "PENDING" } }),
-    prisma.order.count({ where: { status: "PACKED" } }),
-    prisma.order.count({ where: { status: "FAILED_DELIVERY" } }),
-    prisma.riskAssessment.count({ where: { level: { in: ["HIGH", "CRITICAL"] } } }),
-    prisma.productVariant.findMany({
-      where: { stockQuantity: { lte: 5 }, deletedAt: null },
-      include: { product: { select: { name: true, slug: true } } },
-      take: 5
-    }),
-    prisma.order.findMany({
-      take: 5,
-      orderBy: { createdAt: "desc" },
-      include: {
-        user: { select: { name: true, email: true } },
-        items: { take: 1, select: { name: true, quantity: true } },
-        payments: { select: { provider: true }, take: 1, orderBy: { createdAt: "desc" } }
-      }
-    }),
-    prisma.category.findMany({
-      take: 4,
-      include: {
-        _count: { select: { products: true } }
-      }
-    })
-  ]);
+  let orderStats = { _sum: { grandTotal: 0 }, _count: { id: 0 } };
+  let customerCount = 0;
+  let pendingConfirmationCount = 0;
+  let packedTodayCount = 0;
+  let failedDeliveryCount = 0;
+  let riskCount = 0;
+  let lowStockVariants: any[] = [];
+  let recentOrders: any[] = [];
+  let categories: any[] = [];
+
+  try {
+    const results = await Promise.all([
+      prisma.order.aggregate({
+        where: { status: { notIn: ["CANCELLED", "FAILED_DELIVERY"] } },
+        _sum: { grandTotal: true },
+        _count: { id: true }
+      }),
+      prisma.user.count({ where: { deletedAt: null } }),
+      prisma.order.count({ where: { status: "PENDING" } }),
+      prisma.order.count({ where: { status: "PACKED" } }),
+      prisma.order.count({ where: { status: "FAILED_DELIVERY" } }),
+      prisma.riskAssessment.count({ where: { level: { in: ["HIGH", "CRITICAL"] } } }),
+      prisma.productVariant.findMany({
+        where: { stockQuantity: { lte: 5 }, deletedAt: null },
+        include: { product: { select: { name: true, slug: true } } },
+        take: 5
+      }),
+      prisma.order.findMany({
+        take: 5,
+        orderBy: { createdAt: "desc" },
+        include: {
+          user: { select: { name: true, email: true } },
+          items: { take: 1, select: { name: true, quantity: true } },
+          payments: { select: { provider: true }, take: 1, orderBy: { createdAt: "desc" } }
+        }
+      }),
+      prisma.category.findMany({
+        take: 4,
+        include: {
+          _count: { select: { products: true } }
+        }
+      })
+    ]);
+
+    orderStats = (results[0] as any) ?? orderStats;
+    customerCount = results[1] ?? 0;
+    pendingConfirmationCount = results[2] ?? 0;
+    packedTodayCount = results[3] ?? 0;
+    failedDeliveryCount = results[4] ?? 0;
+    riskCount = results[5] ?? 0;
+    lowStockVariants = (results[6] as any[]) ?? [];
+    recentOrders = (results[7] as any[]) ?? [];
+    categories = (results[8] as any[]) ?? [];
+  } catch (err) {
+    console.error("[AdminDashboardPage] Database fallback activated:", err);
+  }
 
   const totalRevenue = orderStats._sum.grandTotal ?? 0;
   const totalOrders = orderStats._count.id;

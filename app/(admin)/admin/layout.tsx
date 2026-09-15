@@ -1,3 +1,5 @@
+export const dynamic = "force-dynamic";
+
 import Link from "next/link";
 import Image from "next/image";
 import { cookies } from "next/headers";
@@ -10,15 +12,29 @@ import { AdminDesktopSidebar, AdminMobileNav } from "@/components/admin/admin-si
 export default async function AdminLayout({
   children
 }: Readonly<{ children: React.ReactNode }>) {
-  const user = await getServerUser();
-  const isBetterAuthAdmin =
-    user?.roles?.some(
-      (ur) => ur.role.name === "ADMIN" || ur.role.name === "SUPER_ADMIN"
-    ) ?? false;
+  let user: any = null;
+  let isBetterAuthAdmin = false;
+  let isMasterAdmin = false;
 
-  const cookieStore = await cookies();
-  const masterCookie = cookieStore.get("admin_session")?.value;
-  const isMasterAdmin = isValidAdminSession(masterCookie);
+  try {
+    user = await getServerUser();
+    isBetterAuthAdmin =
+      user?.roles?.some(
+        (ur: any) => ur.role.name === "ADMIN" || ur.role.name === "SUPER_ADMIN"
+      ) ?? false;
+  } catch (err: any) {
+    if (err?.digest === "DYNAMIC_SERVER_USAGE") throw err;
+    console.error("[AdminLayout] Error fetching server user:", err);
+  }
+
+  try {
+    const cookieStore = await cookies();
+    const masterCookie = cookieStore.get("admin_session")?.value;
+    isMasterAdmin = isValidAdminSession(masterCookie);
+  } catch (err: any) {
+    if (err?.digest === "DYNAMIC_SERVER_USAGE") throw err;
+    console.error("[AdminLayout] Error verifying master session:", err);
+  }
 
   if (!isBetterAuthAdmin && !isMasterAdmin) {
     return <AdminLockScreen />;

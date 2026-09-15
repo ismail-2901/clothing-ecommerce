@@ -50,18 +50,24 @@ export async function requireSession() {
  * Returns the authenticated user with their roles, or null.
  */
 export async function getServerUser() {
-  const session = await auth.api.getSession({
-    headers: await headers()
-  });
-  if (!session?.user?.id) return null;
+  try {
+    const session = await auth.api.getSession({
+      headers: await headers()
+    });
+    if (!session?.user?.id) return null;
 
-  const user = await prisma.user.findUnique({
-    where: { id: session.user.id },
-    include: {
-      roles: { include: { role: true } }
-    }
-  });
-  return user;
+    const user = await prisma.user.findUnique({
+      where: { id: session.user.id },
+      include: {
+        roles: { include: { role: true } }
+      }
+    });
+    return user;
+  } catch (err: any) {
+    if (err?.digest === "DYNAMIC_SERVER_USAGE") throw err;
+    console.error("[getServerUser]", err);
+    return null;
+  }
 }
 
 /**
