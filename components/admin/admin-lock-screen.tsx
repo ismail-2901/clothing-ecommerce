@@ -26,29 +26,33 @@ export function AdminLockScreen() {
 
     try {
       const normalisedEmail = email.trim().toLowerCase();
+      const trimmedPassword = password.trim();
 
-      // 1. First attempt direct Better Auth sign in
-      let result = await signIn.email({
-        email: normalisedEmail,
-        password
+      // 1. Primary: Verify via master admin endpoint (sets secure session cookie)
+      const adminRes = await fetch("/api/admin/auth/login", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email: normalisedEmail, password: trimmedPassword })
       });
 
-      // 2. If direct sign in failed, check if the master password was provided
-      if (result.error) {
-        const bootstrapRes = await fetch("/api/admin/auth/login", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ email: normalisedEmail, password })
-        });
+      if (adminRes.ok) {
+        // Master password verified and session cookie set!
+        // Also sign in via Better Auth in background if possible
+        await signIn.email({
+          email: normalisedEmail,
+          password: trimmedPassword
+        }).catch(() => {});
 
-        if (bootstrapRes.ok) {
-          // Master password verified and account provisioned — sign in via Better Auth
-          result = await signIn.email({
-            email: normalisedEmail,
-            password
-          });
-        }
+        setLoading(false);
+        router.refresh();
+        return;
       }
+
+      // 2. Secondary: If not master password, try standard Better Auth credentials
+      const result = await signIn.email({
+        email: normalisedEmail,
+        password: trimmedPassword
+      });
 
       setLoading(false);
 
@@ -72,6 +76,7 @@ export function AdminLockScreen() {
     setLoading(true);
     try {
       await signOut();
+      await fetch("/api/admin/auth/logout", { method: "POST" }).catch(() => {});
     } finally {
       setLoading(false);
       router.refresh();
@@ -202,7 +207,7 @@ export function AdminLockScreen() {
               elaris-admin-2026
             </code>
             <p className="mt-1 text-[10px] text-muted-foreground">
-              Sign in with your email + master password to automatically gain admin access.
+              Enter any admin email with master password to unlock the dashboard.
             </p>
           </div>
 

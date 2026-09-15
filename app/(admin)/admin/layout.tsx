@@ -1,7 +1,8 @@
 import Link from "next/link";
 import Image from "next/image";
-import { Search, Radio } from "lucide-react";
-import { getServerUser } from "@/lib/auth/server";
+import { cookies } from "next/headers";
+import { Search } from "lucide-react";
+import { getServerUser, isValidAdminSession } from "@/lib/auth/server";
 import { AdminLockScreen } from "@/components/admin/admin-lock-screen";
 import { AdminNotificationBell } from "@/components/admin/admin-notification-bell";
 import { AdminDesktopSidebar, AdminMobileNav } from "@/components/admin/admin-sidebar";
@@ -10,16 +11,23 @@ export default async function AdminLayout({
   children
 }: Readonly<{ children: React.ReactNode }>) {
   const user = await getServerUser();
-  const isAdmin =
+  const isBetterAuthAdmin =
     user?.roles?.some(
       (ur) => ur.role.name === "ADMIN" || ur.role.name === "SUPER_ADMIN"
     ) ?? false;
 
-  if (!isAdmin) {
+  const cookieStore = await cookies();
+  const masterCookie = cookieStore.get("admin_session")?.value;
+  const isMasterAdmin = isValidAdminSession(masterCookie);
+
+  if (!isBetterAuthAdmin && !isMasterAdmin) {
     return <AdminLockScreen />;
   }
 
-  const userInfo = { name: user?.name, email: user?.email };
+  const userInfo = {
+    name: user?.name ?? "Administrator",
+    email: user?.email ?? "admin@elaris.internal"
+  };
 
   return (
     <div className="min-h-screen bg-stone-50/50 text-foreground flex">
@@ -69,8 +77,8 @@ export default async function AdminLayout({
                 <Image src="/elaris-women.jpg" alt="Admin" fill className="object-cover" sizes="36px" />
               </div>
               <div className="hidden md:block text-left">
-                <p className="text-xs font-bold text-foreground leading-tight group-hover:underline">{user?.name ?? "Admin"}</p>
-                <p className="text-[10px] text-muted-foreground leading-tight">{user?.email}</p>
+                <p className="text-xs font-bold text-foreground leading-tight group-hover:underline">{userInfo.name}</p>
+                <p className="text-[10px] text-muted-foreground leading-tight">{userInfo.email}</p>
               </div>
             </Link>
           </div>
