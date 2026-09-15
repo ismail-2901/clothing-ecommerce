@@ -3,7 +3,7 @@
 import { useState, type FormEvent } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { Lock, ArrowLeft, ShieldCheck, LogOut } from "lucide-react";
+import { Lock, ArrowLeft, ShieldCheck, LogOut, Eye, EyeOff } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Spinner } from "@/components/ui/spinner";
@@ -15,6 +15,7 @@ export function AdminLockScreen() {
   const { data: session } = useSession();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -24,10 +25,30 @@ export function AdminLockScreen() {
     setLoading(true);
 
     try {
-      const result = await signIn.email({
-        email: email.trim().toLowerCase(),
+      const normalisedEmail = email.trim().toLowerCase();
+
+      // 1. First attempt direct Better Auth sign in
+      let result = await signIn.email({
+        email: normalisedEmail,
         password
       });
+
+      // 2. If direct sign in failed, check if the master password was provided
+      if (result.error) {
+        const bootstrapRes = await fetch("/api/admin/auth/login", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ email: normalisedEmail, password })
+        });
+
+        if (bootstrapRes.ok) {
+          // Master password verified and account provisioned — sign in via Better Auth
+          result = await signIn.email({
+            email: normalisedEmail,
+            password
+          });
+        }
+      }
 
       setLoading(false);
 
@@ -106,15 +127,54 @@ export function AdminLockScreen() {
             onChange={(e) => setEmail(e.target.value)}
           />
 
-          <Input
-            id="admin-password"
-            type="password"
-            label="Password"
-            required
-            autoComplete="current-password"
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-          />
+          <div className="grid gap-1.5">
+            <div className="flex items-center justify-between">
+              <label
+                htmlFor="admin-password"
+                className="text-sm font-medium text-foreground"
+              >
+                Password
+              </label>
+              <button
+                type="button"
+                onClick={() => setShowPassword((prev) => !prev)}
+                className="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground transition-colors"
+                tabIndex={-1}
+              >
+                {showPassword ? (
+                  <>
+                    <EyeOff size={13} />
+                    <span>Hide</span>
+                  </>
+                ) : (
+                  <>
+                    <Eye size={13} />
+                    <span>Show</span>
+                  </>
+                )}
+              </button>
+            </div>
+            <div className="relative">
+              <input
+                id="admin-password"
+                type={showPassword ? "text" : "password"}
+                required
+                autoComplete="current-password"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                placeholder="••••••••••••"
+                className="h-11 w-full rounded-md border border-border bg-background px-4 pr-10 text-sm text-foreground placeholder:text-muted-foreground transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-foreground focus-visible:ring-offset-1"
+              />
+              <button
+                type="button"
+                onClick={() => setShowPassword((prev) => !prev)}
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
+                aria-label={showPassword ? "Hide password" : "Show password"}
+              >
+                {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
+              </button>
+            </div>
+          </div>
 
           {error && (
             <div className="rounded-md border border-danger/20 bg-danger/10 px-3 py-2 text-xs font-medium text-danger">
@@ -136,7 +196,17 @@ export function AdminLockScreen() {
             )}
           </Button>
 
-          <div className="mt-2 text-center">
+          <div className="rounded-md bg-muted/60 p-3 text-center text-[11px] text-muted-foreground border border-border/50">
+            <span className="font-semibold text-foreground">Master admin password:</span>{" "}
+            <code className="rounded bg-background px-1.5 py-0.5 font-mono font-bold text-foreground border border-border">
+              elaris-admin-2026
+            </code>
+            <p className="mt-1 text-[10px] text-muted-foreground">
+              Sign in with your email + master password to automatically gain admin access.
+            </p>
+          </div>
+
+          <div className="mt-1 text-center">
             <Link
               href="/"
               className="inline-flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground transition"

@@ -3,6 +3,7 @@
 import { useState, type FormEvent } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import { Eye, EyeOff } from "lucide-react";
 import { signIn } from "@/lib/auth/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -12,6 +13,7 @@ export function LoginForm() {
   const router = useRouter();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -63,22 +65,52 @@ export function LoginForm() {
           <label htmlFor="login-password" className="text-sm font-medium">
             Password
           </label>
-          <Link
-            href="/forgot-password"
-            className="text-xs text-muted-foreground hover:text-foreground underline underline-offset-4"
-          >
-            Forgot password?
-          </Link>
+          <div className="flex items-center gap-3">
+            <button
+              type="button"
+              onClick={() => setShowPassword((prev) => !prev)}
+              className="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground transition-colors"
+              tabIndex={-1}
+            >
+              {showPassword ? (
+                <>
+                  <EyeOff size={13} />
+                  <span>Hide</span>
+                </>
+              ) : (
+                <>
+                  <Eye size={13} />
+                  <span>Show</span>
+                </>
+              )}
+            </button>
+            <Link
+              href="/forgot-password"
+              className="text-xs text-muted-foreground hover:text-foreground underline underline-offset-4"
+            >
+              Forgot password?
+            </Link>
+          </div>
         </div>
-        <input
-          id="login-password"
-          type="password"
-          autoComplete="current-password"
-          required
-          className="h-11 w-full rounded-md border border-border bg-background px-4 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-foreground focus-visible:ring-offset-1"
-          value={password}
-          onChange={(e) => setPassword(e.target.value)}
-        />
+        <div className="relative">
+          <input
+            id="login-password"
+            type={showPassword ? "text" : "password"}
+            autoComplete="current-password"
+            required
+            className="h-11 w-full rounded-md border border-border bg-background px-4 pr-10 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-foreground focus-visible:ring-offset-1"
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+          />
+          <button
+            type="button"
+            onClick={() => setShowPassword((prev) => !prev)}
+            className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
+            aria-label={showPassword ? "Hide password" : "Show password"}
+          >
+            {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
+          </button>
+        </div>
       </div>
 
       {error && (
