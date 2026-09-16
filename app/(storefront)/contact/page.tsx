@@ -95,7 +95,7 @@ export default function ContactPage() {
               type="email"
               required
               className="h-11 rounded-md border border-border px-3 text-sm focus:border-foreground focus:outline-none"
-              placeholder="aisha@example.com"
+              placeholder="your.name@email.com"
               value={form.email}
               onChange={(e) => setForm((f) => ({ ...f, email: e.target.value }))}
             />

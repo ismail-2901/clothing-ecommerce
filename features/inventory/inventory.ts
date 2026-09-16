@@ -107,3 +107,54 @@ export function restoreReturn(
   };
 }
 
+export type SellableVariantInput = {
+  isAvailable?: boolean | null;
+  stockQuantity?: number | null;
+  reservedQuantity?: number | null;
+  deletedAt?: Date | string | null;
+  product?: {
+    status?: string | null;
+    deletedAt?: Date | string | null;
+  } | null;
+};
+
+/**
+ * Authoritative predicate for sellable variants:
+ * 1. Variant must not be soft-deleted.
+ * 2. Variant isAvailable flag must not be false.
+ * 3. Parent product (if present) must be PUBLISHED and not soft-deleted.
+ * 4. Effective stock (stockQuantity - reservedQuantity) must be greater than 0.
+ */
+export function isSellableVariant(
+  variant: SellableVariantInput,
+  product?: { status?: string | null; deletedAt?: Date | string | null } | null
+): boolean {
+  if (variant.deletedAt !== null && variant.deletedAt !== undefined) return false;
+  if (variant.isAvailable === false) return false;
+
+  const parentProduct = product ?? variant.product;
+  if (parentProduct) {
+    if (parentProduct.deletedAt !== null && parentProduct.deletedAt !== undefined) return false;
+    if (parentProduct.status !== undefined && parentProduct.status !== null && parentProduct.status !== "PUBLISHED") {
+      return false;
+    }
+  }
+
+  const stock = variant.stockQuantity ?? 0;
+  const reserved = variant.reservedQuantity ?? 0;
+  return stock - reserved > 0;
+}
+
+/**
+ * Standard Prisma query where condition for sellable variants.
+ */
+export const sellableVariantWhere = {
+  deletedAt: null,
+  isAvailable: true,
+  stockQuantity: { gt: 0 },
+  product: {
+    deletedAt: null,
+    status: "PUBLISHED" as const
+  }
+};
+

@@ -38,6 +38,7 @@ export default async function AdminAnalyticsPage() {
     newCustomers,
     topProductsDb,
     statusBreakdown,
+    ordersWithAddress
   ] = await Promise.all([
     prisma.order.aggregate({
       where: { status: { notIn: ["CANCELLED", "FAILED_DELIVERY"] } },
@@ -57,11 +58,16 @@ export default async function AdminAnalyticsPage() {
       by: ["status"],
       _count: { id: true }
     }),
+    prisma.order.findMany({
+      where: { status: { notIn: ["CANCELLED", "FAILED_DELIVERY"] } },
+      select: { grandTotal: true, deliveryAddress: true }
+    })
   ]);
 
   const totalRev = totalRevenueAgg._sum.grandTotal ?? 0;
   const orderCount = totalRevenueAgg._count.id;
   const aov = orderCount > 0 ? Math.round(totalRev / orderCount) : 0;
+  const conversionRate = totalCustomers > 0 ? `${((orderCount / totalCustomers) * 100).toFixed(1)}%` : "0.0%";
 
   // Enrich top products
   const productIds = topProductsDb.map((p) => p.productId).filter((id): id is string => id !== null);
@@ -77,43 +83,64 @@ export default async function AdminAnalyticsPage() {
     revenue: p._sum?.lineTotal ?? 0,
   }));
 
+  // Regional breakdown
+  const regionMap: Record<string, { count: number; total: number }> = {};
+  for (const o of ordersWithAddress) {
+    const addr = o.deliveryAddress as any;
+    const city = (addr?.city || "").trim();
+    const region = /chattogram|chittagong/i.test(city)
+      ? "Chattogram Division"
+      : /sylhet/i.test(city)
+      ? "Sylhet Division"
+      : /rajshahi|khulna/i.test(city)
+      ? "Rajshahi & Khulna"
+      : /dhaka/i.test(city)
+      ? "Dhaka Division"
+      : city ? "Other Regions" : "Dhaka Division";
+
+    if (!regionMap[region]) regionMap[region] = { count: 0, total: 0 };
+    regionMap[region].count++;
+    regionMap[region].total += o.grandTotal;
+  }
+
+  const regionalData = ordersWithAddress.length > 0
+    ? Object.entries(regionMap).map(([region, stats]) => ({
+        region,
+        percent: Math.round((stats.count / ordersWithAddress.length) * 100),
+        orders: `${stats.count} orders`,
+        amount: formatMoney(stats.total)
+      }))
+    : [];
+
   const metrics = [
     {
       label: "Total Sales Revenue",
-      value: formatMoney(totalRev > 0 ? totalRev : 248500),
-      change: "+14.2%",
+      value: formatMoney(totalRev),
+      change: "Live",
       isPositive: true,
-      hint: "vs previous 30 days"
+      hint: "All confirmed & paid orders"
     },
     {
       label: "Conversion Rate",
-      value: "3.4%",
-      change: "+0.6%",
+      value: conversionRate,
+      change: "Live",
       isPositive: true,
-      hint: "Session to completed order"
+      hint: "Orders to registered customers"
     },
     {
       label: "Average Order Value (AOV)",
-      value: formatMoney(aov > 0 ? aov : 2150),
-      change: "+5.1%",
+      value: formatMoney(aov),
+      change: "Live",
       isPositive: true,
       hint: "Per completed checkout"
     },
     {
       label: "Active Shoppers",
-      value: (totalCustomers > 0 ? totalCustomers : 3840).toLocaleString(),
-      change: `+${newCustomers || 28} new`,
+      value: totalCustomers.toLocaleString(),
+      change: `+${newCustomers} new`,
       isPositive: true,
       hint: "Registered customer base"
     }
-  ];
-
-  const regionalData = [
-    { region: "Dhaka Division", percent: 62, orders: "1,240 orders", amount: "৳154,000" },
-    { region: "Chattogram Division", percent: 20, orders: "390 orders", amount: "৳49,700" },
-    { region: "Sylhet Division", percent: 8, orders: "160 orders", amount: "৳19,800" },
-    { region: "Rajshahi & Khulna", percent: 6, orders: "120 orders", amount: "৳14,900" },
-    { region: "Other Regions", percent: 4, orders: "80 orders", amount: "৳9,940" },
   ];
 
   return (
@@ -183,23 +210,27 @@ export default async function AdminAnalyticsPage() {
           <p className="text-xs text-muted-foreground mb-6">Order volume and revenue by division</p>
 
           <div className="space-y-4">
-            {regionalData.map((reg) => (
-              <div key={reg.region} className="space-y-1.5">
-                <div className="flex items-center justify-between text-xs">
-                  <span className="font-semibold text-foreground">{reg.region}</span>
-                  <div className="flex items-center gap-2">
-                    <span className="font-bold text-foreground">{reg.amount}</span>
-                    <span className="text-[11px] text-muted-foreground">({reg.percent}%)</span>
+            {regionalData.length === 0 ? (
+              <p className="text-xs text-muted-foreground py-6">No regional order data recorded yet.</p>
+            ) : (
+              regionalData.map((reg) => (
+                <div key={reg.region} className="space-y-1.5">
+                  <div className="flex items-center justify-between text-xs">
+                    <span className="font-semibold text-foreground">{reg.region}</span>
+                    <div className="flex items-center gap-2">
+                      <span className="font-bold text-foreground">{reg.amount}</span>
+                      <span className="text-[11px] text-muted-foreground">({reg.percent}%)</span>
+                    </div>
+                  </div>
+                  <div className="h-2 w-full overflow-hidden rounded-full bg-muted">
+                    <div
+                      className="h-full rounded-full bg-foreground"
+                      style={{ width: `${reg.percent}%` }}
+                    />
                   </div>
                 </div>
-                <div className="h-2 w-full overflow-hidden rounded-full bg-muted">
-                  <div
-                    className="h-full rounded-full bg-foreground"
-                    style={{ width: `${reg.percent}%` }}
-                  />
-                </div>
-              </div>
-            ))}
+              ))
+            )}
           </div>
         </div>
 

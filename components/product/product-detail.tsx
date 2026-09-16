@@ -104,11 +104,9 @@ export function ProductDetail({
     );
   }, [product.variants, selectedColor, selectedSize]);
 
-  const rawPrice = activeVariant?.price ?? 249000;
-  const price = rawPrice > 0 && rawPrice < 10000 ? rawPrice * 100 : rawPrice;
-  const rawComparePrice = activeVariant?.compareAtPrice ?? 320000;
-  const comparePrice = rawComparePrice > 0 && rawComparePrice < 10000 ? rawComparePrice * 100 : rawComparePrice;
-  const discountPct = comparePrice ? Math.round(((comparePrice - price) / comparePrice) * 100) : 22;
+  const price = activeVariant?.price ?? 0;
+  const comparePrice = activeVariant?.compareAtPrice;
+  const discountPct = comparePrice && comparePrice > price ? Math.round(((comparePrice - price) / comparePrice) * 100) : null;
 
   const handleAddToCart = () => {
     addItem({
@@ -295,7 +293,7 @@ export function ProductDetail({
                   {formatMoney(comparePrice)}
                 </span>
               )}
-              {discountPct > 0 && (
+              {discountPct !== null && discountPct > 0 && (
                 <span className="rounded bg-black px-2 py-0.5 text-xs font-bold text-white uppercase">
                   {discountPct}% OFF
                 </span>

@@ -132,13 +132,15 @@ export default function AdminPageBuilderPage({
             </button>
           </div>
 
-          {saved && (
-            <span className="flex items-center gap-1 text-xs text-emerald-600 font-bold">
-              <CheckCircle2 size={14} /> Published!
-            </span>
-          )}
-
-          <Button onClick={handleSave} className="text-xs font-bold h-8">
+          <span className="rounded bg-muted px-2 py-1 text-[11px] font-medium text-muted-foreground">
+            Persistence: Planned
+          </span>
+          <Button
+            type="button"
+            disabled
+            title="Page builder persistence is scheduled for future release"
+            className="text-xs font-bold h-8 opacity-60 cursor-not-allowed"
+          >
             Publish Page
           </Button>
         </div>

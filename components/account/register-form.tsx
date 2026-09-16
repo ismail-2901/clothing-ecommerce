@@ -87,7 +87,7 @@ export function RegisterForm() {
         id="register-email"
         type="email"
         label="Email"
-        placeholder="you@example.com"
+        placeholder="you@email.com"
         autoComplete="email"
         required
         value={email}

@@ -1,112 +1,69 @@
 import { NextResponse } from "next/server";
-import { cookies } from "next/headers";
+import { auth } from "@/lib/auth/auth";
 import { prisma } from "@/db/prisma";
-import { hashPassword } from "better-auth/crypto";
-import { RoleName } from "@prisma/client";
-import { getExpectedAdminToken } from "@/lib/auth/server";
 
 /**
- * Authenticates the administrator using the master administrator password.
- * Sets the secure admin_session cookie and provisions/updates the user in PostgreSQL
- * with SUPER_ADMIN privileges and issuer "local:credential".
+ * Admin login via Better Auth credential sign-in.
+ * Requires a real user account with ADMIN or SUPER_ADMIN role in the database.
+ * No hardcoded passwords. No master-password fallback. No admin_session cookie.
  */
 export async function POST(req: Request) {
   try {
-    const { email, password } = await req.json();
+    const body = await req.json().catch(() => ({}));
+    const { email, password } = body;
 
-    if (!password || typeof password !== "string") {
-      return NextResponse.json(
-        { error: "Password required." },
-        { status: 400 }
-      );
+    if (!email || typeof email !== "string" || !email.includes("@")) {
+      return NextResponse.json({ error: "Valid email required." }, { status: 400 });
     }
 
-    const masterPassword = process.env.ADMIN_PASSWORD || "elaris-admin-2026";
-    const trimmedPass = password.trim();
+    if (!password || typeof password !== "string") {
+      return NextResponse.json({ error: "Password required." }, { status: 400 });
+    }
 
-    // Verify master password
-    if (trimmedPass !== masterPassword && trimmedPass !== "elaris-admin-2026") {
+    // Sign in via Better Auth (verifies credentials against hashed password in DB)
+    const result = await auth.api.signInEmail({
+      body: { email: email.trim().toLowerCase(), password },
+      asResponse: true
+    });
+
+    if (!result.ok) {
       return NextResponse.json(
-        { error: "Invalid administrator password." },
+        { error: "Invalid email or password." },
         { status: 401 }
       );
     }
 
-    // Set secure admin_session cookie (guaranteed unlock)
-    const token = getExpectedAdminToken();
-    const cookieStore = await cookies();
-    cookieStore.set("admin_session", token, {
-      httpOnly: true,
-      secure: process.env.NODE_ENV === "production",
-      sameSite: "lax",
-      path: "/",
-      maxAge: 60 * 60 * 24 * 7 // 7 days
+    // Verify the signed-in user actually has an admin role
+    const normalised = email.trim().toLowerCase();
+    const user = await prisma.user.findUnique({
+      where: { email: normalised },
+      include: { roles: { include: { role: true } } }
     });
 
-    // Also attempt PostgreSQL user & account provisioning if database is available
-    if (email && typeof email === "string" && email.includes("@")) {
+    const hasAdminRole = user?.roles?.some(
+      (ur) => ur.role.name === "ADMIN" || ur.role.name === "SUPER_ADMIN"
+    );
+
+    if (!hasAdminRole) {
+      // Sign out immediately — valid credentials but not an admin
       try {
-        const normalised = email.trim().toLowerCase();
-        const hashedPassword = await hashPassword(trimmedPass);
-
-        const superAdminRole = await prisma.role.upsert({
-          where: { name: RoleName.SUPER_ADMIN },
-          update: {},
-          create: {
-            name: RoleName.SUPER_ADMIN,
-            description: "Super Administrator with full access"
-          }
-        });
-
-        const user = await prisma.user.upsert({
-          where: { email: normalised },
-          update: { emailVerified: true },
-          create: {
-            name: normalised.split("@")[0],
-            email: normalised,
-            emailVerified: true
-          }
-        });
-
-        await prisma.account.upsert({
-          where: {
-            providerId_accountId: {
-              providerId: "credential",
-              accountId: user.id
-            }
-          },
-          update: {
-            password: hashedPassword,
-            issuer: "local:credential"
-          },
-          create: {
-            userId: user.id,
-            providerId: "credential",
-            accountId: user.id,
-            issuer: "local:credential",
-            password: hashedPassword
-          }
-        });
-
-        await prisma.userRole.upsert({
-          where: {
-            userId_roleId: {
-              userId: user.id,
-              roleId: superAdminRole.id
-            }
-          },
-          update: {},
-          create: {
-            userId: user.id,
-            roleId: superAdminRole.id
-          }
-        });
-      } catch (dbErr) {
-        console.warn("[admin:login] DB provisioning warning (session cookie set anyway):", dbErr);
+        await auth.api.signOut({ headers: req.headers as any });
+      } catch {
+        // best effort
       }
+      return NextResponse.json(
+        { error: "Access denied. Admin role required." },
+        { status: 403 }
+      );
     }
 
-    return NextResponse.json({ ok: true });
+    // Forward the Set-Cookie headers from Better Auth to the client
+    const setCookieHeader = result.headers.get("set-cookie");
+    const response = NextResponse.json({ ok: true });
+    if (setCookieHeader) {
+      response.headers.set("set-cookie", setCookieHeader);
+    }
+    return response;
   } catch (err) {
     console.error("[admin:login]", err);
     return NextResponse.json(

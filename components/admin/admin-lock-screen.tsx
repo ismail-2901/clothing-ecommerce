@@ -124,7 +124,7 @@ export function AdminLockScreen() {
             id="admin-email"
             type="email"
             label="Administrator Email"
-            placeholder="admin@example.com"
+            placeholder="admin@elaris.internal"
             required
             autoFocus
             autoComplete="email"
@@ -201,15 +201,7 @@ export function AdminLockScreen() {
             )}
           </Button>
 
-          <div className="rounded-md bg-muted/60 p-3 text-center text-[11px] text-muted-foreground border border-border/50">
-            <span className="font-semibold text-foreground">Master admin password:</span>{" "}
-            <code className="rounded bg-background px-1.5 py-0.5 font-mono font-bold text-foreground border border-border">
-              elaris-admin-2026
-            </code>
-            <p className="mt-1 text-[10px] text-muted-foreground">
-              Enter any admin email with master password to unlock the dashboard.
-            </p>
-          </div>
+
 
           <div className="mt-1 text-center">
             <Link

@@ -73,8 +73,14 @@ async function main() {
   }
 
   const adminEmail = process.env.SEED_ADMIN_EMAIL || "admin@example.com";
-  const adminPassword = process.env.SEED_ADMIN_PASSWORD || "Admin123456!";
+  const adminPassword = process.env.SEED_ADMIN_PASSWORD;
+  if (!adminPassword) {
+    throw new Error(
+      "SEED_ADMIN_PASSWORD env var is required to seed the admin account. Set it in .env and do not commit its value."
+    );
+  }
   const hashedPassword = await hashPassword(adminPassword);
+
 
   const admin = await prisma.user.upsert({
     where: { email: adminEmail },

@@ -1,6 +1,5 @@
 import Image from "next/image";
 import Link from "next/link";
-import { Star } from "lucide-react";
 import type { CatalogProduct } from "@/features/catalog/data";
 import { formatMoney } from "@/lib/utils/money";
 import { WishlistButton } from "@/components/wishlist/wishlist-button";
@@ -21,14 +20,10 @@ const colorMap: Record<string, string> = {
 
 export function ProductCard({ product }: { product: CatalogProduct }) {
   const variant = product.variants[0];
-  const rawPrice = variant?.price ?? 249000;
-  const price = rawPrice > 0 && rawPrice < 10000 ? rawPrice * 100 : rawPrice;
-  const rawComparePrice = variant?.compareAtPrice ?? (price > 200000 ? Math.round(price * 1.25) : undefined);
-  const comparePrice = rawComparePrice && rawComparePrice < 10000 ? rawComparePrice * 100 : rawComparePrice;
-  const discountPct = comparePrice ? Math.round(((comparePrice - price) / comparePrice) * 100) : null;
+  const price = variant?.price ?? 0;
+  const comparePrice = variant?.compareAtPrice;
+  const discountPct = comparePrice && comparePrice > price ? Math.round(((comparePrice - price) / comparePrice) * 100) : null;
   const colors = [...new Set(product.variants.map((item) => item.color.toLowerCase()))];
-  const rating = 4.8;
-  const reviewsCount = 120;
 
   const isSale = Boolean(discountPct && discountPct > 0);
   const isNew = product.name.toLowerCase().includes("blazer") || product.name.toLowerCase().includes("sweater") || product.name.toLowerCase().includes("dress");
@@ -112,14 +107,6 @@ export function ProductCard({ product }: { product: CatalogProduct }) {
           </div>
         </div>
       </div>
-
-      {/* Star rating */}
-      <div className="mt-2 flex items-center gap-1 text-[11px] text-muted-foreground">
-        <Star size={12} className="fill-amber-400 text-amber-400" />
-        <span className="font-bold text-foreground">{rating}</span>
-        <span>({reviewsCount})</span>
-      </div>
     </article>
   );
 }
-

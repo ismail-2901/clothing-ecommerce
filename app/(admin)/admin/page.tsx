@@ -82,24 +82,24 @@ export default async function AdminDashboardPage() {
   const metrics = [
     {
       label: "Total Revenue",
-      value: formatMoney(totalRevenue > 0 ? totalRevenue : 248500),
-      change: "+14.2%",
+      value: formatMoney(totalRevenue),
+      change: "Live",
       isPositive: true,
-      hint: "vs last month",
+      hint: "All confirmed & paid orders",
       icon: TrendingUp
     },
     {
       label: "Total Orders",
-      value: (totalOrders > 0 ? totalOrders : 1284).toLocaleString(),
-      change: "+8.1%",
+      value: totalOrders.toLocaleString(),
+      change: "Live",
       isPositive: true,
-      hint: `${pendingConfirmationCount || 18} pending confirmation`,
+      hint: `${pendingConfirmationCount} pending confirmation`,
       icon: ShoppingCart
     },
     {
       label: "Active Customers",
-      value: (customerCount > 0 ? customerCount : 3842).toLocaleString(),
-      change: "+12.4%",
+      value: customerCount.toLocaleString(),
+      change: "Registered",
       isPositive: true,
       hint: "Registered shoppers",
       icon: Users
@@ -115,23 +115,17 @@ export default async function AdminDashboardPage() {
   ];
 
   // Category shares calculation
-  const totalCatProducts = categories.reduce((sum, c) => sum + c._count.products, 0) || 1;
+  const totalCatProducts = categories.reduce((sum, c) => sum + c._count.products, 0);
   const categoryHighlights = categories.length > 0
-    ? categories.map((c, i) => {
-        const percentage = Math.round((c._count.products / totalCatProducts) * 100);
+    ? categories.map((c) => {
+        const percentage = totalCatProducts > 0 ? Math.round((c._count.products / totalCatProducts) * 100) : 0;
         return {
           name: c.name,
-          percentage: percentage > 0 ? percentage : [45, 30, 15, 10][i] || 20,
-          revenue: formatMoney([112400, 78200, 34100, 23800][i] || 25000),
+          percentage,
           count: `${c._count.products} products`
         };
       })
-    : [
-        { name: "Women's Collection", percentage: 45, revenue: "৳112,400", count: "34 products" },
-        { name: "Men's Collection", percentage: 32, revenue: "৳78,200", count: "24 products" },
-        { name: "Accessories", percentage: 15, revenue: "৳34,100", count: "12 products" },
-        { name: "Footwear & Bags", percentage: 8, revenue: "৳23,800", count: "8 products" },
-      ];
+    : [];
 
   const paymentBadgeStyle: Record<string, string> = {
     BKASH: "bg-pink-50 text-pink-700 border-pink-200",
@@ -242,29 +236,33 @@ export default async function AdminDashboardPage() {
             </p>
 
             <div className="mt-6 space-y-4">
-              {categoryHighlights.map((cat) => (
-                <div key={cat.name} className="space-y-1.5">
-                  <div className="flex items-center justify-between text-xs">
-                    <span className="font-semibold text-foreground">{cat.name}</span>
-                    <div className="flex items-center gap-2">
-                      <span className="font-bold text-foreground">{cat.revenue}</span>
-                      <span className="text-[11px] text-muted-foreground">({cat.percentage}%)</span>
+              {categoryHighlights.length === 0 ? (
+                <p className="text-xs text-muted-foreground py-4">No categories recorded yet.</p>
+              ) : (
+                categoryHighlights.map((cat) => (
+                  <div key={cat.name} className="space-y-1.5">
+                    <div className="flex items-center justify-between text-xs">
+                      <span className="font-semibold text-foreground">{cat.name}</span>
+                      <div className="flex items-center gap-2">
+                        <span className="font-medium text-muted-foreground">{cat.count}</span>
+                        <span className="text-[11px] text-muted-foreground">({cat.percentage}%)</span>
+                      </div>
+                    </div>
+                    <div className="h-2 w-full overflow-hidden rounded-full bg-muted">
+                      <div
+                        className="h-full rounded-full bg-foreground transition-all duration-500"
+                        style={{ width: `${cat.percentage}%` }}
+                      />
                     </div>
                   </div>
-                  <div className="h-2 w-full overflow-hidden rounded-full bg-muted">
-                    <div
-                      className="h-full rounded-full bg-foreground transition-all duration-500"
-                      style={{ width: `${cat.percentage}%` }}
-                    />
-                  </div>
-                </div>
-              ))}
+                ))
+              )}
             </div>
           </div>
 
           <div className="mt-6 rounded-lg border border-dashed border-border bg-muted/20 p-3.5 flex items-center justify-between text-xs">
             <span className="text-muted-foreground">Total Catalog Categories:</span>
-            <span className="font-bold text-foreground">{categories.length || 4} Active</span>
+            <span className="font-bold text-foreground">{categories.length} Active</span>
           </div>
         </div>
       </div>
@@ -342,37 +340,11 @@ export default async function AdminDashboardPage() {
                     );
                   })
                 ) : (
-                  [
-                    { id: "ORD-9201", customer: "Farhana Rahman", email: "farhana@example.com", payment: "bKash", status: "DELIVERED", total: 4200 },
-                    { id: "ORD-9200", customer: "Tanvir Ahmed", email: "tanvir@example.com", payment: "Nagad", status: "PROCESSING", total: 6850 },
-                    { id: "ORD-9199", customer: "Sadia Islam", email: "sadia@example.com", payment: "Card", status: "CONFIRMED", total: 2990 },
-                    { id: "ORD-9198", customer: "Rafiqul Islam", email: "rafiq@example.com", payment: "COD", status: "PENDING", total: 1850 },
-                  ].map((mock) => (
-                    <tr key={mock.id} className="hover:bg-muted/30 transition">
-                      <td className="py-3.5 pr-4 font-mono font-bold text-foreground">
-                        <Link href="/admin/orders" className="hover:underline">
-                          #{mock.id}
-                        </Link>
-                      </td>
-                      <td className="py-3.5 px-4">
-                        <p className="font-medium text-foreground">{mock.customer}</p>
-                        <p className="text-[11px] text-muted-foreground">{mock.email}</p>
-                      </td>
-                      <td className="py-3.5 px-4">
-                        <span className={`inline-block px-2 py-0.5 rounded border text-[10px] font-bold ${paymentBadgeStyle[mock.payment.toUpperCase()] || "bg-zinc-100 text-zinc-700"}`}>
-                          {mock.payment}
-                        </span>
-                      </td>
-                      <td className="py-3.5 px-4">
-                        <span className={`inline-block px-2 py-0.5 rounded border text-[10px] font-bold ${statusBadgeStyle[mock.status] || "bg-muted text-foreground"}`}>
-                          {mock.status}
-                        </span>
-                      </td>
-                      <td className="py-3.5 pl-4 text-right font-extrabold text-foreground">
-                        {formatMoney(mock.total)}
-                      </td>
-                    </tr>
-                  ))
+                  <tr>
+                    <td colSpan={5} className="py-8 text-center text-muted-foreground">
+                      No recent orders recorded yet.
+                    </td>
+                  </tr>
                 )}
               </tbody>
             </table>
@@ -416,24 +388,9 @@ export default async function AdminDashboardPage() {
                   </div>
                 ))
               ) : (
-                [
-                  { name: "Oversized Heavyweight Hoodie", sku: "HOOD-BLK-L", stock: 2 },
-                  { name: "Minimalist Ribbed Tee", sku: "TEE-WHT-M", stock: 4 },
-                  { name: "Tailored Linen Blazer", sku: "BLZ-SND-40", stock: 1 },
-                ].map((item) => (
-                  <div
-                    key={item.sku}
-                    className="flex items-center justify-between rounded-lg border border-border bg-muted/20 p-3"
-                  >
-                    <div>
-                      <p className="font-semibold text-foreground text-xs">{item.name}</p>
-                      <p className="text-[11px] text-muted-foreground font-mono">{item.sku}</p>
-                    </div>
-                    <span className="rounded bg-rose-50 px-2 py-0.5 text-[10px] font-bold text-rose-700 border border-rose-200">
-                      {item.stock} left
-                    </span>
-                  </div>
-                ))
+                <p className="text-xs text-muted-foreground py-4 text-center">
+                  No low stock inventory alerts.
+                </p>
               )}
             </div>
           </div>

@@ -2,9 +2,8 @@ export const dynamic = "force-dynamic";
 
 import Link from "next/link";
 import Image from "next/image";
-import { cookies } from "next/headers";
 import { Search } from "lucide-react";
-import { getServerUser, isValidAdminSession } from "@/lib/auth/server";
+import { getServerUser } from "@/lib/auth/server";
 import { AdminLockScreen } from "@/components/admin/admin-lock-screen";
 import { AdminNotificationBell } from "@/components/admin/admin-notification-bell";
 import { AdminDesktopSidebar, AdminMobileNav } from "@/components/admin/admin-sidebar";
@@ -14,7 +13,6 @@ export default async function AdminLayout({
 }: Readonly<{ children: React.ReactNode }>) {
   let user: any = null;
   let isBetterAuthAdmin = false;
-  let isMasterAdmin = false;
 
   try {
     user = await getServerUser();
@@ -27,16 +25,7 @@ export default async function AdminLayout({
     console.error("[AdminLayout] Error fetching server user:", err);
   }
 
-  try {
-    const cookieStore = await cookies();
-    const masterCookie = cookieStore.get("admin_session")?.value;
-    isMasterAdmin = isValidAdminSession(masterCookie);
-  } catch (err: any) {
-    if (err?.digest === "DYNAMIC_SERVER_USAGE") throw err;
-    console.error("[AdminLayout] Error verifying master session:", err);
-  }
-
-  if (!isBetterAuthAdmin && !isMasterAdmin) {
+  if (!isBetterAuthAdmin) {
     return <AdminLockScreen />;
   }
 

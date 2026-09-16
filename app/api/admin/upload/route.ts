@@ -1,5 +1,6 @@
 import { createHash } from "node:crypto";
 import { NextResponse } from "next/server";
+import { requireAdminSession } from "@/lib/auth/server";
 
 export const runtime = "nodejs";
 export const maxDuration = 60; // seconds — large uploads can be slow
@@ -20,7 +21,11 @@ function sign(params: Record<string, string>): string {
 }
 
 export async function POST(req: Request) {
+  const auth = await requireAdminSession("product:manage");
+  if (!auth.ok) return auth.response;
+
   const form = await req.formData();
+
   const file = form.get("file") as File | null;
 
   if (!file) {

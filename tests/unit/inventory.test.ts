@@ -3,6 +3,7 @@ import {
   availableQuantity,
   commitSale,
   InventoryError,
+  isSellableVariant,
   releaseInventory,
   reserveInventory,
   restoreReturn
@@ -89,3 +90,74 @@ describe("inventory full order lifecycle", () => {
     ).toThrow(InventoryError);
   });
 });
+
+describe("isSellableVariant predicate", () => {
+  it("returns true for active, published variant with positive effective stock", () => {
+    expect(
+      isSellableVariant(
+        { stockQuantity: 5, reservedQuantity: 2, isAvailable: true, deletedAt: null },
+        { status: "PUBLISHED", deletedAt: null }
+      )
+    ).toBe(true);
+  });
+
+  it("returns false if variant is soft-deleted", () => {
+    expect(
+      isSellableVariant(
+        { stockQuantity: 5, reservedQuantity: 0, isAvailable: true, deletedAt: new Date() },
+        { status: "PUBLISHED", deletedAt: null }
+      )
+    ).toBe(false);
+  });
+
+  it("returns false if isAvailable is false", () => {
+    expect(
+      isSellableVariant(
+        { stockQuantity: 5, reservedQuantity: 0, isAvailable: false, deletedAt: null },
+        { status: "PUBLISHED", deletedAt: null }
+      )
+    ).toBe(false);
+  });
+
+  it("returns false if effective stock is zero or negative", () => {
+    expect(
+      isSellableVariant(
+        { stockQuantity: 3, reservedQuantity: 3, isAvailable: true, deletedAt: null },
+        { status: "PUBLISHED", deletedAt: null }
+      )
+    ).toBe(false);
+
+    expect(
+      isSellableVariant(
+        { stockQuantity: 2, reservedQuantity: 4, isAvailable: true, deletedAt: null },
+        { status: "PUBLISHED", deletedAt: null }
+      )
+    ).toBe(false);
+  });
+
+  it("returns false if parent product is not PUBLISHED", () => {
+    expect(
+      isSellableVariant(
+        { stockQuantity: 10, reservedQuantity: 0, isAvailable: true, deletedAt: null },
+        { status: "DRAFT", deletedAt: null }
+      )
+    ).toBe(false);
+
+    expect(
+      isSellableVariant(
+        { stockQuantity: 10, reservedQuantity: 0, isAvailable: true, deletedAt: null },
+        { status: "ARCHIVED", deletedAt: null }
+      )
+    ).toBe(false);
+  });
+
+  it("returns false if parent product is soft-deleted", () => {
+    expect(
+      isSellableVariant(
+        { stockQuantity: 10, reservedQuantity: 0, isAvailable: true, deletedAt: null },
+        { status: "PUBLISHED", deletedAt: new Date() }
+      )
+    ).toBe(false);
+  });
+});
+

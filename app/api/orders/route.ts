@@ -30,7 +30,7 @@ const createOrderSchema = z.object({
     postalCode: z.string().max(20).optional(),
     country: z.string().length(2).default("BD")
   }),
-  shippingFee: z.number().int().min(0).default(8000),
+  // shippingFee is NOT accepted from the client — derived server-side from city
   couponCode: z.string().max(50).optional(),
   paymentProvider: z.enum(["COD", "SSLCOMMERZ", "BKASH", "NAGAD", "CARD"]),
   // Inline cart: used when no server-side Cart record exists (localStorage-based storefront)
@@ -41,6 +41,20 @@ const createOrderSchema = z.object({
     })
   ).optional()
 });
+
+/**
+ * Derives shipping fee in minor units (paisa) from the delivery city.
+ * Dhaka + suburbs = inside rate; everything else = outside rate.
+ * Free shipping applied if subtotal >= threshold.
+ */
+function deriveShippingFee(subtotal: number, city: string): number {
+  const insideDhaka = /\bdhaka\b/i.test(city);
+  const baseFee = insideDhaka
+    ? storePolicies.shipping.insideDhakaFee * 100
+    : storePolicies.shipping.outsideDhakaFee * 100;
+  // freeThreshold is in BDT (e.g. 3000 = ৳3000); subtotal is in paisa
+  return subtotal >= storePolicies.shipping.freeThreshold * 100 ? 0 : baseFee;
+}
 
 export async function POST(request: NextRequest) {
   let body: unknown;
@@ -210,7 +224,7 @@ export async function POST(request: NextRequest) {
   let pricing;
   try {
     const subtotal = resolvedLines.reduce((acc, l) => acc + l.unitPrice * l.quantity, 0);
-    const resolvedShippingFee = subtotal >= storePolicies.shipping.freeThreshold * 100 ? 0 : input.shippingFee;
+    const resolvedShippingFee = deriveShippingFee(subtotal, input.deliveryAddress.city);
     pricing = calculateCartTotals({
       lines: resolvedLines.map(({ id, productId, name, unitPrice, quantity }) => ({ id, productId, name, unitPrice, quantity })),
       coupon: couponRule,
@@ -252,24 +266,30 @@ export async function POST(request: NextRequest) {
   let order;
   try {
     order = await prisma.$transaction(async (tx) => {
-      // Lock and validate each variant stock inside transaction (race-condition safe)
+      // Atomic conditional reservation via a single raw UPDATE.
+      // Only increments reservedQuantity when (stockQuantity - reservedQuantity) >= requested.
+      // If no rows are affected, the reservation failed (stock race lost or item unavailable).
       for (const line of resolvedLines) {
-        const variant = await tx.productVariant.findUnique({ where: { id: line.variantId } });
-        if (!variant || !variant.isAvailable) {
-          throw new Error(`${line.name} (${line.variantSize}/${line.variantColor}) is no longer available.`);
-        }
-        const available = variant.stockQuantity - variant.reservedQuantity;
-        if (available < line.quantity) {
+        const affected = await tx.$executeRaw`
+          UPDATE "ProductVariant"
+          SET "reservedQuantity" = "reservedQuantity" + ${line.quantity}
+          WHERE id = ${line.variantId}
+            AND "isAvailable" = true
+            AND "deletedAt" IS NULL
+            AND ("stockQuantity" - "reservedQuantity") >= ${line.quantity}
+        `;
+        if (affected === 0) {
+          // Either out of stock, unavailable, or another request won the race
+          const variant = await tx.productVariant.findUnique({
+            where: { id: line.variantId },
+            select: { stockQuantity: true, reservedQuantity: true, isAvailable: true }
+          });
+          const available = (variant?.stockQuantity ?? 0) - (variant?.reservedQuantity ?? 0);
+          if (!variant?.isAvailable) {
+            throw new Error(`${line.name} (${line.variantSize}/${line.variantColor}) is no longer available.`);
+          }
           throw new Error(`Only ${available} unit(s) of ${line.name} (${line.variantSize}) are available.`);
         }
-      }
-
-      // Reserve inventory for each variant
-      for (const line of resolvedLines) {
-        await tx.productVariant.update({
-          where: { id: line.variantId },
-          data: { reservedQuantity: { increment: line.quantity } }
-        });
 
         await tx.inventoryMovement.create({
           data: {
@@ -282,13 +302,28 @@ export async function POST(request: NextRequest) {
         });
       }
 
-      // Coupon usage
+
+      // Atomic coupon usage: increment only if still under limit (race-safe)
       if (couponId) {
-        await tx.coupon.update({
-          where: { id: couponId },
-          data: { usageCount: { increment: 1 } }
-        });
+        const couponRow = resolvedCoupon;
+        const hasLimit = couponRow?.usageLimit != null;
+
+        const updated = await tx.$executeRaw`
+          UPDATE "Coupon"
+          SET "usageCount" = "usageCount" + 1
+          WHERE id = ${couponId}
+            AND status = 'ACTIVE'
+            AND (
+              "usageLimit" IS NULL
+              OR "usageCount" < "usageLimit"
+            )
+        `;
+
+        if (updated === 0 && hasLimit) {
+          throw new Error("Coupon usage limit reached. Please try without the coupon.");
+        }
       }
+
 
       // Create order
       const newOrder = await tx.order.create({

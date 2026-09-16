@@ -89,17 +89,22 @@ export default function AdminContentCreatePage() {
               <CheckCircle2 size={14} /> Saved!
             </span>
           )}
+          <span className="rounded bg-muted px-2 py-1 text-[11px] font-medium text-muted-foreground">
+            Persistence: Planned
+          </span>
           <button
             type="button"
-            onClick={() => handleSave("DRAFT")}
-            className="rounded-lg border border-border px-3 py-1.5 text-xs font-semibold text-foreground hover:bg-muted"
+            disabled
+            title="Content management API is scheduled for future release"
+            className="rounded-lg border border-border px-3 py-1.5 text-xs font-semibold text-muted-foreground opacity-60 cursor-not-allowed"
           >
             Save Draft
           </button>
           <Button
             type="button"
-            onClick={() => handleSave("PUBLISHED")}
-            className="text-xs font-bold h-8"
+            disabled
+            title="Content management API is scheduled for future release"
+            className="text-xs font-bold h-8 opacity-60 cursor-not-allowed"
           >
             Publish Live
           </Button>

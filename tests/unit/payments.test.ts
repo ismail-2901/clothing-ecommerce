@@ -61,7 +61,7 @@ describe("CashOnDeliveryProvider", () => {
     const result = await provider.refund("ord_123", 250000);
     expect(result.success).toBe(true);
     expect(result.status).toBe("PROCESSED");
-    expect(result.refundId).toBe("REFUND-COD-ord_123");
+    expect(result.refundId).toMatch(/^COD-REFUND-ord_123/);
   });
 });
 
@@ -84,9 +84,9 @@ describe("SSLCommerzProvider", () => {
     expect(result.redirectUrl).toBeDefined();
   });
 
-  it("verifies payment reference", async () => {
+  it("verifies payment reference fails closed without credentials", async () => {
     const status = await provider.verifyPayment("SSL-ord_456");
-    expect(status.status).toBe("PAID");
+    expect(status.status).toBe("FAILED");
   });
 
   it("parses valid and invalid IPN webhook payloads", async () => {
@@ -98,10 +98,8 @@ describe("SSLCommerzProvider", () => {
     expect(failed.status).toBe("FAILED");
   });
 
-  it("processes refund", async () => {
-    const result = await provider.refund("ord_456", 450000);
-    expect(result.success).toBe(true);
-    expect(result.status).toBe("PROCESSED");
+  it("fails closed on refund when credentials not configured", async () => {
+    await expect(provider.refund("ord_456", 450000)).rejects.toThrow("credentials not configured");
   });
 });
 
@@ -132,10 +130,8 @@ describe("BkashProvider", () => {
     expect(cancelled.status).toBe("FAILED");
   });
 
-  it("processes refund", async () => {
-    const result = await provider.refund("ord_789", 120000);
-    expect(result.success).toBe(true);
-    expect(result.status).toBe("PROCESSED");
+  it("fails closed on refund since direct API is not integrated", async () => {
+    await expect(provider.refund("ord_789", 120000)).rejects.toThrow("bKash refund is not yet integrated");
   });
 });
 

@@ -31,9 +31,11 @@ export function generateSecureOtp(): string {
  * Hashes an OTP code using HMAC-SHA256 with the app secret.
  */
 export function hashOtp(code: string): string {
-  const secret = process.env.BETTER_AUTH_SECRET || "elaris-otp-secret-key";
+  const secret = process.env.BETTER_AUTH_SECRET;
+  if (!secret) throw new Error("BETTER_AUTH_SECRET is required for OTP hashing.");
   return crypto.createHmac("sha256", secret).update(code.trim()).digest("hex");
 }
+
 
 /**
  * Parses stored OTP string which may be in format `${hash}:${attempts}` or legacy format.
@@ -55,16 +57,12 @@ export function parseStoredOtp(storedValue: string | null): { hash: string; atte
 export function verifyOtpCode(inputCode: string, storedHash: string): boolean {
   if (!inputCode || !storedHash) return false;
 
-  // Support legacy plaintext code during migration
-  if (storedHash.length === 6 && /^\d{6}$/.test(storedHash)) {
-    return inputCode.trim() === storedHash.trim();
-  }
-
   const computed = hashOtp(inputCode);
   if (computed.length !== storedHash.length) return false;
 
   return crypto.timingSafeEqual(Buffer.from(computed), Buffer.from(storedHash));
 }
+
 
 /**
  * Hardened OTP generation and delivery.

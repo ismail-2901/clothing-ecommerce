@@ -43,6 +43,18 @@ export async function GET(request: NextRequest) {
   }
 
   if (paymentStatus.status === "PAID" || paymentStatus.status === "AUTHORIZED") {
+    // Task 019: validate amount and order identity before committing PAID
+    if (
+      paymentStatus.amount &&
+      paymentStatus.amount > 0 &&
+      Math.abs(paymentStatus.amount - payment.amount) > 1 // allow 1 paisa rounding tolerance
+    ) {
+      console.warn(
+        `[payments/verify] Amount mismatch for ref=${reference}: provider reported ${paymentStatus.amount}, stored ${payment.amount}. Rejecting.`
+      );
+      return NextResponse.redirect(new URL("/checkout?error=payment_amount_mismatch", request.url));
+    }
+
     await prisma.$transaction(async (tx) => {
       await tx.payment.update({
         where: { id: payment.id },
@@ -76,6 +88,7 @@ export async function GET(request: NextRequest) {
     }
     return NextResponse.redirect(successUrl);
   }
+
 
   return NextResponse.redirect(new URL(`/checkout?error=payment_${paymentStatus.status.toLowerCase()}`, request.url));
 }

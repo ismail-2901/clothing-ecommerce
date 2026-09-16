@@ -40,9 +40,10 @@ export class CashOnDeliveryProvider implements PaymentProvider {
   async refund(orderIdOrInput: string | RefundInput, amount?: number): Promise<RefundResult> {
     const orderId = typeof orderIdOrInput === "string" ? orderIdOrInput : orderIdOrInput.orderId;
     const refundAmount = typeof orderIdOrInput === "string" ? (amount ?? 0) : orderIdOrInput.amount;
+    // COD is a cash transaction managed offline. Mark as processed (admin manually handles the cash return).
     return {
       success: true,
-      refundId: `REFUND-COD-${orderId}`,
+      refundId: `COD-REFUND-${orderId}-${Date.now()}`,
       amount: refundAmount,
       status: "PROCESSED"
     };
@@ -138,8 +139,9 @@ export class SSLCommerzProvider implements PaymentProvider {
       }
     }
 
+    // Fallback: no credentials or API call failed — fail closed (do not synthesize PAID)
     return {
-      status: "PAID",
+      status: "FAILED",
       reference,
       amount: 0,
       timestamp: new Date()
@@ -161,14 +163,32 @@ export class SSLCommerzProvider implements PaymentProvider {
   }
 
   async refund(orderIdOrInput: string | RefundInput, amount?: number): Promise<RefundResult> {
-    const orderId = typeof orderIdOrInput === "string" ? orderIdOrInput : orderIdOrInput.orderId;
-    const refundAmount = typeof orderIdOrInput === "string" ? (amount ?? 0) : orderIdOrInput.amount;
-    return {
-      success: true,
-      refundId: `REFUND-SSL-${orderId}`,
-      amount: refundAmount,
-      status: "PROCESSED"
-    };
+    const input = typeof orderIdOrInput === "string"
+      ? { orderId: orderIdOrInput, amount: amount ?? 0 }
+      : orderIdOrInput;
+    if (this.storeId && this.storePassword) {
+      try {
+        const baseUrl = this.isSandbox
+          ? "https://sandbox.sslcommerz.com"
+          : "https://securepay.sslcommerz.com";
+        const res = await fetch(
+          `${baseUrl}/validator/api/merchantTransIDvalidationAPI.php?merchant_id=${this.storeId}&merchant_pass=${this.storePassword}&refund_amount=${(input.amount / 100).toFixed(2)}&trans_id=${input.paymentReference ?? input.orderId}&format=json`
+        );
+        const data = await res.json();
+        const ok = data.status === "success" || data.APIConnect === "DONE";
+        return {
+          success: ok,
+          refundId: data.bank_tran_id || data.tran_id || "",
+          amount: input.amount,
+          status: ok ? "PROCESSED" : "FAILED",
+          error: ok ? undefined : (data.failedreason || "Refund rejected by SSLCommerz")
+        };
+      } catch (err) {
+        console.error("SSLCommerz refund failed:", err);
+        throw new PaymentError("SSLCommerz refund API call failed.");
+      }
+    }
+    throw new PaymentError("SSLCommerz refund is not available: credentials not configured.");
   }
 }
 
@@ -238,8 +258,33 @@ export class BkashProvider implements PaymentProvider {
   }
 
   async verifyPayment(reference: string): Promise<PaymentStatus> {
+    // bKash real verification requires executing payment via the bKash API
+    if (this.appKey && this.appSecret) {
+      try {
+        const baseUrl = this.isSandbox
+          ? "https://tokenized.sandbox.bka.sh/v1.2.0-beta"
+          : "https://tokenized.pay.bka.sh/v1.2.0-beta";
+        const res = await fetch(`${baseUrl}/tokenized/checkout/payment/status`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json", "X-APP-Key": this.appKey },
+          body: JSON.stringify({ paymentID: reference })
+        });
+        const data = await res.json();
+        const isPaid = data.transactionStatus === "Completed" || data.transactionStatus === "COMPLETED";
+        return {
+          status: isPaid ? "PAID" : "FAILED",
+          reference,
+          amount: data.amount ? Math.round(Number(data.amount) * 100) : 0,
+          timestamp: new Date(),
+          rawResponse: data
+        };
+      } catch (err) {
+        console.error("bKash verifyPayment failed:", err);
+      }
+    }
+    // No credentials or API failed — fail closed
     return {
-      status: "PAID",
+      status: "FAILED",
       reference,
       amount: 0,
       timestamp: new Date()
@@ -260,15 +305,9 @@ export class BkashProvider implements PaymentProvider {
     };
   }
 
-  async refund(orderIdOrInput: string | RefundInput, amount?: number): Promise<RefundResult> {
-    const orderId = typeof orderIdOrInput === "string" ? orderIdOrInput : orderIdOrInput.orderId;
-    const refundAmount = typeof orderIdOrInput === "string" ? (amount ?? 0) : orderIdOrInput.amount;
-    return {
-      success: true,
-      refundId: `REFUND-BKASH-${orderId}`,
-      amount: refundAmount,
-      status: "PROCESSED"
-    };
+  async refund(_orderIdOrInput: string | RefundInput, _amount?: number): Promise<RefundResult> {
+    // bKash real refund API requires execute-payment flow and token — not yet integrated.
+    throw new PaymentError("bKash refund is not yet integrated. Process manually via bKash merchant dashboard.");
   }
 }
 
@@ -296,12 +335,9 @@ export class NagadProvider implements PaymentProvider {
   }
 
   async verifyPayment(reference: string): Promise<PaymentStatus> {
-    return {
-      status: "PAID",
-      reference,
-      amount: 0,
-      timestamp: new Date()
-    };
+    // Nagad real API not integrated — provider is not available for automated verification.
+    // Fail closed: do not synthesize PAID.
+    throw new PaymentError("Nagad payment verification is not yet integrated. Contact support to confirm payment status.");
   }
 
   async webhook(payload: unknown): Promise<WebhookResult> {
@@ -317,15 +353,9 @@ export class NagadProvider implements PaymentProvider {
     };
   }
 
-  async refund(orderIdOrInput: string | RefundInput, amount?: number): Promise<RefundResult> {
-    const orderId = typeof orderIdOrInput === "string" ? orderIdOrInput : orderIdOrInput.orderId;
-    const refundAmount = typeof orderIdOrInput === "string" ? (amount ?? 0) : orderIdOrInput.amount;
-    return {
-      success: true,
-      refundId: `REFUND-NAGAD-${orderId}`,
-      amount: refundAmount,
-      status: "PROCESSED"
-    };
+  async refund(_orderIdOrInput: string | RefundInput, _amount?: number): Promise<RefundResult> {
+    // Nagad refund API not integrated.
+    throw new PaymentError("Nagad refund is not yet integrated. Process manually via Nagad merchant portal.");
   }
 }
 
@@ -348,12 +378,8 @@ export class CardPaymentProvider implements PaymentProvider {
   }
 
   async verifyPayment(reference: string): Promise<PaymentStatus> {
-    return {
-      status: "PAID",
-      reference,
-      amount: 0,
-      timestamp: new Date()
-    };
+    // Card/direct payment verification not integrated — fail closed.
+    throw new PaymentError("Card payment verification is not yet integrated. Contact support to confirm payment status.");
   }
 
   async webhook(payload: unknown): Promise<WebhookResult> {
@@ -369,15 +395,9 @@ export class CardPaymentProvider implements PaymentProvider {
     };
   }
 
-  async refund(orderIdOrInput: string | RefundInput, amount?: number): Promise<RefundResult> {
-    const orderId = typeof orderIdOrInput === "string" ? orderIdOrInput : orderIdOrInput.orderId;
-    const refundAmount = typeof orderIdOrInput === "string" ? (amount ?? 0) : orderIdOrInput.amount;
-    return {
-      success: true,
-      refundId: `REFUND-CARD-${orderId}`,
-      amount: refundAmount,
-      status: "PROCESSED"
-    };
+  async refund(_orderIdOrInput: string | RefundInput, _amount?: number): Promise<RefundResult> {
+    // Card refund API not integrated.
+    throw new PaymentError("Card refund is not yet integrated. Process manually through your payment gateway dashboard.");
   }
 }
 

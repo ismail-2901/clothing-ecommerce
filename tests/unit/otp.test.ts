@@ -27,6 +27,10 @@ vi.mock("@/lib/email/brevo", () => ({
 }));
 
 describe("OTP Security and Utilities", () => {
+  beforeEach(() => {
+    process.env.BETTER_AUTH_SECRET = "test-secret-key-1234567890";
+  });
+
   it("generates a cryptographically secure 6-digit OTP", () => {
     for (let i = 0; i < 20; i++) {
       const otp = generateSecureOtp();
@@ -70,8 +74,8 @@ describe("OTP Security and Utilities", () => {
     expect(verifyOtpCode("", hashed)).toBe(false);
   });
 
-  it("supports legacy plaintext OTP during migration", () => {
-    expect(verifyOtpCode("123456", "123456")).toBe(true);
+  it("rejects legacy unhashed plaintext OTP", () => {
+    expect(verifyOtpCode("123456", "123456")).toBe(false);
     expect(verifyOtpCode("123456", "654321")).toBe(false);
   });
 });

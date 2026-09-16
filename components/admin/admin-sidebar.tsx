@@ -54,10 +54,6 @@ export const navGroups = [
     ]
   },
   {
-    label: "CONTENT",
-    items: [{ label: "Content", icon: FileText, href: "/admin/content" }]
-  },
-  {
     label: "INTELLIGENCE",
     items: [
       { label: "Risk Center", icon: ShieldAlert, href: "/admin/risk" },

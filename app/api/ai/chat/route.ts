@@ -5,6 +5,8 @@ import { matchProducts } from "@/lib/ai/recommendation";
 import { getAllProducts } from "@/features/catalog/data";
 import { formatMoney } from "@/lib/utils/money";
 import { storePolicies } from "@/config/store";
+import { rateLimiter } from "@/lib/rate-limit/rate-limit";
+import { getClientIp } from "@/lib/auth/otp";
 
 const bodySchema = z.object({
   message: z.string().min(1).max(500)
@@ -89,6 +91,16 @@ async function buildTextResponse(
 }
 
 export async function POST(request: NextRequest) {
+  // 20 AI requests per minute per IP
+  const ip = getClientIp(request as any);
+  const rl = await rateLimiter.consume(`ai-chat:${ip}`, 20, 60_000);
+  if (!rl.allowed) {
+    return NextResponse.json(
+      { error: "Too many requests. Please slow down." },
+      { status: 429 }
+    );
+  }
+
   let body: unknown;
   try {
     body = await request.json();

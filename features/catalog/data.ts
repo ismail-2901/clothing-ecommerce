@@ -88,71 +88,76 @@ const defaultOffers = [
   }
 ];
 
+
+const productInclude = {
+  category: true,
+  collection: true,
+  images: { orderBy: { position: "asc" as const } },
+  variants: { where: { deletedAt: null } },
+  tags: true
+};
+
+function mapDbProductToCatalogProduct(p: any): CatalogProduct {
+  const images = p.images.length > 0
+    ? p.images.map((img: any) => ({ src: img.url, alt: img.alt || p.name }))
+    : [{ src: "https://images.unsplash.com/photo-1521572163474-6864f9cf17ab?auto=format&fit=crop&w=1200&q=80", alt: p.name }];
+
+  const rawVariants = p.variants.map((v: any) => ({
+    id: v.id,
+    sku: v.sku,
+    color: v.color,
+    size: v.size.trim(),
+    price: v.priceOverride ?? p.basePrice,
+    compareAtPrice: p.salePrice ?? undefined,
+    stock: v.stockQuantity
+  }));
+
+  // Expand any legacy comma-combined sizes ("M, L, XL" → 3 entries)
+  const expanded = rawVariants.flatMap((v: any) => {
+    if (!v.size.includes(",")) return [v];
+    return v.size
+      .split(",")
+      .map((s: string) => s.trim())
+      .filter(Boolean)
+      .map((size: string) => ({ ...v, size }));
+  });
+
+  // Deduplicate by color+size (case-insensitive) — keep highest stock entry
+  const seen = new Map<string, typeof expanded[0]>();
+  for (const v of expanded) {
+    const key = `${v.color.trim().toLowerCase()}||${v.size.trim().toLowerCase()}`;
+    const existing = seen.get(key);
+    if (!existing || v.stock > existing.stock) {
+      seen.set(key, v);
+    }
+  }
+  const variants = Array.from(seen.values());
+
+  return {
+    id: p.id,
+    name: p.name,
+    slug: p.slug,
+    category: p.category?.name || "Clothing",
+    categorySlug: p.category?.slug || "clothing",
+    collection: p.collection?.name || "General",
+    description: p.description,
+    material: p.material || "",
+    care: p.careInstructions || "",
+    tags: p.tags.map((t: any) => t.name),
+    images,
+    variants
+  };
+}
+
 export async function getAllProducts(): Promise<CatalogProduct[]> {
   try {
     const dbProducts = await prisma.product.findMany({
       where: { deletedAt: null, status: "PUBLISHED" },
-      include: {
-        category: true,
-        collection: true,
-        images: { orderBy: { position: "asc" } },
-        variants: { where: { deletedAt: null } },
-        tags: true
-      },
+      include: productInclude,
       orderBy: { createdAt: "desc" }
     });
 
-    return dbProducts.map((p) => {
-      const images = p.images.length > 0
-        ? p.images.map((img) => ({ src: img.url, alt: img.alt || p.name }))
-        : [{ src: "https://images.unsplash.com/photo-1521572163474-6864f9cf17ab?auto=format&fit=crop&w=1200&q=80", alt: p.name }];
-
-      const rawVariants = p.variants.map((v) => ({
-        id: v.id,
-        sku: v.sku,
-        color: v.color,
-        size: v.size.trim(),
-        price: v.priceOverride ?? p.basePrice,
-        compareAtPrice: p.salePrice ?? undefined,
-        stock: v.stockQuantity
-      }));
-
-      // Expand any legacy comma-combined sizes ("M, L, XL" → 3 entries)
-      const expanded = rawVariants.flatMap((v) => {
-        if (!v.size.includes(",")) return [v];
-        return v.size
-          .split(",")
-          .map((s) => s.trim())
-          .filter(Boolean)
-          .map((size) => ({ ...v, size }));
-      });
-
-      // Deduplicate by color+size (case-insensitive) — keep highest stock entry
-      const seen = new Map<string, typeof expanded[0]>();
-      for (const v of expanded) {
-        const key = `${v.color.trim().toLowerCase()}||${v.size.trim().toLowerCase()}`;
-        const existing = seen.get(key);
-        if (!existing || v.stock > existing.stock) {
-          seen.set(key, v);
-        }
-      }
-      const variants = Array.from(seen.values());
-
-      return {
-        id: p.id,
-        name: p.name,
-        slug: p.slug,
-        category: p.category?.name || "Clothing",
-        categorySlug: p.category?.slug || "clothing",
-        collection: p.collection?.name || "General",
-        description: p.description,
-        material: p.material || "",
-        care: p.careInstructions || "",
-        tags: p.tags.map((t) => t.name),
-        images,
-        variants
-      };
-    });
+    return dbProducts.map(mapDbProductToCatalogProduct);
   } catch (err) {
     console.error("[catalog:db]", err);
     return [];
@@ -160,45 +165,71 @@ export async function getAllProducts(): Promise<CatalogProduct[]> {
 }
 
 export async function getFilteredProducts(filter: CatalogFilter): Promise<CatalogProduct[]> {
-  const products = await getAllProducts();
-  return products.filter((product) => {
-    const matchesCategory = filter.category
-      ? product.categorySlug === filter.category
-      : true;
+  try {
+    const where: any = {
+      deletedAt: null,
+      status: "PUBLISHED"
+    };
 
-    // Size: if a size filter is active only show products that have a variant in that size
-    const matchesSize = filter.size
-      ? product.variants.some((variant) => variant.size.toLowerCase() === filter.size?.toLowerCase())
-      : true;
+    if (filter.category) {
+      where.category = { slug: filter.category };
+    }
 
-    // Color: same pattern
-    const matchesColor = filter.color
-      ? product.variants.some((variant) => variant.color.toLowerCase() === filter.color?.toLowerCase())
-      : true;
+    if (filter.size || filter.color) {
+      where.variants = {
+        some: {
+          deletedAt: null,
+          ...(filter.size && { size: { contains: filter.size, mode: "insensitive" } }),
+          ...(filter.color && { color: { equals: filter.color, mode: "insensitive" } })
+        }
+      };
+    }
 
-    // Price range: use the minimum price across all variants
-    const minVariantPrice = Math.min(...product.variants.map((v) => v.price));
-    const rawPrice = minVariantPrice > 0 && minVariantPrice < 10000
-      ? minVariantPrice * 100
-      : minVariantPrice;
-    const matchesMinPrice = filter.minPrice !== undefined ? rawPrice >= filter.minPrice : true;
-    const matchesMaxPrice = filter.maxPrice !== undefined ? rawPrice <= filter.maxPrice : true;
+    if (filter.minPrice !== undefined || filter.maxPrice !== undefined) {
+      where.basePrice = {
+        ...(filter.minPrice !== undefined && { gte: filter.minPrice }),
+        ...(filter.maxPrice !== undefined && { lte: filter.maxPrice })
+      };
+    }
 
-    const query = filter.q?.trim().toLowerCase();
-    const matchesQuery = query
-      ? [product.name, product.description, product.category, product.collection, ...product.tags]
-          .join(" ")
-          .toLowerCase()
-          .includes(query)
-      : true;
+    if (filter.q?.trim()) {
+      const query = filter.q.trim();
+      where.OR = [
+        { name: { contains: query, mode: "insensitive" } },
+        { description: { contains: query, mode: "insensitive" } },
+        { tags: { some: { name: { contains: query, mode: "insensitive" } } } }
+      ];
+    }
 
-    return matchesCategory && matchesColor && matchesSize && matchesMinPrice && matchesMaxPrice && matchesQuery;
-  });
+    const dbProducts = await prisma.product.findMany({
+      where,
+      include: productInclude,
+      orderBy: { createdAt: "desc" }
+    });
+
+    return dbProducts.map(mapDbProductToCatalogProduct);
+  } catch (err) {
+    console.error("[catalog:getFilteredProducts]", err);
+    return [];
+  }
 }
 
 export async function getProductBySlug(slug: string): Promise<CatalogProduct | undefined> {
-  const products = await getAllProducts();
-  return products.find((product) => product.slug === slug);
+  try {
+    const product = await prisma.product.findUnique({
+      where: { slug },
+      include: productInclude
+    });
+
+    if (!product || product.deletedAt !== null || product.status !== "PUBLISHED") {
+      return undefined;
+    }
+
+    return mapDbProductToCatalogProduct(product);
+  } catch (err) {
+    console.error("[catalog:getProductBySlug]", err);
+    return undefined;
+  }
 }
 
 export async function getProductReviews(productId: string): Promise<ProductReviewSummary> {

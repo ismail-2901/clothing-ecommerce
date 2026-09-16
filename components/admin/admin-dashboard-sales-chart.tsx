@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { ArrowUpRight, Calendar, Download } from "lucide-react";
 import { formatMoney } from "@/lib/utils/money";
 
@@ -12,41 +12,46 @@ type DataPoint = {
 
 const periods = ["7 Days", "30 Days", "90 Days", "1 Year"] as const;
 
-const dataByPeriod: Record<typeof periods[number], DataPoint[]> = {
-  "7 Days": [
-    { label: "Mon", revenue: 24500, orders: 18 },
-    { label: "Tue", revenue: 31200, orders: 24 },
-    { label: "Wed", revenue: 28900, orders: 20 },
-    { label: "Thu", revenue: 42000, orders: 32 },
-    { label: "Fri", revenue: 56400, orders: 45 },
-    { label: "Sat", revenue: 68100, orders: 54 },
-    { label: "Sun", revenue: 51200, orders: 39 },
-  ],
-  "30 Days": [
-    { label: "Week 1", revenue: 145000, orders: 112 },
-    { label: "Week 2", revenue: 189000, orders: 146 },
-    { label: "Week 3", revenue: 215000, orders: 178 },
-    { label: "Week 4", revenue: 248500, orders: 195 },
-  ],
-  "90 Days": [
-    { label: "Month 1", revenue: 620000, orders: 480 },
-    { label: "Month 2", revenue: 740000, orders: 590 },
-    { label: "Month 3", revenue: 890000, orders: 710 },
-  ],
-  "1 Year": [
-    { label: "Q1", revenue: 1850000, orders: 1450 },
-    { label: "Q2", revenue: 2100000, orders: 1680 },
-    { label: "Q3", revenue: 2450000, orders: 1920 },
-    { label: "Q4", revenue: 2980000, orders: 2310 },
-  ],
-};
-
 export function AdminDashboardSalesChart() {
   const [selectedPeriod, setSelectedPeriod] = useState<typeof periods[number]>("7 Days");
   const [activePoint, setActivePoint] = useState<DataPoint | null>(null);
+  const [data, setData] = useState<DataPoint[]>([]);
+  const [loading, setLoading] = useState(true);
 
-  const data = dataByPeriod[selectedPeriod];
-  const maxRevenue = Math.max(...data.map((d) => d.revenue));
+  useEffect(() => {
+    let cancelled = false;
+    setLoading(true);
+
+    fetch(`/api/admin/analytics/sales?period=${encodeURIComponent(selectedPeriod)}`)
+      .then((res) => res.json())
+      .then((json) => {
+        if (!cancelled && Array.isArray(json.points)) {
+          setData(json.points);
+        }
+      })
+      .catch((err) => {
+        console.error("[SalesChart] Failed to load sales:", err);
+      })
+      .finally(() => {
+        if (!cancelled) setLoading(false);
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [selectedPeriod]);
+
+  const safeData = data.length > 0 ? data : [
+    { label: "Day 1", revenue: 0, orders: 0 },
+    { label: "Day 2", revenue: 0, orders: 0 },
+    { label: "Day 3", revenue: 0, orders: 0 },
+    { label: "Day 4", revenue: 0, orders: 0 },
+    { label: "Day 5", revenue: 0, orders: 0 },
+    { label: "Day 6", revenue: 0, orders: 0 },
+    { label: "Day 7", revenue: 0, orders: 0 },
+  ];
+
+  const maxRevenue = Math.max(...safeData.map((d) => d.revenue));
 
   // Chart dimensions
   const height = 220;
@@ -57,9 +62,11 @@ export function AdminDashboardSalesChart() {
   const chartH = height - paddingY * 2;
 
   // Build SVG path points
-  const points = data.map((d, i) => {
-    const x = paddingX + (i / (data.length - 1 || 1)) * chartW;
-    const y = height - paddingY - (d.revenue / (maxRevenue || 1)) * chartH;
+  const points = safeData.map((d, i) => {
+    const x = paddingX + (i / (safeData.length - 1 || 1)) * chartW;
+    const y = maxRevenue > 0
+      ? height - paddingY - (d.revenue / maxRevenue) * chartH
+      : height - paddingY;
     return { x, y, data: d };
   });
 
@@ -108,13 +115,13 @@ export function AdminDashboardSalesChart() {
         <div>
           <span className="text-muted-foreground">Selected Revenue: </span>
           <span className="font-bold text-foreground">
-            {activePoint ? formatMoney(activePoint.revenue) : formatMoney(data.reduce((s, d) => s + d.revenue, 0))}
+            {activePoint ? formatMoney(activePoint.revenue) : formatMoney(safeData.reduce((s, d) => s + d.revenue, 0))}
           </span>
         </div>
         <div>
           <span className="text-muted-foreground">Orders: </span>
           <span className="font-bold text-foreground">
-            {activePoint ? activePoint.orders : data.reduce((s, d) => s + d.orders, 0)}
+            {activePoint ? activePoint.orders : safeData.reduce((s, d) => s + d.orders, 0)}
           </span>
         </div>
         {activePoint && (

@@ -54,7 +54,7 @@ export function WishlistProvider({ children, serverProductIds }: { children: Rea
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ productId: l.productId })
-        }).catch(() => undefined)
+        }).catch((err) => console.error("[Wishlist] Initial sync failed:", err))
       )
     ).finally(() => {
       // Merge: server items become stubs (name/price resolved on wishlist page via SSR)
@@ -92,7 +92,7 @@ export function WishlistProvider({ children, serverProductIds }: { children: Rea
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ productId: item.productId })
-      }).catch(() => undefined);
+      }).catch((err) => console.error("[Wishlist] Add item failed:", err));
     }
   }, [serverProductIds]);
 
@@ -103,7 +103,7 @@ export function WishlistProvider({ children, serverProductIds }: { children: Rea
         method: "DELETE",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ productId })
-      }).catch(() => undefined);
+      }).catch((err) => console.error("[Wishlist] Remove item failed:", err));
     }
   }, [serverProductIds]);
 
@@ -116,7 +116,7 @@ export function WishlistProvider({ children, serverProductIds }: { children: Rea
           method: wasAdded ? "POST" : "DELETE",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ productId: item.productId })
-        }).catch(() => undefined);
+        }).catch((err) => console.error("[Wishlist] Toggle item failed:", err));
       }
       return next;
     });

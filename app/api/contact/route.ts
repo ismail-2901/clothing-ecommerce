@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { prisma } from "@/db/prisma";
 import { sendContactEmail } from "@/lib/notifications/notification-service";
+import { rateLimiter } from "@/lib/rate-limit/rate-limit";
+import { getClientIp } from "@/lib/auth/otp";
 
 const schema = z.object({
   name: z.string().min(1).max(100),
@@ -10,6 +12,16 @@ const schema = z.object({
 });
 
 export async function POST(request: NextRequest) {
+  // 5 submissions per 5 minutes per IP
+  const ip = getClientIp(request as any);
+  const rl = await rateLimiter.consume(`contact:${ip}`, 5, 5 * 60_000);
+  if (!rl.allowed) {
+    return NextResponse.json(
+      { error: "Too many contact requests. Please wait before submitting again." },
+      { status: 429 }
+    );
+  }
+
   let body: unknown;
   try {
     body = await request.json();

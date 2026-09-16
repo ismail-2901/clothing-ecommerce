@@ -20,12 +20,14 @@ export const storeConfig = {
   locale: process.env.STORE_LOCALE || "en-BD",
   orderPrefix: process.env.ORDER_PREFIX || "ORD",
   contact: {
-    email: "hello@example.com",
-    phone: "+8801000000000"
+    email: process.env.STORE_CONTACT_EMAIL || "support@elarisstore.com",
+    phone: process.env.STORE_CONTACT_PHONE || "+8801700000000",
+    address: "Gulshan-2, Dhaka 1212, Bangladesh"
   },
+  businessTimezone: "Asia/Dhaka",
   social: {
-    instagram: "https://instagram.com",
-    facebook: "https://facebook.com"
+    instagram: "https://instagram.com/elarisstore",
+    facebook: "https://facebook.com/elarisstore"
   }
 } as const;
 
