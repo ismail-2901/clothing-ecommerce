@@ -28,27 +28,7 @@ export function AdminLockScreen() {
       const normalisedEmail = email.trim().toLowerCase();
       const trimmedPassword = password.trim();
 
-      // 1. Primary: Verify via master admin endpoint (sets secure session cookie)
-      const adminRes = await fetch("/api/admin/auth/login", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email: normalisedEmail, password: trimmedPassword })
-      });
-
-      if (adminRes.ok) {
-        // Master password verified and session cookie set!
-        // Also sign in via Better Auth in background if possible
-        await signIn.email({
-          email: normalisedEmail,
-          password: trimmedPassword
-        }).catch(() => {});
-
-        setLoading(false);
-        router.refresh();
-        return;
-      }
-
-      // 2. Secondary: If not master password, try standard Better Auth credentials
+      // Sign in via Better Auth
       const result = await signIn.email({
         email: normalisedEmail,
         password: trimmedPassword
@@ -196,7 +176,7 @@ export function AdminLockScreen() {
             ) : (
               <span className="flex items-center gap-2">
                 <ShieldCheck size={16} />
-                <span>Unlock Dashboard</span>
+                <span>Sign In as Admin</span>
               </span>
             )}
           </Button>
