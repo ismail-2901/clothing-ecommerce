@@ -39,7 +39,9 @@ export async function POST(request: NextRequest) {
 
   const { name, email, message } = parsed.data;
 
-  // Persist to audit log so admin can review all contact submissions
+  // BUG-45 FIX: Omit sensitive customer PII (email, raw message) from permanent audit trail;
+  // record only non-PII submission telemetry (domain, message length, timestamp)
+  const emailDomain = email.split("@")[1] || "unknown";
   await prisma.auditLog.create({
     data: {
       actorId: null,
@@ -47,7 +49,11 @@ export async function POST(request: NextRequest) {
       resource: "ContactForm",
       resourceId: null,
       previous: {},
-      next: { name, email, message }
+      next: {
+        senderDomain: emailDomain,
+        messageLength: message.length,
+        submittedAt: new Date().toISOString()
+      }
     }
   });
 

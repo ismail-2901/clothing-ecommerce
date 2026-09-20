@@ -59,9 +59,20 @@ export async function POST(req: Request) {
     console.error("[admin:change-password]", error);
     const message =
       error?.message || error?.body?.message || "Failed to update admin password.";
+
+    // BUG-15 fix: return 400 only for expected auth errors (wrong current password,
+    // validation failures from the auth provider). Unknown errors are server faults
+    // and should return 500 so the client doesn't mask them as user input errors.
+    const isAuthError =
+      typeof message === "string" &&
+      (message.toLowerCase().includes("password") ||
+        message.toLowerCase().includes("invalid") ||
+        message.toLowerCase().includes("incorrect") ||
+        message.toLowerCase().includes("credential"));
+
     return NextResponse.json(
       { error: message },
-      { status: 400 }
+      { status: isAuthError ? 400 : 500 }
     );
   }
 }

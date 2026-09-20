@@ -14,7 +14,11 @@ type Bucket = {
 };
 
 export class InMemoryRateLimiter implements RateLimiter {
-  private readonly buckets = new Map<string, Bucket>();
+  private readonly buckets: Map<string, Bucket>;
+
+  constructor(buckets?: Map<string, Bucket>) {
+    this.buckets = buckets ?? new Map<string, Bucket>();
+  }
 
   async consume(key: string, limit: number, windowMs: number): Promise<RateLimitResult> {
     const now = Date.now();
@@ -38,5 +42,16 @@ export class InMemoryRateLimiter implements RateLimiter {
   }
 }
 
-export const rateLimiter: RateLimiter = new InMemoryRateLimiter();
+// BUG-01 fix: store on globalThis so the rate-limit state survives Next.js
+// hot-module reloads in development. In production, replace with a
+// Redis/Upstash-backed implementation to share state across instances.
+const GLOBAL_KEY = Symbol.for("elaris.rateLimiterBuckets");
+type RateLimiterGlobal = typeof globalThis & { [GLOBAL_KEY]?: Map<string, Bucket> };
+
+const g = globalThis as RateLimiterGlobal;
+if (!g[GLOBAL_KEY]) {
+  g[GLOBAL_KEY] = new Map<string, Bucket>();
+}
+
+export const rateLimiter: RateLimiter = new InMemoryRateLimiter(g[GLOBAL_KEY]!);
 

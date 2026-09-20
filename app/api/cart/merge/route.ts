@@ -66,7 +66,9 @@ export async function POST(request: NextRequest) {
     mergedCount++;
   }
 
-  await prisma.cart.delete({ where: { id: anonCart.id } });
+  // BUG-35 FIX: Soft-retire the anonymous cart as CHECKED_OUT rather than hard-deleting
+  // to avoid cascading deletion of related audit records or abandoned checkouts
+  await prisma.cart.update({ where: { id: anonCart.id }, data: { status: "CHECKED_OUT" } });
 
   const response = NextResponse.json({ merged: mergedCount });
   response.cookies.set(ANON_COOKIE, "", { maxAge: 0, httpOnly: true, sameSite: "lax" });

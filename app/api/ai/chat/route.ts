@@ -74,13 +74,9 @@ async function buildTextResponse(
 
     case "PRODUCT_SEARCH":
     default: {
+      // BUG-32 FIX: Eliminate redundant getAllProducts() DB scan on 0 matches
       if (matches.length === 0) {
-        const allProducts = await getAllProducts();
-        const available = allProducts.filter((p) => p.variants.some((v) => v.stock > 0));
-        if (available.length === 0) {
-          return "I couldn't find products matching that description. Try browsing the full collection.";
-        }
-        return `I couldn't find an exact match, but here are some products from the current collection:`;
+        return "I couldn't find any products matching that description. Try browsing the full collection or searching with different keywords.";
       }
       if (matches.length === 1) {
         return `I found a product that matches what you're looking for:`;

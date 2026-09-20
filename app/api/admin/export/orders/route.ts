@@ -7,14 +7,28 @@ export async function GET() {
   const auth = await requireAdminSession("order:manage");
   if (!auth.ok) return auth.response;
 
-  const orders = await prisma.order.findMany({
-    include: {
-      user: { select: { name: true, email: true } },
-      items: { select: { quantity: true, name: true, unitPrice: true } },
-      payments: { select: { provider: true }, take: 1, orderBy: { createdAt: "desc" } }
-    },
-    orderBy: { createdAt: "desc" }
-  });
+  const MAX_EXPORT = 10000;
+  const BATCH_SIZE = 1000;
+  const orders = [];
+  let skip = 0;
+
+  while (skip < MAX_EXPORT) {
+    const batch = await prisma.order.findMany({
+      skip,
+      take: Math.min(BATCH_SIZE, MAX_EXPORT - skip),
+      include: {
+        user: { select: { name: true, email: true } },
+        items: { select: { quantity: true, name: true, unitPrice: true } },
+        payments: { select: { provider: true }, take: 1, orderBy: { createdAt: "desc" } }
+      },
+      orderBy: { createdAt: "desc" }
+    });
+
+    if (batch.length === 0) break;
+    orders.push(...batch);
+    if (batch.length < BATCH_SIZE) break;
+    skip += batch.length;
+  }
 
   const rows: string[] = [
     ["Order #", "Date", "Customer", "Email", "Payment", "Status", "Items", "Total"].join(",")

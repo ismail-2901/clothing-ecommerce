@@ -10,7 +10,10 @@ const nextConfig: NextConfig = {
       },
       {
         protocol: "https",
-        hostname: "res.cloudinary.com"
+        hostname: "res.cloudinary.com",
+        pathname: process.env.CLOUDINARY_CLOUD_NAME
+          ? `/${process.env.CLOUDINARY_CLOUD_NAME}/**`
+          : "/**"
       }
     ]
   }

@@ -6,6 +6,7 @@ import Image from "next/image";
 import { useSearchParams } from "next/navigation";
 import { Check, Copy, CheckCircle2, Package, Truck, Home, Mail, ArrowRight, Clock } from "lucide-react";
 import { formatMoney } from "@/lib/utils/money";
+import { useCart } from "@/components/cart/cart-provider";
 
 export default function CheckoutSuccessPage() {
   return (
@@ -50,8 +51,12 @@ function CheckoutSuccessContent() {
 
   const [copied, setCopied] = useState(false);
   const [order, setOrder] = useState<LoadedOrder | null>(null);
+  const { clearCart } = useCart();
 
   useEffect(() => {
+    // BUG-19 FIX: Clear cart now that order is confirmed and completed
+    clearCart();
+
     // 1. Try restoring from sessionStorage for instant zero-latency view
     if (typeof window !== "undefined") {
       try {

@@ -9,7 +9,7 @@ export async function GET() {
 
   const variants = await prisma.productVariant.findMany({
     where: { deletedAt: null },
-    include: { product: { select: { name: true, slug: true, status: true } } },
+    include: { product: { select: { name: true, slug: true, status: true, basePrice: true } } },
     orderBy: [{ product: { name: "asc" } }, { color: "asc" }, { size: "asc" }]
   });
 
@@ -19,6 +19,8 @@ export async function GET() {
 
   for (const v of variants) {
     const available = v.stockQuantity - v.reservedQuantity;
+    // BUG-41 FIX: Fall back to product basePrice if variant has no price override
+    const effectivePrice = v.priceOverride ?? v.product.basePrice;
     rows.push(
       [
         csv(v.sku),
@@ -28,7 +30,7 @@ export async function GET() {
         v.stockQuantity,
         v.reservedQuantity,
         available,
-        formatMoney(v.priceOverride ?? 0),
+        formatMoney(effectivePrice),
         v.product.status
       ].join(",")
     );

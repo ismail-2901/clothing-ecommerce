@@ -42,6 +42,14 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
     return NextResponse.json({ error: "Order not found." }, { status: 404 });
   }
 
+  // BUG-37 FIX: Guard against transitioning to the already-current status
+  if (order.status === newStatus) {
+    return NextResponse.json(
+      { error: `Order is already in status "${newStatus}".` },
+      { status: 409 }
+    );
+  }
+
   // Enforce state machine — throws OrderStateError on invalid transition
   let resolvedStatus: OrderStatus;
   try {
@@ -124,10 +132,13 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
     if (resolvedStatus === "CANCELLED") {
       const items = await tx.orderItem.findMany({ where: { orderId: id } });
       for (const item of items) {
-        await tx.productVariant.update({
-          where: { id: item.variantId },
-          data: { reservedQuantity: { decrement: item.quantity } }
-        });
+        // BUG-03 fix: use GREATEST(0, ...) to prevent reservedQuantity going negative
+        // if an order is cancelled after partial processing or a double-cancel.
+        await tx.$executeRaw`
+          UPDATE "ProductVariant"
+          SET "reservedQuantity" = GREATEST(0, "reservedQuantity" - ${item.quantity})
+          WHERE id = ${item.variantId}
+        `;
 
         await tx.inventoryMovement.create({
           data: {

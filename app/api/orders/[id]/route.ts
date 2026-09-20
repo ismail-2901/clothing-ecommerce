@@ -22,19 +22,6 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
   const session = await auth.api.getSession({ headers: await headers() });
   const callerId = session?.user?.id ?? null;
 
-  // Check admin role (admins may view any order)
-  let isAdmin = false;
-  if (callerId) {
-    const adminRole = await prisma.userRole.findFirst({
-      where: {
-        userId: callerId,
-        role: { name: { in: ["ADMIN", "SUPER_ADMIN"] } }
-      },
-      include: { role: true }
-    });
-    isAdmin = !!adminRole;
-  }
-
   // ------------------------------------------------------------------
   // Fetch the order (by UUID id or orderNumber)
   // ------------------------------------------------------------------
@@ -53,8 +40,8 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
           variant: true
         }
       },
+      // BUG-48 FIX: Don't take: 1 which can mask successful payments on retry; fetch all payments
       payments: {
-        take: 1,
         orderBy: { createdAt: "desc" }
       }
     }
@@ -65,6 +52,24 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
   }
 
   // ------------------------------------------------------------------
+  // Authorization: check ownership first; defer admin DB check (BUG-43 FIX)
+  // ------------------------------------------------------------------
+  const isOwner = Boolean(callerId && order.userId === callerId);
+
+  let isAdmin = false;
+  // BUG-43 FIX: Only perform admin role DB lookup if caller is not the owner
+  if (callerId && !isOwner) {
+    const adminRole = await prisma.userRole.findFirst({
+      where: {
+        userId: callerId,
+        role: { name: { in: ["ADMIN", "SUPER_ADMIN"] } }
+      },
+      select: { roleId: true }
+    });
+    isAdmin = !!adminRole;
+  }
+
+  // ------------------------------------------------------------------
   // Authorization: admin bypasses; authenticated owner check; guest token check
   // ------------------------------------------------------------------
   const cookieStore = await cookies();
@@ -72,7 +77,6 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
     cookieStore.get(GUEST_ORDER_TOKEN_COOKIE)?.value ||
     request.nextUrl.searchParams.get("token");
 
-  const isOwner = Boolean(callerId && order.userId === callerId);
   const isGuestAuthorized = Boolean(!order.userId && order.guestToken && guestToken === order.guestToken);
 
   if (!isAdmin && !isOwner && !isGuestAuthorized) {
@@ -114,13 +118,22 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
     };
   });
 
-  const responsePayload: Record<string, unknown> = {
-    id: order.id,
-    orderNumber: order.orderNumber,
-    status: order.status,
-    paymentStatus: order.paymentStatus,
-    paymentProvider: order.payments[0]?.provider || "COD",
-    createdAt: order.createdAt,
+    const primaryPayment = order.payments.find((p) => p.status === "PAID") ?? order.payments[0];
+
+    const responsePayload: Record<string, unknown> = {
+      id: order.id,
+      orderNumber: order.orderNumber,
+      status: order.status,
+      paymentStatus: order.paymentStatus,
+      paymentProvider: primaryPayment?.provider || "COD",
+      payments: order.payments.map((p) => ({
+        id: p.id,
+        provider: p.provider,
+        status: p.status,
+        amount: p.amount,
+        createdAt: p.createdAt
+      })),
+      createdAt: order.createdAt,
     subtotal: order.subtotal,
     discountTotal: order.discountTotal,
     shippingTotal: order.shippingTotal,

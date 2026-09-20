@@ -43,9 +43,18 @@ export async function GET(request: NextRequest) {
   const status = searchParams.get("status");
   const q = searchParams.get("q");
 
+  const VALID_STATUSES = ["DRAFT", "PUBLISHED", "ARCHIVED"] as const;
+  type ProductStatus = (typeof VALID_STATUSES)[number];
+  if (status && !VALID_STATUSES.includes(status as ProductStatus)) {
+    return NextResponse.json(
+      { error: `Invalid status filter. Allowed: ${VALID_STATUSES.join(", ")}` },
+      { status: 422 }
+    );
+  }
+
   const where = {
     deletedAt: null,
-    ...(status && { status: status as "DRAFT" | "PUBLISHED" | "ARCHIVED" }),
+    ...(status && { status: status as ProductStatus }),
     ...(q && {
       OR: [
         { name: { contains: q, mode: "insensitive" as const } },

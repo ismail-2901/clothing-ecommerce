@@ -56,6 +56,13 @@ export interface PaymentProvider {
   readonly code: PaymentProviderCode;
   createPayment(input: PaymentInput): Promise<PaymentResult>;
   verifyPayment(reference: string): Promise<PaymentStatus>;
+  /**
+   * Verify the incoming webhook signature/shared secret BEFORE processing.
+   * Implementations must throw WebhookVerificationError if the signature is invalid.
+   * Returns true if the signature is valid (or if the provider does not support signatures,
+   * in which case it must still validate against a shared WEBHOOK_SECRET env var).
+   */
+  verifyWebhookSignature(payload: unknown, headers: Headers | Record<string, string>): Promise<void>;
   webhook(payload: unknown, headers?: Headers | Record<string, string>): Promise<WebhookResult>;
   refund(orderIdOrInput: string | RefundInput, amount?: number, reason?: string): Promise<RefundResult>;
 }
@@ -64,5 +71,13 @@ export class PaymentError extends Error {
   constructor(message: string) {
     super(message);
     this.name = "PaymentError";
+  }
+}
+
+/** Thrown by verifyWebhookSignature when the request fails authentication. */
+export class WebhookVerificationError extends Error {
+  constructor(message = "Webhook signature verification failed") {
+    super(message);
+    this.name = "WebhookVerificationError";
   }
 }

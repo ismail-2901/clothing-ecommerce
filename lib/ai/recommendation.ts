@@ -57,7 +57,9 @@ function scoreProduct(product: CatalogProduct, filters: ProductFilters): Product
 
   if (filters.query) {
     for (const word of filters.query.toLowerCase().split(/\s+/).filter(Boolean)) {
-      if (searchable.includes(word)) {
+      // BUG-42 FIX: Match whole words with word boundary regex instead of substring matching
+      const escaped = word.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+      if (new RegExp(`\\b${escaped}\\b`, "i").test(searchable)) {
         score += 2;
       }
     }

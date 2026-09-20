@@ -36,10 +36,11 @@ export function WishlistProvider({ children, serverProductIds }: { children: Rea
   const [items, setItems] = useState<WishlistItem[]>(readStoredWishlist);
   const [synced, setSynced] = useState(false);
 
-  // On mount: if server passed productIds (user is logged in), merge local + server
+  // BUG-46 FIX: Re-sync when serverProductIds changes (e.g. login or logout)
   useEffect(() => {
     if (serverProductIds === undefined) {
-      // Guest: keep localStorage only
+      // Guest or logged out: reset state from localStorage and do not retain previous user items
+      setItems(readStoredWishlist());
       setSynced(true);
       return;
     }
@@ -76,8 +77,7 @@ export function WishlistProvider({ children, serverProductIds }: { children: Rea
       window.localStorage.removeItem(STORAGE_KEY); // DB is source of truth now
       setSynced(true);
     });
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [serverProductIds]);
 
   // Persist to localStorage only for guests (no serverProductIds)
   useEffect(() => {

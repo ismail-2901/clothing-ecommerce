@@ -1,10 +1,10 @@
 "use client";
 
-import { FormEvent, useState } from "react";
+import { FormEvent, useState, useEffect } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import { useRouter } from "next/navigation";
-import { Lock, ArrowRight, ShieldCheck, RotateCcw, Truck, Headphones, Tag, CreditCard, Wallet, Banknote } from "lucide-react";
+import { Lock, ArrowRight, ShieldCheck, RotateCcw, Truck, Headphones, Tag, CreditCard, Wallet, Banknote, CheckCircle2, X, Loader2 } from "lucide-react";
 import { useCart } from "@/components/cart/cart-provider";
 import { formatMoney } from "@/lib/utils/money";
 import { storePolicies } from "@/config/store";
@@ -12,11 +12,14 @@ import { storePolicies } from "@/config/store";
 export function CheckoutShell() {
   const router = useRouter();
   const { items, summary, clearCart } = useCart();
-  const [currentStep, setCurrentStep] = useState(1);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [couponCode, setCouponCode] = useState("");
   const [couponApplied, setCouponApplied] = useState(false);
+  const [couponLoading, setCouponLoading] = useState(false);
+  const [couponError, setCouponError] = useState("");
+  const [appliedDiscount, setAppliedDiscount] = useState<number | null>(null);
+  const [appliedCouponCode, setAppliedCouponCode] = useState<string>("");
 
   const [formData, setFormData] = useState({
     fullName: "",
@@ -32,11 +35,73 @@ export function CheckoutShell() {
     paymentMethod: "COD"
   });
 
-  const handleApplyCoupon = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (couponCode.trim()) {
-      setCouponApplied(true);
+  // BUG-29 FIX: Restore saved checkout info from localStorage if user previously opted in
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      try {
+        const saved = localStorage.getItem("elaris_saved_checkout_info");
+        if (saved) {
+          const parsed = JSON.parse(saved);
+          setFormData((prev) => ({
+            ...prev,
+            fullName: parsed.fullName || prev.fullName,
+            email: parsed.email || prev.email,
+            phone: parsed.phone || prev.phone,
+            address: parsed.address || prev.address,
+            city: parsed.city || prev.city,
+            division: parsed.division || prev.division,
+            postalCode: parsed.postalCode || prev.postalCode,
+            saveInfo: true
+          }));
+        }
+      } catch {
+        // ignore storage error
+      }
     }
+  }, []);
+
+  // BUG-17 FIX: Validate coupon code with server endpoint rather than blindly accepting any string
+  const handleApplyCoupon = async (e: React.FormEvent) => {
+    e.preventDefault();
+    const cleanCode = couponCode.trim().toUpperCase();
+    if (!cleanCode) return;
+    setCouponLoading(true);
+    setCouponError("");
+    try {
+      const response = await fetch("/api/coupons/validate", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          code: cleanCode,
+          cartSubtotal: summary.subtotal || 0,
+          shippingFee: summary.shippingFee || 0
+        })
+      });
+      const data = await response.json();
+      if (!response.ok || !data.valid) {
+        setCouponError(data.error || "Invalid coupon code.");
+        setCouponApplied(false);
+        setAppliedDiscount(null);
+        setAppliedCouponCode("");
+      } else {
+        setCouponApplied(true);
+        setAppliedDiscount(data.discountAmount);
+        setAppliedCouponCode(data.code);
+        setCouponError("");
+      }
+    } catch {
+      setCouponError("Failed to validate coupon.");
+    } finally {
+      setCouponLoading(false);
+    }
+  };
+
+  const handleRemoveCoupon = () => {
+    setCouponApplied(false);
+    setCouponCode("");
+    setAppliedDiscount(null);
+    setAppliedCouponCode("");
+    setCouponError("");
   };
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
@@ -45,12 +110,40 @@ export function CheckoutShell() {
     setLoading(true);
 
     try {
+      // BUG-30 FIX: Strip leading +880, 880, or 0 before standardizing to +880 format
+      const cleanPhone = formData.phone.trim().replace(/^(\+?880|0)+/, "");
+      const formattedPhone = `+880${cleanPhone}`;
+
+      // BUG-29 FIX: Persist or remove saved user details in localStorage
+      if (typeof window !== "undefined") {
+        try {
+          if (formData.saveInfo) {
+            localStorage.setItem(
+              "elaris_saved_checkout_info",
+              JSON.stringify({
+                fullName: formData.fullName,
+                email: formData.email,
+                phone: formData.phone,
+                address: formData.address,
+                city: formData.city,
+                division: formData.division,
+                postalCode: formData.postalCode
+              })
+            );
+          } else {
+            localStorage.removeItem("elaris_saved_checkout_info");
+          }
+        } catch {
+          // ignore storage error
+        }
+      }
+
       const response = await fetch("/api/orders", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           email: formData.email,
-          phone: `+880${formData.phone}`,
+          phone: formattedPhone,
           deliveryAddress: {
             name: formData.fullName,
             line1: formData.address,
@@ -60,7 +153,7 @@ export function CheckoutShell() {
             country: "BD"
           },
           paymentProvider: formData.paymentMethod,
-          couponCode: couponApplied && couponCode.trim() ? couponCode.trim() : undefined,
+          couponCode: couponApplied && appliedCouponCode ? appliedCouponCode : undefined,
           // variantId + quantity only — server resolves price, name, stock from DB
           cartItems: items
             .filter((item) => !!item.variantId)
@@ -80,7 +173,9 @@ export function CheckoutShell() {
       }
 
       const generatedId = result.orderNumber || result.orderId || `ELR-${new Date().toISOString().slice(0, 10).replace(/-/g, "")}-1842`;
-      const confirmedTotal = result.grandTotal ?? summary.grandTotal;
+      const effectiveDiscount = appliedDiscount ?? summary.couponDiscount ?? 0;
+      const effectiveTotal = Math.max(0, (summary.subtotal ?? 0) - effectiveDiscount + (summary.shippingFee ?? 0));
+      const confirmedTotal = result.grandTotal ?? effectiveTotal;
 
       // Save order snapshot to sessionStorage for reliable instant feedback on success page
       if (typeof window !== "undefined") {
@@ -89,7 +184,7 @@ export function CheckoutShell() {
             orderNumber: generatedId,
             customerName: formData.fullName,
             email: formData.email,
-            phone: `+880${formData.phone}`,
+            phone: formattedPhone,
             address: formData.address,
             city: formData.city,
             paymentMethod: formData.paymentMethod,
@@ -111,13 +206,16 @@ export function CheckoutShell() {
         }
       }
 
-      clearCart();
-
+      // BUG-19 FIX: For payment gateways that redirect, do NOT clearCart here.
+      // If the redirect fails or user cancels at gateway, cart is preserved.
+      // Cart will be cleared on the checkout/success page upon verified payment.
       if (result.paymentUrl) {
         window.location.href = result.paymentUrl;
         return;
       }
 
+      // COD or immediate success: clear cart now
+      await clearCart();
       router.push(`/checkout/success?orderId=${generatedId}&name=${encodeURIComponent(formData.fullName)}&total=${confirmedTotal}`);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Checkout failed.");
@@ -147,45 +245,52 @@ export function CheckoutShell() {
         </div>
       </div>
 
-      {/* 4-Step Stepper */}
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 py-2">
-        <div className="flex items-center gap-3">
-          <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-foreground text-xs font-bold text-background">
-            1
+      {/* 4-Step Stepper (BUG-44 FIX: dynamic step indicator) */}
+      {(() => {
+        const isContactFilled = Boolean(formData.fullName.trim() && formData.email.trim() && formData.phone.trim());
+        const isDeliveryFilled = isContactFilled && Boolean(formData.address.trim() && formData.city.trim());
+        const isPaymentFilled = Boolean(formData.paymentMethod);
+        return (
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 py-2">
+            <div className="flex items-center gap-3">
+              <div className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-xs font-bold ${isContactFilled ? "bg-emerald-600 text-white" : "bg-foreground text-background"}`}>
+                {isContactFilled ? "✓" : "1"}
+              </div>
+              <div>
+                <p className="text-xs font-bold text-foreground">Contact</p>
+                <p className="text-[11px] text-muted-foreground">{isContactFilled ? "Completed" : "Your details"}</p>
+              </div>
+            </div>
+            <div className="flex items-center gap-3">
+              <div className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-xs font-bold ${isDeliveryFilled ? "bg-emerald-600 text-white" : isContactFilled ? "bg-foreground text-background" : "border border-border bg-muted/40 text-muted-foreground"}`}>
+                {isDeliveryFilled ? "✓" : "2"}
+              </div>
+              <div>
+                <p className="text-xs font-bold text-foreground">Delivery</p>
+                <p className="text-[11px] text-muted-foreground">{isDeliveryFilled ? "Completed" : "Shipping address"}</p>
+              </div>
+            </div>
+            <div className="flex items-center gap-3">
+              <div className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-xs font-bold ${isDeliveryFilled && isPaymentFilled ? "bg-foreground text-background" : "border border-border bg-muted/40 text-muted-foreground"}`}>
+                3
+              </div>
+              <div>
+                <p className="text-xs font-bold text-foreground">Payment</p>
+                <p className="text-[11px] text-muted-foreground">{formData.paymentMethod}</p>
+              </div>
+            </div>
+            <div className="flex items-center gap-3">
+              <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full border border-border bg-muted/40 text-xs font-bold text-muted-foreground">
+                4
+              </div>
+              <div>
+                <p className="text-xs font-bold text-foreground">Review</p>
+                <p className="text-[11px] text-muted-foreground">Confirm order</p>
+              </div>
+            </div>
           </div>
-          <div>
-            <p className="text-xs font-bold text-foreground">Contact</p>
-            <p className="text-[11px] text-muted-foreground">Your details</p>
-          </div>
-        </div>
-        <div className="flex items-center gap-3">
-          <div className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-xs font-bold ${currentStep >= 2 ? "bg-foreground text-background" : "border border-border bg-muted/40 text-muted-foreground"}`}>
-            2
-          </div>
-          <div>
-            <p className="text-xs font-bold text-foreground">Delivery</p>
-            <p className="text-[11px] text-muted-foreground">Shipping address</p>
-          </div>
-        </div>
-        <div className="flex items-center gap-3">
-          <div className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-xs font-bold ${currentStep >= 3 ? "bg-foreground text-background" : "border border-border bg-muted/40 text-muted-foreground"}`}>
-            3
-          </div>
-          <div>
-            <p className="text-xs font-bold text-foreground">Payment</p>
-            <p className="text-[11px] text-muted-foreground">Choose method</p>
-          </div>
-        </div>
-        <div className="flex items-center gap-3">
-          <div className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-xs font-bold ${currentStep >= 4 ? "bg-foreground text-background" : "border border-border bg-muted/40 text-muted-foreground"}`}>
-            4
-          </div>
-          <div>
-            <p className="text-xs font-bold text-foreground">Review</p>
-            <p className="text-[11px] text-muted-foreground">Confirm order</p>
-          </div>
-        </div>
-      </div>
+        );
+      })()}
 
       {/* Main Grid */}
       <div className="grid gap-10 lg:grid-cols-[1.5fr_1fr] items-start">
@@ -451,101 +556,133 @@ export function CheckoutShell() {
           </div>
         </form>
 
-        {/* Right Column: Order Summary */}
-        <aside className="rounded-xl border border-border bg-background p-6 shadow-sm space-y-6 sticky top-24">
-          <div className="flex items-center justify-between border-b border-border/80 pb-4">
-            <h2 className="text-base font-bold text-foreground">
-              Order Summary ({items.length || 3} items)
-            </h2>
-            <Link href="/cart" className="text-xs font-semibold underline underline-offset-4 text-muted-foreground hover:text-foreground">
-              Edit Cart
-            </Link>
-          </div>
+        {/* Right Column: Order Summary (BUG-18 FIX: Real pricing, no fake hardcoded numbers) */}
+        {(() => {
+          const effectiveSubtotal = summary.subtotal ?? 0;
+          const effectiveDiscount = appliedDiscount ?? summary.couponDiscount ?? 0;
+          const effectiveShipping = summary.shippingFee ?? 0;
+          const effectiveGrandTotal = Math.max(0, effectiveSubtotal - effectiveDiscount + effectiveShipping);
 
-          {/* Items List */}
-          <div className="divide-y divide-border/60 max-h-72 overflow-y-auto pr-1">
-            {items.map((item) => {
-              const itemPrice = item.unitPrice ?? item.price;
-              return (
-                <div key={item.id || item.sku} className="py-3 flex items-center justify-between gap-3">
-                  <div className="flex items-center gap-3">
-                    <div className="relative h-14 w-12 shrink-0 overflow-hidden rounded bg-muted">
-                      {item.image ? (
-                        <Image src={item.image} alt={item.name} fill className="object-cover" sizes="48px" />
-                      ) : (
-                        <div className="h-full w-full bg-zinc-200" />
-                      )}
-                    </div>
-                    <div>
-                      <p className="text-xs font-bold text-foreground">{item.name}</p>
-                      <p className="text-[11px] text-muted-foreground">
-                        {item.color || "Black"} | Size: {item.size || "M"} | Qty: {item.quantity}
-                      </p>
-                      <span className="inline-block rounded bg-black px-1 py-0.2 text-[8px] font-bold text-white">
-                        22% OFF
-                      </span>
-                    </div>
-                  </div>
-                  <div className="text-right">
-                    <p className="text-xs font-bold">{formatMoney(itemPrice * item.quantity)}</p>
-                    <p className="text-[10px] text-muted-foreground line-through">
-                      {formatMoney(Math.round(itemPrice * item.quantity * 1.25))}
-                    </p>
-                  </div>
+          return (
+            <aside className="rounded-xl border border-border bg-background p-6 shadow-sm space-y-6 sticky top-24">
+              <div className="flex items-center justify-between border-b border-border/80 pb-4">
+                <h2 className="text-base font-bold text-foreground">
+                  Order Summary ({items.length} {items.length === 1 ? "item" : "items"})
+                </h2>
+                <Link href="/cart" className="text-xs font-semibold underline underline-offset-4 text-muted-foreground hover:text-foreground">
+                  Edit Cart
+                </Link>
+              </div>
+
+              {/* Items List */}
+              <div className="divide-y divide-border/60 max-h-72 overflow-y-auto pr-1">
+                {items.length === 0 ? (
+                  <p className="py-6 text-center text-xs text-muted-foreground">Your cart is empty.</p>
+                ) : (
+                  items.map((item) => {
+                    const itemPrice = item.unitPrice ?? item.price;
+                    return (
+                      <div key={item.id || item.sku} className="py-3 flex items-center justify-between gap-3">
+                        <div className="flex items-center gap-3">
+                          <div className="relative h-14 w-12 shrink-0 overflow-hidden rounded bg-muted">
+                            {item.image ? (
+                              <Image src={item.image} alt={item.name} fill className="object-cover" sizes="48px" />
+                            ) : (
+                              <div className="h-full w-full bg-zinc-200" />
+                            )}
+                          </div>
+                          <div>
+                            <p className="text-xs font-bold text-foreground">{item.name}</p>
+                            <p className="text-[11px] text-muted-foreground">
+                              {item.color || "Default"} | Size: {item.size || "Standard"} | Qty: {item.quantity}
+                            </p>
+                          </div>
+                        </div>
+                        <div className="text-right">
+                          <p className="text-xs font-bold">{formatMoney(itemPrice * item.quantity)}</p>
+                        </div>
+                      </div>
+                    );
+                  })
+                )}
+              </div>
+
+              {/* Subtotal, discount, shipping */}
+              <div className="border-t border-border/80 pt-4 space-y-2 text-xs">
+                <div className="flex justify-between text-muted-foreground">
+                  <span>Subtotal</span>
+                  <span className="font-semibold text-foreground">{formatMoney(effectiveSubtotal)}</span>
                 </div>
-              );
-            })}
-          </div>
+                {effectiveDiscount > 0 && (
+                  <div className="flex justify-between text-emerald-600">
+                    <span>Discount</span>
+                    <span className="font-semibold">- {formatMoney(effectiveDiscount)}</span>
+                  </div>
+                )}
+                <div className="flex justify-between text-muted-foreground">
+                  <span>Shipping</span>
+                  <span className="font-semibold text-foreground">
+                    {effectiveShipping === 0 ? "Free" : formatMoney(effectiveShipping)}
+                  </span>
+                </div>
+              </div>
 
-          {/* Subtotal, discount, shipping */}
-          <div className="border-t border-border/80 pt-4 space-y-2 text-xs">
-            <div className="flex justify-between text-muted-foreground">
-              <span>Subtotal</span>
-              <span className="font-semibold text-foreground">{formatMoney(summary.subtotal || 597000)}</span>
-            </div>
-            <div className="flex justify-between text-emerald-600">
-              <span>Discount</span>
-              <span className="font-semibold">- {formatMoney(summary.couponDiscount || 60000)}</span>
-            </div>
-            <div className="flex justify-between text-muted-foreground">
-              <span>Shipping</span>
-              <span className="font-semibold text-foreground">Free</span>
-            </div>
-          </div>
+              {/* Total */}
+              <div className="border-t border-border/80 pt-4">
+                <div className="flex items-baseline justify-between">
+                  <span className="text-sm font-bold">Total</span>
+                  <span className="text-2xl font-extrabold">{formatMoney(effectiveGrandTotal)}</span>
+                </div>
+                {effectiveDiscount > 0 && (
+                  <div className="mt-2 rounded-md bg-emerald-50 border border-emerald-100 p-2 text-center text-xs font-semibold text-emerald-700">
+                    🌱 You saved {formatMoney(effectiveDiscount)} on this order!
+                  </div>
+                )}
+              </div>
 
-          {/* Total */}
-          <div className="border-t border-border/80 pt-4">
-            <div className="flex items-baseline justify-between">
-              <span className="text-sm font-bold">Total</span>
-              <span className="text-2xl font-extrabold">{formatMoney(summary.grandTotal || 537000)}</span>
-            </div>
-            <div className="mt-2 rounded-md bg-emerald-50 border border-emerald-100 p-2 text-center text-xs font-semibold text-emerald-700">
-              🌱 You saved ৳600 on this order!
-            </div>
-          </div>
-
-          {/* Coupon */}
-          <form onSubmit={handleApplyCoupon} className="flex gap-2">
-            <div className="relative flex-1">
-              <Tag size={13} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
-              <input
-                type="text"
-                value={couponCode}
-                onChange={(e) => setCouponCode(e.target.value)}
-                placeholder="Enter coupon code"
-                className="h-9 w-full rounded-md border border-border bg-muted/20 pl-8 pr-2 text-xs placeholder:text-muted-foreground focus:border-foreground focus:outline-none"
-              />
-            </div>
-            <button
-              type="submit"
-              className="h-9 rounded-md bg-foreground px-4 text-xs font-bold uppercase tracking-wider text-background hover:bg-foreground/90 transition-colors"
-            >
-              Apply
-            </button>
-          </form>
-          {couponApplied && (
-            <p className="text-[11px] font-medium text-emerald-600">Coupon applied! ৳600 saved.</p>
-          )}
+              {/* Coupon Form */}
+              <form onSubmit={handleApplyCoupon} className="space-y-2">
+                <div className="flex gap-2">
+                  <div className="relative flex-1">
+                    <Tag size={13} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
+                    <input
+                      type="text"
+                      value={couponCode}
+                      disabled={couponApplied || couponLoading}
+                      onChange={(e) => setCouponCode(e.target.value)}
+                      placeholder="Enter coupon code"
+                      className="h-9 w-full rounded-md border border-border bg-muted/20 pl-8 pr-2 text-xs placeholder:text-muted-foreground focus:border-foreground focus:outline-none disabled:opacity-60"
+                    />
+                  </div>
+                  {couponApplied ? (
+                    <button
+                      type="button"
+                      onClick={handleRemoveCoupon}
+                      className="h-9 rounded-md border border-border px-3 text-xs font-semibold text-muted-foreground hover:text-foreground hover:bg-muted/40 transition-colors"
+                    >
+                      Remove
+                    </button>
+                  ) : (
+                    <button
+                      type="submit"
+                      disabled={couponLoading || !couponCode.trim()}
+                      className="h-9 rounded-md bg-foreground px-4 text-xs font-bold uppercase tracking-wider text-background hover:bg-foreground/90 disabled:opacity-50 transition-colors flex items-center gap-1.5"
+                    >
+                      {couponLoading ? <Loader2 size={12} className="animate-spin" /> : null}
+                      Apply
+                    </button>
+                  )}
+                </div>
+                {couponError && (
+                  <p className="text-[11px] text-red-600 font-medium">{couponError}</p>
+                )}
+                {couponApplied && (
+                  <p className="text-[11px] font-medium text-emerald-600 flex items-center gap-1">
+                    <CheckCircle2 size={12} />
+                    Coupon &quot;{appliedCouponCode}&quot; applied! ({formatMoney(effectiveDiscount)} saved)
+                  </p>
+                )}
+              </form>
 
           {/* Trust Value Props */}
           <div className="border-t border-border/80 pt-4 grid grid-cols-4 gap-1 text-center text-[9px] text-muted-foreground">
@@ -571,6 +708,8 @@ export function CheckoutShell() {
             </div>
           </div>
         </aside>
+          );
+        })()}
       </div>
     </div>
   );

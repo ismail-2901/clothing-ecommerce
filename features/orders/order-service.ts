@@ -1,3 +1,5 @@
+import { randomBytes } from "node:crypto";
+
 export type CreateOrderInput = {
   customerId?: string;
   email: string;
@@ -44,6 +46,7 @@ export class OrderError extends Error {
 
 export function generateOrderNumber(prefix: string): string {
   const timestamp = Date.now().toString(36).toUpperCase();
-  const random = Math.random().toString(36).substring(2, 7).toUpperCase();
+  // BUG-39 FIX: 48 bits of cryptographically secure random entropy avoids collisions under load
+  const random = randomBytes(6).toString("hex").toUpperCase();
   return `${prefix}-${timestamp}-${random}`;
 }

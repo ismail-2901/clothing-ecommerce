@@ -32,6 +32,24 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "No file provided." }, { status: 400 });
   }
 
+  // BUG-25 FIX: Validate MIME type and limit size to 10MB
+  const ALLOWED_TYPES = ["image/jpeg", "image/png", "image/webp", "image/gif", "image/avif"];
+  const MAX_SIZE_BYTES = 10 * 1024 * 1024; // 10 MB
+
+  if (!ALLOWED_TYPES.includes(file.type)) {
+    return NextResponse.json(
+      { error: `Invalid file type "${file.type}". Allowed: JPEG, PNG, WebP, GIF, AVIF.` },
+      { status: 422 }
+    );
+  }
+
+  if (file.size > MAX_SIZE_BYTES) {
+    return NextResponse.json(
+      { error: "File exceeds maximum size limit of 10 MB." },
+      { status: 413 }
+    );
+  }
+
   const timestamp = String(Math.floor(Date.now() / 1000));
   const folder = "elaris-products";
 

@@ -120,24 +120,6 @@ export function AdminLockScreen() {
               >
                 Password
               </label>
-              <button
-                type="button"
-                onClick={() => setShowPassword((prev) => !prev)}
-                className="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground transition-colors"
-                tabIndex={-1}
-              >
-                {showPassword ? (
-                  <>
-                    <EyeOff size={13} />
-                    <span>Hide</span>
-                  </>
-                ) : (
-                  <>
-                    <Eye size={13} />
-                    <span>Show</span>
-                  </>
-                )}
-              </button>
             </div>
             <div className="relative">
               <input

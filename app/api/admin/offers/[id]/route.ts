@@ -7,6 +7,11 @@ type RouteParams = { params: Promise<{ id: string }> };
 
 const patchOfferSchema = z.object({
   status: z.enum(["ACTIVE", "INACTIVE", "ARCHIVED"]).optional(),
+  title: z.string().min(1).optional(),
+  /** minSubtotal passed in BDT taka from admin form; converted to paisa before storage */
+  minSubtotal: z.number().int().min(0).nullable().optional(),
+  usageLimit: z.number().int().min(1).nullable().optional(),
+  endsAt: z.string().nullable().optional(),
 });
 
 export async function PATCH(request: NextRequest, { params }: RouteParams) {
@@ -32,9 +37,20 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
     return NextResponse.json({ error: "Coupon not found." }, { status: 404 });
   }
 
+  const { status, title, minSubtotal, usageLimit, endsAt } = parsed.data;
+
   const updated = await prisma.coupon.update({
     where: { id },
-    data: parsed.data,
+    data: {
+      ...(status !== undefined && { status }),
+      ...(title !== undefined && { title }),
+      // BUG-24 FIX: Convert BDT taka to paisa for DB consistency with coupons/validate
+      ...(minSubtotal !== undefined && {
+        minSubtotal: minSubtotal !== null ? minSubtotal * 100 : null
+      }),
+      ...(usageLimit !== undefined && { usageLimit }),
+      ...(endsAt !== undefined && { endsAt: endsAt ? new Date(endsAt) : null })
+    },
   });
 
   return NextResponse.json({ coupon: updated });

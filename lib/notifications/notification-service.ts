@@ -78,6 +78,16 @@ function layout(content: string): string {
 </html>`;
 }
 
+// BUG-33 FIX: Helper to escape untrusted user input before embedding in HTML email layouts
+function escapeHtml(str: string): string {
+  return str
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#039;");
+}
+
 // ---------------------------------------------
 // Typed notification helpers
 // ---------------------------------------------
@@ -218,6 +228,10 @@ export async function sendContactEmail(options: {
   message: string;
 }): Promise<void> {
   const { name, email, message } = options;
+  const safeName = escapeHtml(name);
+  const safeEmail = escapeHtml(email);
+  const safeMessage = escapeHtml(message);
+  const firstName = escapeHtml(name.split(" ")[0]);
   const SUPPORT_EMAIL = process.env.SUPPORT_EMAIL ?? FROM;
 
   // Notification to store team
@@ -226,10 +240,10 @@ export async function sendContactEmail(options: {
     subject: `New contact form message from ${name}`,
     html: layout(`
       <h2>New contact form submission</h2>
-      <p><strong>Name:</strong> ${name}</p>
-      <p><strong>Email:</strong> <a href="mailto:${email}">${email}</a></p>
+      <p><strong>Name:</strong> ${safeName}</p>
+      <p><strong>Email:</strong> <a href="mailto:${safeEmail}">${safeEmail}</a></p>
       <p><strong>Message:</strong></p>
-      <p style="white-space:pre-wrap;">${message.replace(/</g, "&lt;")}</p>
+      <p style="white-space:pre-wrap;">${safeMessage}</p>
     `),
     text: `New contact from ${name} <${email}>:\n\n${message}`
   });
@@ -239,10 +253,10 @@ export async function sendContactEmail(options: {
     to: email,
     subject: `We received your message — ${BRAND_NAME}`,
     html: layout(`
-      <h2>Thanks for reaching out, ${name.split(" ")[0]}!</h2>
+      <h2>Thanks for reaching out, ${firstName}!</h2>
       <p>We've received your message and will get back to you within 24 hours (Sunday–Thursday, 9 AM – 6 PM BST).</p>
       <p>If your query is urgent, you can also email us directly at <a href="mailto:support@elarisstore.com">support@elarisstore.com</a>.</p>
     `),
-    text: `Hi ${name.split(" ")[0]}, we've received your message and will respond within 24 hours.`
+    text: `Hi ${firstName}, we've received your message and will respond within 24 hours.`
   });
 }

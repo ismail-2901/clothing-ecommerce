@@ -249,7 +249,10 @@ export async function POST(request: NextRequest) {
       customerEmail: input.email,
       customerPhone: input.phone,
       description: `Order ${orderNumber}`,
-      returnUrl: `${storeConfig.url}/checkout/confirm`
+      // I-04 fix: returnUrl must point to the API verify route, not the frontend page.
+      // The gateway redirects here after payment; the route then verifies and redirects
+      // to the success/failure page.
+      returnUrl: `${storeConfig.url}/api/payments/verify`
     });
   } catch (err) {
     const message = err instanceof Error ? err.message : "Payment initialisation failed.";
@@ -386,7 +389,9 @@ export async function POST(request: NextRequest) {
           amount: pricing.grandTotal,
           currency: storeConfig.currency,
           status: (input.paymentProvider === "COD" || paymentResult.status === "PENDING") ? "PENDING" : "PAID",
-          providerPaymentId: paymentResult.redirectUrl ?? null
+          // BUG-02 fix: store the provider's payment reference (tran_id / paymentID),
+          // not the redirect URL. The verify route matches providerPaymentId against tran_id.
+          providerPaymentId: paymentResult.reference ?? null
         }
       });
 
@@ -413,9 +418,9 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: message }, { status: 422 });
   }
 
-  // Background: risk score for COD orders
-  if (input.paymentProvider === "COD" && session?.userId) {
-    computeAndStoreRisk(order.id, session.userId).catch(() => undefined);
+  // BUG-31 FIX: Risk score for all COD orders, including guest checkouts
+  if (input.paymentProvider === "COD") {
+    computeAndStoreRisk(order.id, session?.userId, input.email).catch(() => undefined);
   }
 
   // Fire-and-forget: confirmation email + customer event
@@ -465,16 +470,24 @@ export async function POST(request: NextRequest) {
 }
 
 
-async function computeAndStoreRisk(orderId: string, userId: string) {
+async function computeAndStoreRisk(orderId: string, userId?: string, guestEmail?: string) {
   const now = Date.now();
+  const identityFilter = userId
+    ? { userId }
+    : guestEmail
+    ? { guestEmail }
+    : undefined;
+
+  if (!identityFilter) return;
+
   const [failedDeliveries, codRefusals, cancellations, returns, paymentFailures, recentOrders, user] =
     await Promise.all([
       // Orders that physically failed delivery
-      prisma.order.count({ where: { userId, status: "FAILED_DELIVERY" } }),
+      prisma.order.count({ where: { ...identityFilter, status: "FAILED_DELIVERY" } }),
       // COD orders that were cancelled after dispatch (proxy for refusal at door)
       prisma.order.count({
         where: {
-          userId,
+          ...identityFilter,
           status: "CANCELLED",
           payments: { some: { provider: "COD" } },
           // Only count cancellations that happened after order was confirmed (i.e. after dispatch, not pre-fulfillment)
@@ -482,31 +495,31 @@ async function computeAndStoreRisk(orderId: string, userId: string) {
         }
       }),
       prisma.order.count({
-        where: { userId, status: "CANCELLED", createdAt: { gte: new Date(now - 90 * 86400000) } }
+        where: { ...identityFilter, status: "CANCELLED", createdAt: { gte: new Date(now - 90 * 86400000) } }
       }),
       prisma.order.count({
         where: {
-          userId,
+          ...identityFilter,
           status: { in: ["RETURN_REQUESTED", "RETURNED"] },
           createdAt: { gte: new Date(now - 180 * 86400000) }
         }
       }),
       prisma.payment.count({
         where: {
-          order: { userId },
+          order: identityFilter,
           status: "FAILED",
           createdAt: { gte: new Date(now - 30 * 86400000) }
         }
       }),
       prisma.order.count({
-        where: { userId, createdAt: { gte: new Date(now - 86400000) } }
+        where: { ...identityFilter, createdAt: { gte: new Date(now - 86400000) } }
       }),
-      prisma.user.findUnique({ where: { id: userId } })
+      userId ? prisma.user.findUnique({ where: { id: userId } }) : Promise.resolve(null)
     ]);
 
-  if (!user) return;
-
-  const accountAgeDays = Math.floor((Date.now() - user.createdAt.getTime()) / 86400000);
+  const accountAgeDays = user
+    ? Math.floor((Date.now() - user.createdAt.getTime()) / 86400000)
+    : 0; // Guest checkouts treated as brand new accounts
   const order = await prisma.order.findUnique({ where: { id: orderId } });
   if (!order) return;
 
@@ -539,7 +552,7 @@ async function computeAndStoreRisk(orderId: string, userId: string) {
   await prisma.riskAssessment.create({
     data: {
       orderId,
-      customerId: userId,
+      customerId: userId ?? null,
       score: result.score,
       level: result.level,
       recommendedAction: result.recommendedAction,

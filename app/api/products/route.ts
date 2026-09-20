@@ -1,7 +1,19 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getFilteredProducts, getAllProducts } from "@/features/catalog/data";
+import { getFilteredProducts } from "@/features/catalog/data";
+import { rateLimiter } from "@/lib/rate-limit/rate-limit";
+import { getClientIp } from "@/lib/auth/otp";
 
 export async function GET(request: NextRequest) {
+  // BUG-34 FIX: Rate limit public products listing endpoint (120 req/min per IP)
+  const ip = getClientIp(request);
+  const rl = await rateLimiter.consume(`products-list:${ip}`, 120, 60_000);
+  if (!rl.allowed) {
+    return NextResponse.json(
+      { error: "Too many requests. Please slow down." },
+      { status: 429 }
+    );
+  }
+
   const { searchParams } = request.nextUrl;
 
   const q = searchParams.get("q")?.trim();

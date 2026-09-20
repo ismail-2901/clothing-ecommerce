@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getPaymentProvider } from "@/lib/payments/providers";
+import { WebhookVerificationError } from "@/lib/payments/payment-provider";
 import { prisma } from "@/db/prisma";
+
 
 export async function POST(
   request: NextRequest,
@@ -13,6 +15,24 @@ export async function POST(
     providerInstance = getPaymentProvider(provider);
   } catch {
     return NextResponse.json({ error: `Unknown payment provider: ${provider}` }, { status: 400 });
+  }
+
+  // ------------------------------------------------------------------
+  // BUG-21 FIX: Verify webhook authenticity BEFORE parsing or trusting
+  // the payload. Returns 401 so the gateway knows to retry with correct
+  // credentials rather than silently dropping the event.
+  // ------------------------------------------------------------------
+  try {
+    // For signature-based verification we need the raw body; pass the
+    // request object's Headers so the provider can read X-Webhook-Secret,
+    // Authorization, or provider-specific signature headers.
+    await providerInstance.verifyWebhookSignature(undefined, request.headers);
+  } catch (err) {
+    if (err instanceof WebhookVerificationError) {
+      console.error(`[webhook:${provider}] Signature verification failed:`, err.message);
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+    throw err;
   }
 
   let payload: unknown;

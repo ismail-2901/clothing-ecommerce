@@ -1,3 +1,4 @@
+import type { Prisma } from "@prisma/client";
 import { prisma } from "@/db/prisma";
 
 export type CatalogVariant = {
@@ -97,12 +98,17 @@ const productInclude = {
   tags: true
 };
 
-function mapDbProductToCatalogProduct(p: any): CatalogProduct {
+type DbProduct = Prisma.ProductGetPayload<{
+  include: typeof productInclude;
+}>;
+
+// BUG-27 FIX: Strongly typed from Prisma schema rather than using unchecked any
+function mapDbProductToCatalogProduct(p: DbProduct): CatalogProduct {
   const images = p.images.length > 0
-    ? p.images.map((img: any) => ({ src: img.url, alt: img.alt || p.name }))
+    ? p.images.map((img) => ({ src: img.url, alt: img.alt || p.name }))
     : [{ src: "https://images.unsplash.com/photo-1521572163474-6864f9cf17ab?auto=format&fit=crop&w=1200&q=80", alt: p.name }];
 
-  const rawVariants = p.variants.map((v: any) => ({
+  const rawVariants = p.variants.map((v) => ({
     id: v.id,
     sku: v.sku,
     color: v.color,
@@ -113,7 +119,7 @@ function mapDbProductToCatalogProduct(p: any): CatalogProduct {
   }));
 
   // Expand any legacy comma-combined sizes ("M, L, XL" → 3 entries)
-  const expanded = rawVariants.flatMap((v: any) => {
+  const expanded = rawVariants.flatMap((v) => {
     if (!v.size.includes(",")) return [v];
     return v.size
       .split(",")
@@ -143,7 +149,7 @@ function mapDbProductToCatalogProduct(p: any): CatalogProduct {
     description: p.description,
     material: p.material || "",
     care: p.careInstructions || "",
-    tags: p.tags.map((t: any) => t.name),
+    tags: p.tags.map((t) => t.name),
     images,
     variants
   };
@@ -207,7 +213,25 @@ export async function getFilteredProducts(filter: CatalogFilter): Promise<Catalo
       orderBy: { createdAt: "desc" }
     });
 
-    return dbProducts.map(mapDbProductToCatalogProduct);
+    const products = dbProducts.map(mapDbProductToCatalogProduct);
+
+    // BUG-36 FIX: When filtering by size or color, post-filter the product's variants
+    // so only the matching active variants are returned, and products with 0 matching
+    // variants after filtering are excluded.
+    if (filter.size || filter.color) {
+      return products
+        .map((p) => {
+          const matchingVariants = p.variants.filter((v) => {
+            const matchSize = !filter.size || v.size.toLowerCase().includes(filter.size.toLowerCase());
+            const matchColor = !filter.color || v.color.toLowerCase() === filter.color.toLowerCase();
+            return matchSize && matchColor;
+          });
+          return { ...p, variants: matchingVariants };
+        })
+        .filter((p) => p.variants.length > 0);
+    }
+
+    return products;
   } catch (err) {
     console.error("[catalog:getFilteredProducts]", err);
     return [];

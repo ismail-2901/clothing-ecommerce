@@ -1,3 +1,4 @@
+import { createHmac, timingSafeEqual } from "node:crypto";
 import type {
   PaymentProvider,
   PaymentProviderCode,
@@ -8,7 +9,101 @@ import type {
   RefundResult,
   WebhookResult
 } from "./payment-provider";
-import { PaymentError } from "./payment-provider";
+import { PaymentError, WebhookVerificationError } from "./payment-provider";
+
+// ---------------------------------------------------------------------------
+// Shared webhook secret verification helper
+// ---------------------------------------------------------------------------
+
+/**
+ * Validates an inbound webhook request against a HMAC-SHA256 signature.
+ *
+ * For providers that don't send a signature, falls back to a shared
+ * WEBHOOK_SECRET env var check (any non-empty secret acts as a bearer token).
+ * Throws WebhookVerificationError on failure.
+ *
+ * @param providerSecret  Provider-specific secret (e.g. SSLCOMMERZ_WEBHOOK_SECRET)
+ * @param genericSecret   Generic WEBHOOK_SECRET fallback
+ * @param headers         Incoming request headers
+ * @param signatureHeader HTTP header name carrying the signature (if any)
+ * @param payload         Raw body payload to re-hash
+ */
+function verifySharedSecret(
+  providerSecret: string | undefined,
+  genericSecret: string | undefined,
+  headers: Headers | Record<string, string>,
+  signatureHeader: string | null,
+  payload: unknown
+): void {
+  const secret = providerSecret || genericSecret;
+
+  // In production, require a secret
+  if (!secret) {
+    if (process.env.NODE_ENV === "production") {
+      throw new WebhookVerificationError(
+        "Webhook secret not configured. Set WEBHOOK_SECRET or the provider-specific secret env var."
+      );
+    }
+    // Development: allow through without a secret (simulator traffic)
+    return;
+  }
+
+  const getHeader = (name: string): string | null => {
+    if (headers instanceof Headers) return headers.get(name);
+    return (headers as Record<string, string>)[name] ?? null;
+  };
+
+  const sig = signatureHeader ? getHeader(signatureHeader) : null;
+
+  if (sig) {
+    // Compare HMAC signature sent by the provider
+    const bodyStr =
+      typeof payload === "string"
+        ? payload
+        : JSON.stringify(payload ?? {});
+
+    const expected = createHmac("sha256", secret)
+      .update(bodyStr)
+      .digest("hex");
+
+    let cleanSig = sig;
+    // Some providers prefix: "sha256=<hex>"
+    if (cleanSig.startsWith("sha256=")) cleanSig = cleanSig.slice(7);
+
+    try {
+      const a = Buffer.from(expected, "hex");
+      const b = Buffer.from(cleanSig, "hex");
+      if (a.length !== b.length || !timingSafeEqual(a, b)) {
+        throw new WebhookVerificationError("Webhook HMAC signature mismatch.");
+      }
+    } catch (err) {
+      if (err instanceof WebhookVerificationError) throw err;
+      throw new WebhookVerificationError("Webhook signature comparison failed.");
+    }
+  } else {
+    // No signature header — treat secret as a bearer token in X-Webhook-Secret or Authorization
+    const bearer =
+      getHeader("x-webhook-secret") ||
+      getHeader("authorization")?.replace(/^Bearer\s+/i, "") ||
+      null;
+
+    if (!bearer) {
+      throw new WebhookVerificationError(
+        "Webhook request missing authentication header (X-Webhook-Secret or Authorization)."
+      );
+    }
+
+    const expected = Buffer.from(secret, "utf8");
+    const provided = Buffer.from(bearer, "utf8");
+    if (
+      expected.length !== provided.length ||
+      !timingSafeEqual(expected, provided)
+    ) {
+      throw new WebhookVerificationError("Webhook shared secret mismatch.");
+    }
+  }
+}
+
 
 // ---------------------------------------------------------------------------
 // 1. Cash on Delivery (COD)
@@ -31,6 +126,10 @@ export class CashOnDeliveryProvider implements PaymentProvider {
       amount: 0,
       timestamp: new Date()
     };
+  }
+
+  async verifyWebhookSignature(): Promise<void> {
+    throw new PaymentError("Cash on Delivery does not support webhooks.");
   }
 
   async webhook(): Promise<WebhookResult> {
@@ -146,6 +245,20 @@ export class SSLCommerzProvider implements PaymentProvider {
       amount: 0,
       timestamp: new Date()
     };
+  }
+
+  async verifyWebhookSignature(
+    payload: unknown,
+    headers: Headers | Record<string, string>
+  ): Promise<void> {
+    // SSLCommerz does not currently send HMAC signatures — use shared secret bearer token
+    verifySharedSecret(
+      process.env.SSLCOMMERZ_WEBHOOK_SECRET,
+      process.env.WEBHOOK_SECRET,
+      headers,
+      null,
+      payload
+    );
   }
 
   async webhook(payload: unknown): Promise<WebhookResult> {
@@ -291,6 +404,20 @@ export class BkashProvider implements PaymentProvider {
     };
   }
 
+  async verifyWebhookSignature(
+    payload: unknown,
+    headers: Headers | Record<string, string>
+  ): Promise<void> {
+    // bKash IPN does not currently send HMAC — use shared secret bearer token
+    verifySharedSecret(
+      process.env.BKASH_WEBHOOK_SECRET,
+      process.env.WEBHOOK_SECRET,
+      headers,
+      null,
+      payload
+    );
+  }
+
   async webhook(payload: unknown): Promise<WebhookResult> {
     const data = (payload || {}) as Record<string, unknown>;
     const paymentId = String(data.paymentID || data.paymentId || data.trxID || "");
@@ -340,6 +467,19 @@ export class NagadProvider implements PaymentProvider {
     throw new PaymentError("Nagad payment verification is not yet integrated. Contact support to confirm payment status.");
   }
 
+  async verifyWebhookSignature(
+    payload: unknown,
+    headers: Headers | Record<string, string>
+  ): Promise<void> {
+    verifySharedSecret(
+      process.env.NAGAD_WEBHOOK_SECRET,
+      process.env.WEBHOOK_SECRET,
+      headers,
+      null,
+      payload
+    );
+  }
+
   async webhook(payload: unknown): Promise<WebhookResult> {
     const data = (payload || {}) as Record<string, unknown>;
     const reference = String(data.payment_ref_id || data.paymentRefId || data.order_id || "");
@@ -380,6 +520,19 @@ export class CardPaymentProvider implements PaymentProvider {
   async verifyPayment(reference: string): Promise<PaymentStatus> {
     // Card/direct payment verification not integrated — fail closed.
     throw new PaymentError("Card payment verification is not yet integrated. Contact support to confirm payment status.");
+  }
+
+  async verifyWebhookSignature(
+    payload: unknown,
+    headers: Headers | Record<string, string>
+  ): Promise<void> {
+    verifySharedSecret(
+      process.env.CARD_WEBHOOK_SECRET,
+      process.env.WEBHOOK_SECRET,
+      headers,
+      null,
+      payload
+    );
   }
 
   async webhook(payload: unknown): Promise<WebhookResult> {

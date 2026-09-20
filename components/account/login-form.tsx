@@ -22,30 +22,37 @@ export function LoginForm() {
     setError(null);
     setLoading(true);
 
-    const result = await signIn.email({
-      email: email.trim().toLowerCase(),
-      password
-    });
-
-    setLoading(false);
-
-    if (result.error) {
-      setError(
-        result.error.message === "Email not verified"
-          ? "Your email isn't verified. Go to the register page to resend your code."
-          : "Invalid email or password."
-      );
-      return;
-    }
-
+    // BUG-14 fix: signIn.email() can throw on network errors. Without try/catch,
+    // setLoading(false) would never run, leaving the spinner stuck indefinitely.
     try {
-      await fetch("/api/cart/merge", { method: "POST" });
-    } catch {
-      // ignore merge network failure
-    }
+      const result = await signIn.email({
+        email: email.trim().toLowerCase(),
+        password
+      });
 
-    router.push("/account");
-    router.refresh();
+      setLoading(false);
+
+      if (result.error) {
+        setError(
+          result.error.message === "Email not verified"
+            ? "Your email isn't verified. Go to the register page to resend your code."
+            : "Invalid email or password."
+        );
+        return;
+      }
+
+      try {
+        await fetch("/api/cart/merge", { method: "POST" });
+      } catch {
+        // ignore merge network failure
+      }
+
+      router.push("/account");
+      router.refresh();
+    } catch {
+      setLoading(false);
+      setError("An unexpected network error occurred. Please try again.");
+    }
   }
 
   return (

@@ -10,7 +10,8 @@ const patchReviewSchema = z.object({
 });
 
 export async function PATCH(request: NextRequest, { params }: RouteParams) {
-  const auth = await requireAdminSession("customer:read");
+  // BUG-26 FIX: Review visibility toggle is a mutation — require customer:manage, not read
+  const auth = await requireAdminSession("customer:manage");
   if (!auth.ok) return auth.response;
 
   const { id } = await params;
@@ -41,7 +42,8 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
 }
 
 export async function DELETE(request: NextRequest, { params }: RouteParams) {
-  const auth = await requireAdminSession("customer:read");
+  // BUG-26 FIX: Review deletion is a mutation — require customer:manage, not read
+  const auth = await requireAdminSession("customer:manage");
   if (!auth.ok) return auth.response;
 
   const { id } = await params;

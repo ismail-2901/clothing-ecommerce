@@ -28,7 +28,7 @@ type CartContextValue = {
   addItem: (item: CartItemInput) => Promise<void> | void;
   updateQuantity: (idOrSku: string, quantity: number) => Promise<void> | void;
   removeItem: (idOrSku: string) => Promise<void> | void;
-  clearCart: () => void;
+  clearCart: () => Promise<void>;
   refreshCart: () => Promise<void>;
 };
 
@@ -144,6 +144,12 @@ export function CartProvider({ children }: { children: ReactNode }) {
 
   const updateQuantity = useCallback(
     async (idOrSku: string, quantity: number) => {
+      // BUG-06 fix: resolve the target BEFORE the optimistic setItems call.
+      // Reading `items` after setItems may capture a stale snapshot since
+      // setState is batched/async. Reading it here gives the value at call time.
+      const target = items.find((item) => item.id === idOrSku || item.sku === idOrSku);
+      const cartItemId = target?.id || (idOrSku.length > 20 ? idOrSku : undefined);
+
       // Optimistic update
       setItems((current) => {
         if (!Number.isInteger(quantity) || quantity <= 0) {
@@ -154,9 +160,6 @@ export function CartProvider({ children }: { children: ReactNode }) {
           item.id === idOrSku || item.sku === idOrSku ? { ...item, quantity } : item
         );
       });
-
-      const target = items.find((item) => item.id === idOrSku || item.sku === idOrSku);
-      const cartItemId = target?.id || (idOrSku.length > 20 ? idOrSku : undefined);
 
       if (cartItemId) {
         try {
@@ -216,10 +219,17 @@ export function CartProvider({ children }: { children: ReactNode }) {
     [items, refreshCart]
   );
 
-  const clearCart = useCallback(() => {
+  const clearCart = useCallback(async () => {
+    // BUG-16 fix: clear local state first (optimistic), then sync to DB.
+    // Previously only cleared localStorage — DB cart survived and came back on next mount.
     setItems([]);
     if (typeof window !== "undefined") {
       window.localStorage.removeItem(STORAGE_KEY);
+    }
+    try {
+      await fetch("/api/cart/clear", { method: "POST" });
+    } catch (err) {
+      console.error("Failed to clear server cart:", err);
     }
   }, []);
 

@@ -1,16 +1,42 @@
+import { redirect, notFound } from "next/navigation";
 import Link from "next/link";
 import { formatMoney } from "@/lib/utils/money";
 import { ShieldCheck, ArrowRight, XCircle } from "lucide-react";
+
+// ---------------------------------------------------------------------------
+// BUG-20 FIX: This page must NEVER be reachable in production.
+// It allows simulating any payment outcome without real credentials.
+// ---------------------------------------------------------------------------
+const ALLOWED_PROVIDERS = ["COD", "SSLCOMMERZ", "BKASH", "NAGAD", "CARD"] as const;
+type AllowedProvider = (typeof ALLOWED_PROVIDERS)[number];
+
+const TRAN_ID_RE = /^[A-Za-z0-9_\-]{1,200}$/;
 
 export default async function PaymentSimulatorPage({
   searchParams
 }: {
   searchParams: Promise<{ provider?: string; tran_id?: string; amount?: string }>;
 }) {
+  // Block in production
+  if (process.env.NODE_ENV === "production") {
+    notFound();
+  }
+
   const { provider = "CARD", tran_id = "test_tran", amount = "0" } = await searchParams;
   const numAmount = Number(amount) || 0;
 
-  const providerNames: Record<string, string> = {
+  // Whitelist-validate provider
+  const normalizedProvider = provider.toUpperCase() as AllowedProvider;
+  if (!ALLOWED_PROVIDERS.includes(normalizedProvider)) {
+    notFound();
+  }
+
+  // Sanitize tran_id — reject anything that looks like a path traversal or injection
+  if (!TRAN_ID_RE.test(tran_id)) {
+    notFound();
+  }
+
+  const providerNames: Record<AllowedProvider, string> = {
     COD: "Cash on Delivery",
     SSLCOMMERZ: "SSLCommerz Sandbox",
     BKASH: "bKash Checkout",
@@ -18,7 +44,7 @@ export default async function PaymentSimulatorPage({
     CARD: "Credit / Debit Card"
   };
 
-  const name = providerNames[provider.toUpperCase()] || provider;
+  const name = providerNames[normalizedProvider];
 
   return (
     <div className="container-shell min-h-[75vh] flex items-center justify-center py-12">
@@ -43,7 +69,7 @@ export default async function PaymentSimulatorPage({
 
         <div className="space-y-3">
           <Link
-            href={`/api/payments/verify?provider=${encodeURIComponent(provider)}&tran_id=${encodeURIComponent(tran_id)}`}
+            href={`/api/payments/verify?provider=${encodeURIComponent(normalizedProvider)}&tran_id=${encodeURIComponent(tran_id)}`}
             className="flex h-11 w-full items-center justify-center gap-2 rounded-lg bg-emerald-600 px-4 text-xs font-bold uppercase tracking-wider text-white hover:bg-emerald-700 transition shadow-md"
           >
             Complete Test Payment <ArrowRight size={15} />

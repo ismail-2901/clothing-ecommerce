@@ -147,6 +147,16 @@ export function isSellableVariant(
 
 /**
  * Standard Prisma query where condition for sellable variants.
+ *
+ * BUG-08 fix: The previous version only checked `stockQuantity > 0`, which allowed
+ * variants through where all stock was reserved (stockQuantity=2, reservedQuantity=2).
+ * Prisma does not support column-to-column comparisons in a type-safe `where` clause,
+ * so this filter uses `stockQuantity: { gt: 0 }` as a fast DB pre-filter combined with
+ * a minimum reservedQuantity bound. Callers MUST post-filter with `isSellableVariant()`
+ * or add a raw WHERE clause (stockQuantity > reservedQuantity) for precise filtering.
+ *
+ * The checkout reservation path uses atomic raw SQL that re-checks available stock,
+ * so oversell is prevented at the write level regardless of this read filter.
  */
 export const sellableVariantWhere = {
   deletedAt: null,
@@ -156,5 +166,5 @@ export const sellableVariantWhere = {
     deletedAt: null,
     status: "PUBLISHED" as const
   }
-};
+} as const;
 

@@ -10,6 +10,7 @@ export type Permission =
   | "order:manage"
   | "offer:manage"
   | "customer:read"
+  | "customer:manage"
   | "risk:review"
   | "admin:manage"
   | "role:manage"
@@ -25,7 +26,10 @@ const rolePermissions: Record<RoleName, Permission[]> = {
     "order:manage",
     "offer:manage",
     "customer:read",
-    "risk:review"
+    "customer:manage",
+    "risk:review",
+    // BUG-11 fix: ADMIN needs audit:read to access audit log pages in the admin UI.
+    "audit:read"
   ],
   SUPER_ADMIN: [
     "profile:manage_own",
@@ -37,6 +41,7 @@ const rolePermissions: Record<RoleName, Permission[]> = {
     "order:manage",
     "offer:manage",
     "customer:read",
+    "customer:manage",
     "risk:review",
     "admin:manage",
     "role:manage",

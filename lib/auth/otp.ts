@@ -82,7 +82,25 @@ export async function processSendOtp(
 
   const normalised = email.trim().toLowerCase();
 
-  // 1. IP rate limit: max 10 requests per minute
+  // BUG-10 fix: apply a lightweight IP pre-check to stop obvious flooding before
+  // hitting the DB. Keep limit low (3/min) so legitimate users on the same IP
+  // are not collateral. The heavier per-account limit runs only for real accounts.
+  const ipPreCheck = await rateLimiter.consume(`send-otp:ip-pre:${clientIp}`, 3, 60_000);
+  if (!ipPreCheck.allowed) {
+    return {
+      ok: false,
+      error: "Too many code requests from this network. Please wait a minute.",
+      status: 429
+    };
+  }
+
+  const user = await prisma.user.findUnique({ where: { email: normalised } });
+  if (!user) {
+    // Silently return ok to prevent user enumeration
+    return { ok: true, status: 200 };
+  }
+
+  // 1. Full IP rate limit (only reached for existing accounts): max 10 requests per minute
   const ipLimit = await rateLimiter.consume(`send-otp:ip:${clientIp}`, 10, 60_000);
   if (!ipLimit.allowed) {
     return {
@@ -100,12 +118,6 @@ export async function processSendOtp(
       error: "Too many code requests for this account. Please wait 3 minutes.",
       status: 429
     };
-  }
-
-  const user = await prisma.user.findUnique({ where: { email: normalised } });
-  if (!user) {
-    // Silently return ok to prevent user enumeration
-    return { ok: true, status: 200 };
   }
 
   if (user.emailVerified) {

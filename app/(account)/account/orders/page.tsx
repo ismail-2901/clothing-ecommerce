@@ -118,6 +118,9 @@ function buildSteps(
     { status: "PENDING", label: "Order Placed" },
     { status: "CONFIRMED", label: "Confirmed" },
     { status: "PROCESSING", label: "Processing" },
+    // BUG-13 fix: PACKED was in ORDER (index array) but missing from STEPS (display array).
+    // Orders in PACKED state showed "Processing" as the current step instead of "Packed".
+    { status: "PACKED", label: "Packed" },
     { status: "SHIPPED", label: "Shipped" },
     { status: "OUT_FOR_DELIVERY", label: "Out for Delivery" },
     { status: "DELIVERED", label: "Delivered" }
@@ -259,14 +262,25 @@ export default async function AccountOrdersPage() {
             </Link>
           </div>
 
-          <div className="rounded-xl border border-border bg-background p-4 space-y-2 text-xs shadow-sm">
+          {/* BUG-12 fix: newsletter form had no submit handler — button did nothing. */}
+          <form
+            className="rounded-xl border border-border bg-background p-4 space-y-2 text-xs shadow-sm"
+            action="/contact"
+            method="get"
+          >
             <p className="font-bold text-foreground">Be the first to know</p>
             <p className="text-[11px] text-muted-foreground">Get exclusive offers &amp; style tips.</p>
-            <input placeholder="Enter your email" className="h-8 w-full rounded-md border border-border px-2 text-xs" />
-            <button className="h-8 w-full rounded-md bg-foreground text-xs font-bold text-background">
+            <input
+              name="email"
+              type="email"
+              placeholder="Enter your email"
+              required
+              className="h-8 w-full rounded-md border border-border px-2 text-xs"
+            />
+            <button type="submit" className="h-8 w-full rounded-md bg-foreground text-xs font-bold text-background">
               Subscribe
             </button>
-          </div>
+          </form>
         </aside>
 
         {/* Center Orders List */}

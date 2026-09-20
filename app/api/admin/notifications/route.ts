@@ -58,7 +58,9 @@ export async function GET() {
           title: `New Order Placed (#${o.orderNumber})`,
           description: `${customer} placed an order for ${amountStr} via ${paymentProvider}. Ready for fulfillment.`,
           time: formatRelativeTime(o.createdAt),
-          read: o.status !== "PENDING",
+          // BUG-40 FIX: Synthesized notifications are unread until explicitly acknowledged,
+          // not automatically marked read because of order status changes.
+          read: false,
           link: `/admin/orders`,
           createdAt: o.createdAt.toISOString()
         };
@@ -107,14 +109,61 @@ export async function PATCH(request: Request) {
         where: { readAt: null },
         data: { readAt: new Date() }
       });
+
+      // BUG-40 FIX: Persist recent un-persisted orders as read so markAll works completely
+      const recentOrders = await prisma.order.findMany({
+        take: 20,
+        orderBy: { createdAt: "desc" },
+        select: { orderNumber: true }
+      });
+      const existingNotifs = await prisma.notification.findMany({
+        select: { metadata: true }
+      });
+      const recordedNumbers = new Set(
+        existingNotifs
+          .map((n) => (n.metadata as Record<string, unknown> | null)?.orderNumber)
+          .filter(Boolean)
+      );
+      const toCreate = recentOrders.filter((o) => !recordedNumbers.has(o.orderNumber));
+      if (toCreate.length > 0) {
+        await prisma.notification.createMany({
+          data: toCreate.map((o) => ({
+            channel: "IN_APP",
+            title: `Order #${o.orderNumber}`,
+            body: `New order #${o.orderNumber}`,
+            readAt: new Date(),
+            metadata: { orderNumber: o.orderNumber, type: "ORDER" }
+          }))
+        });
+      }
       return NextResponse.json({ success: true });
     }
 
-    if (id && !id.startsWith("ord-")) {
-      await prisma.notification.updateMany({
-        where: { id },
-        data: { readAt: new Date() }
-      });
+    if (id) {
+      if (id.startsWith("ord-")) {
+        // BUG-40 FIX: Persist synthesized notification record to DB marked as read
+        const orderId = id.replace(/^ord-/, "");
+        const order = await prisma.order.findUnique({
+          where: { id: orderId },
+          select: { orderNumber: true }
+        });
+        if (order) {
+          await prisma.notification.create({
+            data: {
+              channel: "IN_APP",
+              title: `Order #${order.orderNumber}`,
+              body: `New order #${order.orderNumber}`,
+              readAt: new Date(),
+              metadata: { orderNumber: order.orderNumber, type: "ORDER" }
+            }
+          });
+        }
+      } else {
+        await prisma.notification.updateMany({
+          where: { id },
+          data: { readAt: new Date() }
+        });
+      }
     }
 
     return NextResponse.json({ success: true });

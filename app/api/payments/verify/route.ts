@@ -61,22 +61,29 @@ export async function GET(request: NextRequest) {
         data: { status: "PAID" }
       });
 
+      const orderStatusChanged = payment.order.status === "PENDING";
+
       await tx.order.update({
         where: { id: payment.orderId },
         data: {
           paymentStatus: "PAID",
-          ...(payment.order.status === "PENDING" ? { status: "CONFIRMED" } : {})
+          ...(orderStatusChanged ? { status: "CONFIRMED" } : {})
         }
       });
 
-      await tx.orderStatusHistory.create({
-        data: {
-          orderId: payment.orderId,
-          previousStatus: payment.order.status,
-          newStatus: "CONFIRMED",
-          note: `Payment verified via ${provider.toUpperCase()}. Ref: ${reference}`
-        }
-      });
+      // BUG-05 fix: only write history when the order status actually changed.
+      // If admin already confirmed the order before the payment callback arrived,
+      // writing a CONFIRMED history entry would create a false duplicate.
+      if (orderStatusChanged) {
+        await tx.orderStatusHistory.create({
+          data: {
+            orderId: payment.orderId,
+            previousStatus: payment.order.status,
+            newStatus: "CONFIRMED",
+            note: `Payment verified via ${provider.toUpperCase()}. Ref: ${reference}`
+          }
+        });
+      }
     });
 
     const successUrl = new URL(`/checkout/success`, request.url);
