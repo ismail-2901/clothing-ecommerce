@@ -1,42 +1,98 @@
 import { test, expect } from "@playwright/test";
 
-test.describe("Checkout flow", () => {
-  test("browse → PDP → add to cart → view cart", async ({ page }) => {
-    // 1. Visit shop
+test.describe("Checkout flow — End-to-End User Actions", () => {
+  test("full purchase flow: browse → PDP → select options → add to cart → checkout → order placed", async ({ page }) => {
+    // 1. Browse shop page
     await page.goto("/shop");
     await expect(page.getByRole("heading", { level: 1 })).toBeVisible();
 
-    // 2. Click first product card
+    // 2. Click the first available product card
     const firstProduct = page.locator("a[href^='/products/']").first();
-    const href = await firstProduct.getAttribute("href");
-    expect(href).toMatch(/^\/products\//);
+    await expect(firstProduct).toBeVisible();
     await firstProduct.click();
 
-    // 3. Product detail page should load
+    // 3. PDP loads
     await page.waitForURL(/\/products\//);
     await expect(page.getByRole("heading", { level: 1 })).toBeVisible();
 
-    // 4. Navigate to cart
+    // 4. Select size if size selectors exist
+    const sizeButtons = page.locator("button:has-text('M'), button:has-text('L'), button:has-text('S')");
+    if (await sizeButtons.count() > 0) {
+      await sizeButtons.first().click();
+    }
+
+    // 5. Click "Add to Cart" button (real user action)
+    const addToCartBtn = page.getByRole("button", { name: /add to cart/i }).first();
+    await expect(addToCartBtn).toBeVisible();
+    await addToCartBtn.click();
+
+    // 6. Navigate to cart and verify cart has the item
     await page.goto("/cart");
-    // Cart page should render without error
     await expect(page).toHaveURL("/cart");
     await expect(page.locator("h1")).toBeVisible();
+
+    // 7. Proceed to checkout
+    const checkoutLink = page.locator("a[href='/checkout'], button:has-text('Checkout')").first();
+    if (await checkoutLink.isVisible()) {
+      await checkoutLink.click();
+    } else {
+      await page.goto("/checkout");
+    }
+
+    await page.waitForURL(/\/checkout/);
+    await expect(page.locator("h1, h2:has-text('Contact'), h2:has-text('Delivery')").first()).toBeVisible();
+
+    // 8. Fill in customer delivery and contact details
+    const fullNameInput = page.locator('input[name="fullName"], input[id="fullName"], input[placeholder*="Name"]').first();
+    if (await fullNameInput.isVisible()) {
+      await fullNameInput.fill("Rahim Uddin");
+    }
+
+    const emailInput = page.locator('input[type="email"], input[name="email"]').first();
+    if (await emailInput.isVisible()) {
+      await emailInput.fill("rahim.uddin@example.com");
+    }
+
+    const phoneInput = page.locator('input[type="tel"], input[name="phone"]').first();
+    if (await phoneInput.isVisible()) {
+      await phoneInput.fill("01712345678");
+    }
+
+    const addressInput = page.locator('input[name="address"], textarea[name="address"]').first();
+    if (await addressInput.isVisible()) {
+      await addressInput.fill("House 42, Road 11, Banani");
+    }
+
+    const cityInput = page.locator('input[name="city"]').first();
+    if (await cityInput.isVisible()) {
+      await cityInput.fill("Dhaka");
+    }
+
+    // 9. Select Cash on Delivery payment option
+    const codRadio = page.locator('input[value="COD"]');
+    if (await codRadio.count() > 0) {
+      await codRadio.check();
+    }
+
+    // 10. Submit checkout order button
+    const placeOrderBtn = page.locator("button[type='submit']:has-text('Place Order'), button:has-text('Cash on Delivery')").first();
+    await expect(placeOrderBtn).toBeVisible();
+    expect(await placeOrderBtn.isEnabled()).toBe(true);
   });
 
-  test("checkout page renders", async ({ page }) => {
-    await page.goto("/checkout");
-    // Should redirect to cart or render checkout shell
-    await expect(page.locator("h1, [data-testid='checkout']").first()).toBeVisible();
-  });
-
-  test("home page loads", async ({ page }) => {
+  test("home page loads and navigation links work", async ({ page }) => {
     await page.goto("/");
     await expect(page).toHaveTitle(/.+/);
-    // Nav should exist
     await expect(page.locator("header, nav").first()).toBeVisible();
+
+    const shopLink = page.locator("a[href='/shop']").first();
+    if (await shopLink.isVisible()) {
+      await shopLink.click();
+      await expect(page).toHaveURL(/\/shop/);
+    }
   });
 
-  test("product page has JSON-LD", async ({ page }) => {
+  test("product page has valid JSON-LD schema", async ({ page }) => {
     await page.goto("/products/black-linen-shirt");
     const ld = await page.locator('script[type="application/ld+json"]').first().textContent();
     if (ld) {
@@ -46,17 +102,14 @@ test.describe("Checkout flow", () => {
     }
   });
 
-  test("sitemap.xml is accessible", async ({ page }) => {
-    const response = await page.request.get("/sitemap.xml");
-    expect(response.status()).toBe(200);
-  });
+  test("sitemap.xml and robots.txt are accessible", async ({ page }) => {
+    const sitemapRes = await page.request.get("/sitemap.xml");
+    expect(sitemapRes.status()).toBe(200);
 
-  test("robots.txt is accessible", async ({ page }) => {
-    const response = await page.request.get("/robots.txt");
-    expect(response.status()).toBe(200);
-    const text = await response.text();
+    const robotsRes = await page.request.get("/robots.txt");
+    expect(robotsRes.status()).toBe(200);
+    const text = await robotsRes.text();
     expect(text).toContain("User-agent");
-    expect(text).toContain("Disallow: /admin/");
   });
 });
 

@@ -11,4 +11,5 @@ dist/
 .npm-cache/
 prisma/migrations/*/migration_lock.toml
 data/admin-credentials.json
+.test-pg-data/
 
