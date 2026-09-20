@@ -1,13 +1,29 @@
-import { describe, it, expect, beforeAll, beforeEach } from "vitest";
+import { describe, it, expect, beforeAll, beforeEach, vi } from "vitest";
+import { NextRequest } from "next/server";
 import type { PrismaClient } from "@prisma/client";
 import {
   ensureTestDatabase,
   cleanupDatabase,
-  seedCatalogFixture,
-  seedUserFixture
+  seedCatalogFixture
 } from "./test-db";
+import { createAuthenticatedUser } from "./test-auth-helper";
 
-describe("Concurrency: Order Placement Idempotency & Deduplication", () => {
+let currentHeaders = new Headers();
+
+vi.mock("next/headers", () => ({
+  headers: async () => currentHeaders,
+  cookies: async () => ({
+    get: (name: string) => {
+      const cookieHeader = currentHeaders.get("cookie") || "";
+      const match = cookieHeader.match(new RegExp(`(?:^|; )${name}=([^;]*)`));
+      return match ? { name, value: match[1] } : undefined;
+    }
+  })
+}));
+
+import { POST as createOrder } from "@/app/api/orders/route";
+
+describe("Concurrency: Order Placement Idempotency & Deduplication (/api/orders)", () => {
   let db: PrismaClient;
 
   beforeAll(async () => {
@@ -16,91 +32,73 @@ describe("Concurrency: Order Placement Idempotency & Deduplication", () => {
 
   beforeEach(async () => {
     await cleanupDatabase(db);
+    currentHeaders = new Headers();
   });
 
-  it("exposes lack of idempotency: multiple identical rapid requests create duplicate orders", async () => {
-    const { product, variant } = await seedCatalogFixture(db);
-    const { customer } = await seedUserFixture(db);
+  it("sends 10 concurrent HTTP requests with the SAME Idempotency-Key — asserts exactly one order is created", async () => {
+    const { variant } = await seedCatalogFixture(db);
+    const customer = await createAuthenticatedUser(db, { role: "CUSTOMER" });
+    const idempotencyKey = "idem-req-uuid-" + Date.now();
+    const concurrency = 10;
 
-    // Initial stock is 10
     const payload = {
-      email: customer.email,
-      phone: "+8801700000000",
-      variantId: variant.id,
-      quantity: 1
+      email: customer.user.email,
+      phone: "01712345678",
+      deliveryAddress: {
+        name: "Customer User",
+        line1: "House 1, Road 2",
+        city: "Dhaka",
+        country: "BD"
+      },
+      paymentProvider: "COD",
+      cartItems: [
+        {
+          variantId: variant.id,
+          quantity: 1
+        }
+      ]
     };
 
-    // Simulate 3 concurrent/duplicate clicks without server-side idempotency lock
-    const createdOrders = await Promise.all(
-      [1, 2, 3].map(async (i) => {
-        return await db.order.create({
-          data: {
-            orderNumber: `DUP-${Date.now()}-${i}-${Math.random().toString(36).slice(2, 6)}`,
-            user: { connect: { id: customer.id } },
-            status: "PENDING",
-            paymentStatus: "PENDING",
-            subtotal: 250000,
-            grandTotal: 256000,
-            currency: "BDT",
-            deliveryAddress: { city: "Dhaka", line1: "House 1" }
-          }
+    // Execute 10 concurrent requests to POST /api/orders with the identical Idempotency-Key
+    const responses = await Promise.all(
+      Array.from({ length: concurrency }).map(async () => {
+        const reqHeaders = new Headers(customer.headers);
+        reqHeaders.set("Idempotency-Key", idempotencyKey);
+        reqHeaders.set("Content-Type", "application/json");
+
+        currentHeaders = reqHeaders;
+
+        const req = new NextRequest("http://localhost:3000/api/orders", {
+          method: "POST",
+          headers: reqHeaders,
+          body: JSON.stringify(payload)
         });
+
+        return await createOrder(req);
       })
     );
 
-    expect(createdOrders).toHaveLength(3);
-    const orderNumbers = new Set(createdOrders.map((o) => o.orderNumber));
-    expect(orderNumbers.size).toBe(3); // 3 separate orders created!
-
-    // Verify user now has 3 pending orders instead of 1 deduplicated order
-    const userOrders = await db.order.findMany({
-      where: { userId: customer.id }
+    // Query database state for the customer's orders
+    const orders = await db.order.findMany({
+      where: { userId: customer.user.id }
     });
-    expect(userOrders).toHaveLength(3);
-  });
 
-  it("demonstrates safe pattern: idempotency key deduplication prevents multiple charges/orders", async () => {
-    const { customer } = await seedUserFixture(db);
-    const idempotencyKey = "client-req-uuid-98765";
-
-    // Simulate idempotency handling map or table
-    const processedMap = new Map<string, string>();
-
-    async function placeOrderWithIdempotency(key: string) {
-      if (processedMap.has(key)) {
-        const existingOrderId = processedMap.get(key)!;
-        return { isDuplicate: true, orderId: existingOrderId };
-      }
-
-      const order = await db.order.create({
-        data: {
-          orderNumber: `IDEM-${Date.now()}`,
-          user: { connect: { id: customer.id } },
-          status: "PENDING",
-          paymentStatus: "PENDING",
-          subtotal: 250000,
-          grandTotal: 256000,
-          currency: "BDT",
-          deliveryAddress: { city: "Dhaka", line1: "House 1" }
-        }
-      });
-
-      processedMap.set(key, order.id);
-      return { isDuplicate: false, orderId: order.id };
-    }
-
-    // Two rapid calls with identical idempotencyKey
-    const firstCall = await placeOrderWithIdempotency(idempotencyKey);
-    const secondCall = await placeOrderWithIdempotency(idempotencyKey);
-
-    expect(firstCall.isDuplicate).toBe(false);
-    expect(secondCall.isDuplicate).toBe(true);
-    expect(secondCall.orderId).toBe(firstCall.orderId);
-
-    // Only 1 order exists in database
-    const allOrders = await db.order.findMany({
-      where: { userId: customer.id }
+    const inventoryMovements = await db.inventoryMovement.findMany({
+      where: { variantId: variant.id, type: "RESERVATION" }
     });
-    expect(allOrders).toHaveLength(1);
+
+    const payments = await db.payment.findMany({
+      where: { orderId: { in: orders.map((o) => o.id) } }
+    });
+
+    // REGRESSION TEST:
+    // With persistent idempotency mechanism:
+    // - exactly one order
+    // - exactly one inventory reservation
+    // - exactly one logical payment
+    // - all duplicate requests return the same result
+    expect(orders).toHaveLength(1);
+    expect(inventoryMovements).toHaveLength(1);
+    expect(payments).toHaveLength(1);
   });
 });

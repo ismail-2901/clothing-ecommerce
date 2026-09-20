@@ -3,10 +3,12 @@ import { prisma } from "@/db/prisma";
 
 export const dynamic = "force-dynamic";
 
+const LATEST_COMMITTED_MIGRATION = "20260903093835_add_otp_fields";
+
 export async function GET() {
   const startTime = Date.now();
   let dbStatus: "connected" | "disconnected" = "disconnected";
-  let migrationStatus: "ready" | "pending" | "unavailable" = "unavailable";
+  let migrationStatus: "ready" | "pending" | "missing" | "failed" | "unavailable" = "unavailable";
 
   try {
     await Promise.race([
@@ -17,17 +19,40 @@ export async function GET() {
     ]);
     dbStatus = "connected";
 
-    const migrations = await prisma.$queryRaw<Array<{ migration_name: string }>>`
-      SELECT migration_name FROM "_prisma_migrations" WHERE finished_at IS NOT NULL ORDER BY finished_at DESC LIMIT 1
-    `.catch(() => []);
+    // Inspect _prisma_migrations table directly
+    const migrations = await prisma.$queryRaw<
+      Array<{
+        migration_name: string;
+        finished_at: Date | null;
+        rolled_back_at: Date | null;
+      }>
+    >`
+      SELECT migration_name, finished_at, rolled_back_at 
+      FROM "_prisma_migrations" 
+      ORDER BY started_at DESC
+    `.catch(() => null);
 
-    migrationStatus = migrations.length > 0 ? "ready" : "pending";
+    if (migrations === null || migrations.length === 0) {
+      migrationStatus = "missing";
+    } else {
+      const hasFailed = migrations.some((m) => m.rolled_back_at !== null || m.finished_at === null);
+      if (hasFailed) {
+        migrationStatus = "failed";
+      } else {
+        const latestFinished = migrations.find((m) => m.finished_at !== null)?.migration_name;
+        if (latestFinished === LATEST_COMMITTED_MIGRATION) {
+          migrationStatus = "ready";
+        } else {
+          migrationStatus = "pending";
+        }
+      }
+    }
   } catch {
     dbStatus = "disconnected";
     migrationStatus = "unavailable";
   }
 
-  const isHealthy = dbStatus === "connected";
+  const isHealthy = dbStatus === "connected" && migrationStatus === "ready";
 
   return NextResponse.json(
     {

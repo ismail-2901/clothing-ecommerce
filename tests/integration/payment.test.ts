@@ -1,164 +1,207 @@
 import { describe, it, expect, beforeAll, beforeEach } from "vitest";
+import { NextRequest } from "next/server";
 import type { PrismaClient } from "@prisma/client";
-import {
-  ensureTestDatabase,
-  cleanupDatabase,
-  seedCatalogFixture,
-  seedUserFixture
-} from "./test-db";
+import { ensureTestDatabase, cleanupDatabase } from "./test-db";
+import { createAuthenticatedUser } from "./test-auth-helper";
+import { POST as handlePaymentWebhook } from "@/app/api/payments/webhook/[provider]/route";
 
-describe("Integration: Payment Persistence & Webhook Updates", () => {
+describe("Payment Webhooks: Real Route Handler Verification (POST /api/payments/webhook/:provider)", () => {
   let db: PrismaClient;
+  const WEBHOOK_SECRET = "test-secret-webhook-key-42";
 
   beforeAll(async () => {
     db = await ensureTestDatabase();
+    process.env.WEBHOOK_SECRET = WEBHOOK_SECRET;
   });
 
   beforeEach(async () => {
     await cleanupDatabase(db);
   });
 
-  it("persists payment record with correct provider and amount", async () => {
-    const { customer } = await seedUserFixture(db);
+  async function seedOrderAndPayment(provider = "SSLCOMMERZ", amount = 206000, status: "PENDING" | "PAID" = "PENDING") {
+    const customer = await createAuthenticatedUser(db, { role: "CUSTOMER" });
+    const orderId = "ord-" + Math.random().toString(36).slice(2, 9);
+    const orderNumber = "ATC-" + Date.now();
+    const trxId = "TRX-" + Date.now();
 
-    const order = await db.order.create({
+    await db.$executeRawUnsafe(
+      `INSERT INTO "Order" (id, "orderNumber", "userId", status, "paymentStatus", subtotal, "discountTotal", "shippingTotal", "taxTotal", "grandTotal", currency, "deliveryAddress", "createdAt", "updatedAt")
+       VALUES ($1, $2, $3, $4, $5, $6, 0, 6000, 0, $7, 'BDT', '{"city":"Dhaka"}'::jsonb, NOW(), NOW())`,
+      orderId,
+      orderNumber,
+      customer.user.id,
+      status === "PAID" ? "CONFIRMED" : "PENDING",
+      status,
+      amount - 6000,
+      amount
+    );
+
+    const payment = await db.payment.create({
       data: {
-        orderNumber: "ATC-PAY-" + Date.now(),
-        user: { connect: { id: customer.id } },
-        status: "PENDING",
-        paymentStatus: "PENDING",
-        subtotal: 300000,
-        grandTotal: 306000,
+        orderId,
+        provider: provider as any,
+        amount,
         currency: "BDT",
-        deliveryAddress: { city: "Dhaka", line1: "Test" },
-        payments: {
-          create: {
-            provider: "SSLCOMMERZ",
-            amount: 306000,
-            currency: "BDT",
-            status: "PENDING",
-            providerPaymentId: "TRX-12345"
-          }
-        }
-      },
-      include: { payments: true }
+        status,
+        providerPaymentId: trxId
+      }
     });
 
-    expect(order.payments).toHaveLength(1);
-    expect(order.payments[0].provider).toBe("SSLCOMMERZ");
-    expect(order.payments[0].amount).toBe(306000);
-    expect(order.payments[0].providerPaymentId).toBe("TRX-12345");
+    return { customer, orderId, orderNumber, trxId, payment };
+  }
+
+  it("rejects forged webhooks with invalid signature (returns 401)", async () => {
+    const { trxId } = await seedOrderAndPayment();
+
+    const req = new NextRequest("http://localhost:3000/api/payments/webhook/sslcommerz", {
+      method: "POST",
+      headers: {
+        "content-type": "application/json",
+        "x-webhook-secret": "wrong-forged-secret"
+      },
+      body: JSON.stringify({
+        val_id: trxId,
+        status: "VALID",
+        amount: "2060.00",
+        currency: "BDT"
+      })
+    });
+
+    const res = await handlePaymentWebhook(req, {
+      params: Promise.resolve({ provider: "sslcommerz" })
+    });
+
+    expect(res.status).toBe(401);
+    const body = await res.json();
+    expect(body.error).toBe("Unauthorized");
   });
 
-  it("updates order paymentStatus when payment succeeds via webhook", async () => {
-    const { customer } = await seedUserFixture(db);
-    const trxId = "BKASH-TRX-" + Date.now();
+  it("processes valid webhook and updates database payment and order status", async () => {
+    const { orderId, trxId, payment } = await seedOrderAndPayment();
 
-    const order = await db.order.create({
-      data: {
-        orderNumber: "ATC-BKASH-" + Date.now(),
-        user: { connect: { id: customer.id } },
-        status: "PENDING",
-        paymentStatus: "PENDING",
-        subtotal: 200000,
-        grandTotal: 206000,
-        currency: "BDT",
-        deliveryAddress: { city: "Dhaka", line1: "Test" },
-        payments: {
-          create: {
-            provider: "BKASH",
-            amount: 206000,
-            currency: "BDT",
-            status: "PENDING",
-            providerPaymentId: trxId
-          }
-        }
+    const req = new NextRequest("http://localhost:3000/api/payments/webhook/sslcommerz", {
+      method: "POST",
+      headers: {
+        "content-type": "application/json",
+        "x-webhook-secret": WEBHOOK_SECRET
       },
-      include: { payments: true }
+      body: JSON.stringify({
+        val_id: trxId,
+        status: "VALID",
+        amount: "2060.00",
+        currency: "BDT"
+      })
     });
 
-    const payment = order.payments[0];
-
-    // Simulate webhook handling transaction
-    await db.$transaction(async (tx) => {
-      await tx.payment.update({
-        where: { id: payment.id },
-        data: {
-          status: "PAID",
-          metadata: {
-            trxId,
-            verifiedAt: new Date().toISOString()
-          }
-        }
-      });
-
-      await tx.order.update({
-        where: { id: order.id },
-        data: {
-          paymentStatus: "PAID",
-          status: "CONFIRMED"
-        }
-      });
+    const res = await handlePaymentWebhook(req, {
+      params: Promise.resolve({ provider: "sslcommerz" })
     });
 
-    const refreshedOrder = await db.order.findUnique({
-      where: { id: order.id },
-      include: { payments: true }
-    });
+    expect(res.status).toBe(200);
 
-    expect(refreshedOrder?.paymentStatus).toBe("PAID");
-    expect(refreshedOrder?.status).toBe("CONFIRMED");
-    expect(refreshedOrder?.payments[0].status).toBe("PAID");
-    expect((refreshedOrder?.payments[0].metadata as any)?.trxId).toBe(trxId);
+    // Verify database state after request
+    const updatedPayment = await db.payment.findUnique({
+      where: { id: payment.id }
+    });
+    expect(updatedPayment?.status).toBe("PAID");
+
+    const updatedOrder = await db.order.findUnique({
+      where: { id: orderId },
+      select: { id: true, status: true, paymentStatus: true }
+    });
+    expect(updatedOrder?.paymentStatus).toBe("PAID");
+    expect(updatedOrder?.status).toBe("CONFIRMED");
   });
 
-  it("tracks multiple payment attempts across retries without data loss", async () => {
-    const { customer } = await seedUserFixture(db);
+  it("rejects webhooks with wrong payment amount", async () => {
+    const { trxId } = await seedOrderAndPayment("SSLCOMMERZ", 206000); // 2060 BDT
 
-    const order = await db.order.create({
-      data: {
-        orderNumber: "ATC-RETRY-" + Date.now(),
-        user: { connect: { id: customer.id } },
-        status: "PENDING",
-        paymentStatus: "PENDING",
-        subtotal: 100000,
-        grandTotal: 106000,
-        currency: "BDT",
-        deliveryAddress: { city: "Dhaka", line1: "Test" }
-      }
+    // Attacker sends webhook with tampered amount (100 BDT instead of 2060 BDT)
+    const req = new NextRequest("http://localhost:3000/api/payments/webhook/sslcommerz", {
+      method: "POST",
+      headers: {
+        "content-type": "application/json",
+        "x-webhook-secret": WEBHOOK_SECRET
+      },
+      body: JSON.stringify({
+        val_id: trxId,
+        status: "VALID",
+        amount: "100.00", // Tampered amount
+        currency: "BDT"
+      })
     });
 
-    // Attempt 1: Failed
-    await db.payment.create({
-      data: {
-        orderId: order.id,
-        provider: "CARD",
-        amount: 106000,
-        currency: "BDT",
-        status: "FAILED",
-        providerPaymentId: "TRX-FAIL-1"
-      }
+    const res = await handlePaymentWebhook(req, {
+      params: Promise.resolve({ provider: "sslcommerz" })
     });
 
-    // Attempt 2: Succeeded
-    await db.payment.create({
-      data: {
-        orderId: order.id,
-        provider: "BKASH",
-        amount: 106000,
-        currency: "BDT",
-        status: "PAID",
-        providerPaymentId: "TRX-SUCCESS-2"
-      }
+    // REGRESSION TEST:
+    // Route must reject mismatched amount (HTTP 422 or 400).
+    // Before fix (BUG-12): route ignores amount check and returns 200.
+    expect(res.status).toBe(422);
+  });
+
+  it("rejects webhooks with wrong provider parameter", async () => {
+    const { trxId } = await seedOrderAndPayment("SSLCOMMERZ", 206000);
+
+    // Incoming request targeting bkash endpoint for an SSLCOMMERZ payment
+    const req = new NextRequest("http://localhost:3000/api/payments/webhook/bkash", {
+      method: "POST",
+      headers: {
+        "content-type": "application/json",
+        "x-webhook-secret": WEBHOOK_SECRET
+      },
+      body: JSON.stringify({
+        paymentID: trxId,
+        transactionStatus: "Completed",
+        amount: "2060"
+      })
     });
 
-    const allPayments = await db.payment.findMany({
-      where: { orderId: order.id },
-      orderBy: { createdAt: "asc" }
+    const res = await handlePaymentWebhook(req, {
+      params: Promise.resolve({ provider: "bkash" })
     });
 
-    expect(allPayments).toHaveLength(2);
-    expect(allPayments[0].status).toBe("FAILED");
-    expect(allPayments[1].status).toBe("PAID");
+    // REGRESSION TEST:
+    // Route must reject provider mismatch.
+    // Before fix (BUG-14): route proceeds without verifying payment.provider == providerInstance.code.
+    expect(res.status).toBe(422);
+  });
+
+  it("handles replayed webhooks safely without duplicating status history side effects", async () => {
+    // Payment is ALREADY in PAID status
+    const { orderId, trxId } = await seedOrderAndPayment("SSLCOMMERZ", 206000, "PAID");
+
+    const countBefore = await db.orderStatusHistory.count({
+      where: { orderId }
+    });
+
+    const req = new NextRequest("http://localhost:3000/api/payments/webhook/sslcommerz", {
+      method: "POST",
+      headers: {
+        "content-type": "application/json",
+        "x-webhook-secret": WEBHOOK_SECRET
+      },
+      body: JSON.stringify({
+        val_id: trxId,
+        status: "VALID",
+        amount: "2060.00",
+        currency: "BDT"
+      })
+    });
+
+    const res = await handlePaymentWebhook(req, {
+      params: Promise.resolve({ provider: "sslcommerz" })
+    });
+
+    expect(res.status).toBe(200);
+
+    // REGRESSION TEST:
+    // Replayed event on already-PAID order should NOT create redundant OrderStatusHistory records.
+    // Before fix (BUG-13): a new OrderStatusHistory row is created on every replay.
+    const countAfter = await db.orderStatusHistory.count({
+      where: { orderId }
+    });
+    expect(countAfter).toBe(countBefore);
   });
 });

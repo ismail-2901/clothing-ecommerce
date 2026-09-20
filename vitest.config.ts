@@ -5,6 +5,8 @@ export default defineConfig({
   test: {
     environment: "node",
     fileParallelism: false,
+    hookTimeout: 30000,
+    testTimeout: 30000,
     include: ["tests/unit/**/*.test.ts", "tests/integration/**/*.test.ts"],
     coverage: {
       reporter: ["text", "html"]

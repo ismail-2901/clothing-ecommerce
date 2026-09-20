@@ -1,11 +1,24 @@
-import { describe, it, expect, beforeAll, beforeEach } from "vitest";
+import { describe, it, expect, beforeAll, beforeEach, vi } from "vitest";
+import { NextRequest } from "next/server";
 import type { PrismaClient } from "@prisma/client";
-import {
-  ensureTestDatabase,
-  cleanupDatabase
-} from "./test-db";
+import { ensureTestDatabase, cleanupDatabase } from "./test-db";
 
-describe("Concurrency: Cart Creation Race Condition", () => {
+let currentHeaders = new Headers();
+
+vi.mock("next/headers", () => ({
+  headers: async () => currentHeaders,
+  cookies: async () => ({
+    get: (name: string) => {
+      const cookieHeader = currentHeaders.get("cookie") || "";
+      const match = cookieHeader.match(new RegExp(`(?:^|; )${name}=([^;]*)`));
+      return match ? { name, value: match[1] } : undefined;
+    }
+  })
+}));
+
+import { GET as getCart } from "@/app/api/cart/route";
+
+describe("Concurrency: Cart Creation Race Condition (/api/cart)", () => {
   let db: PrismaClient;
 
   beforeAll(async () => {
@@ -14,57 +27,41 @@ describe("Concurrency: Cart Creation Race Condition", () => {
 
   beforeEach(async () => {
     await cleanupDatabase(db);
+    currentHeaders = new Headers();
   });
 
-  it("exposes race condition: concurrent getOrCreateCart calls create duplicate active carts without unique constraint", async () => {
+  it("calls actual /api/cart concurrently with the same identity — asserts exactly one ACTIVE cart exists", async () => {
     const anonymousId = "concurrent-anon-" + Date.now();
-    const concurrency = 5;
+    const concurrency = 10;
 
-    // Simulate concurrent requests hitting getOrCreateCart
-    async function simulateGetOrCreateCart(anonId: string) {
-      const existing = await db.cart.findFirst({
-        where: { anonymousId: anonId, status: "ACTIVE" }
-      });
-      if (existing) return existing;
+    currentHeaders = new Headers({
+      cookie: `cart_anon_id=${anonymousId}`
+    });
 
-      return await db.cart.create({
-        data: { anonymousId: anonId, status: "ACTIVE" }
-      });
-    }
-
-    // Run 5 requests concurrently in parallel
-    await Promise.all(
-      Array.from({ length: concurrency }).map(() => simulateGetOrCreateCart(anonymousId))
+    // Execute 10 concurrent requests hitting the real /api/cart route handler
+    const responses = await Promise.all(
+      Array.from({ length: concurrency }).map(async () => {
+        const req = new NextRequest("http://localhost:3000/api/cart", {
+          headers: new Headers({ cookie: `cart_anon_id=${anonymousId}` })
+        });
+        return await getCart(req);
+      })
     );
 
-    // Count how many ACTIVE carts exist for this anonymousId
+    // All requests should return 200 OK
+    for (const res of responses) {
+      expect(res.status).toBe(200);
+    }
+
+    // Inspect database state: count how many ACTIVE carts exist for this identity
     const activeCarts = await db.cart.findMany({
       where: { anonymousId, status: "ACTIVE" }
     });
 
-    // BUG-RACE-01: Without a unique constraint on (anonymousId, status), multiple active carts get created.
-    // In our test, activeCarts.length > 1 reproduces the bug.
-    expect(activeCarts.length).toBeGreaterThanOrEqual(1);
-
-    // Document whether a race condition occurred
-    if (activeCarts.length > 1) {
-      console.warn(`[CONCURRENCY BUG CONFIRMED] Created ${activeCarts.length} duplicate active carts for anonymousId: ${anonymousId}`);
-    }
-  });
-
-  it("demonstrates safe pattern: upsert or unique constraint prevents duplicate carts", async () => {
-    const anonymousId = "safe-anon-" + Date.now();
-
-    // With a synchronized / upsert approach
-    const cart = await db.cart.create({
-      data: { anonymousId, status: "ACTIVE" }
-    });
-
-    // Subsequent retrieval always finds the existing active cart
-    const found = await db.cart.findFirst({
-      where: { anonymousId, status: "ACTIVE" }
-    });
-
-    expect(found?.id).toBe(cart.id);
+    // REGRESSION TEST:
+    // Before fix: test reproduces duplicate carts (activeCarts.length > 1) due to non-atomic findFirst + create
+    // After fix: atomic upsert / partial unique index ensures exactly 1 active cart
+    // MUST fail if more than one cart exists
+    expect(activeCarts).toHaveLength(1);
   });
 });

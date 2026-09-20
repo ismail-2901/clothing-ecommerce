@@ -54,15 +54,22 @@ export async function ensureTestDatabase(): Promise<PrismaClient> {
     } catch {
       // Database already exists
     }
+  }
 
+  // Always deploy committed migrations and fail suite if migration deployment fails
+  try {
     execSync("npx prisma migrate deploy", {
       env: {
         ...process.env,
         DATABASE_URL: TEST_DATABASE_URL,
         DIRECT_URL: TEST_DATABASE_URL
       },
-      encoding: "utf8"
+      encoding: "utf8",
+      stdio: "pipe"
     });
+  } catch (err: any) {
+    const errorMsg = err.stderr || err.stdout || err.message;
+    throw new Error(`Prisma migration deployment failed against test database:\n${errorMsg}`);
   }
 
   if (!prismaInstance) {
@@ -70,11 +77,16 @@ export async function ensureTestDatabase(): Promise<PrismaClient> {
     prismaInstance = new PrismaClient({ adapter });
     await prismaInstance.$connect();
 
-    // Ensure schema alignment with schema.prisma for test DB
-    await prismaInstance.$executeRawUnsafe(`
-      ALTER TABLE "Order" ADD COLUMN IF NOT EXISTS "guestToken" TEXT;
-      CREATE UNIQUE INDEX IF NOT EXISTS "Order_guestToken_key" ON "Order"("guestToken");
-    `);
+    // Verify committed migration readiness directly from _prisma_migrations
+    const applied = await prismaInstance.$queryRaw<Array<{ migration_name: string; finished_at: Date | null }>>`
+      SELECT migration_name, finished_at FROM "_prisma_migrations" WHERE finished_at IS NOT NULL;
+    `.catch((err) => {
+      throw new Error(`Failed to query _prisma_migrations: ${err.message}`);
+    });
+
+    if (!applied || applied.length === 0) {
+      throw new Error("Test database schema verification failed: no finished migrations found.");
+    }
   }
 
   return prismaInstance;
