@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { createPortal } from "react-dom";
 import Link from "next/link";
 import Image from "next/image";
 import { usePathname } from "next/navigation";
@@ -73,25 +74,35 @@ export const navGroups = [
 
 type UserInfo = { name?: string | null; email?: string | null };
 
-function SidebarInner({ user, onNavClick }: { user: UserInfo; onNavClick?: () => void }) {
+function SidebarInner({
+  user,
+  onNavClick,
+  isMobileDrawer
+}: {
+  user: UserInfo;
+  onNavClick?: () => void;
+  isMobileDrawer?: boolean;
+}) {
   const pathname = usePathname();
 
   return (
-    <div className="flex flex-col justify-between h-full">
+    <div className="flex flex-col justify-between min-h-full pb-6">
       <div className="space-y-6">
         {/* Brand */}
-        <div className="px-2">
-          <Link
-            href="/admin"
-            onClick={onNavClick}
-            className="block text-2xl font-black tracking-[0.16em] uppercase text-foreground"
-          >
-            ELARIS
-          </Link>
-          <p className="text-[10px] font-bold tracking-[0.2em] text-muted-foreground uppercase">
-            ADMIN PANEL
-          </p>
-        </div>
+        {!isMobileDrawer && (
+          <div className="px-2">
+            <Link
+              href="/admin"
+              onClick={onNavClick}
+              className="block text-2xl font-black tracking-[0.16em] uppercase text-foreground"
+            >
+              ELARIS
+            </Link>
+            <p className="text-[10px] font-bold tracking-[0.2em] text-muted-foreground uppercase">
+              ADMIN PANEL
+            </p>
+          </div>
+        )}
 
         {/* Navigation Groups */}
         <div className="space-y-5">
@@ -187,7 +198,12 @@ export function AdminDesktopSidebar({ user }: { user: UserInfo }) {
 /* ── Mobile drawer ── */
 export function AdminMobileNav({ user }: { user: UserInfo }) {
   const [open, setOpen] = useState(false);
+  const [mounted, setMounted] = useState(false);
   const pathname = usePathname();
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
 
   // Close drawer on route change
   useEffect(() => {
@@ -198,11 +214,78 @@ export function AdminMobileNav({ user }: { user: UserInfo }) {
   useEffect(() => {
     if (open) {
       document.body.style.overflow = "hidden";
+      document.body.style.touchAction = "none";
     } else {
       document.body.style.overflow = "";
+      document.body.style.touchAction = "";
     }
-    return () => { document.body.style.overflow = ""; };
+    return () => {
+      document.body.style.overflow = "";
+      document.body.style.touchAction = "";
+    };
   }, [open]);
+
+  // Close drawer on Escape key
+  useEffect(() => {
+    function handleKeyDown(e: KeyboardEvent) {
+      if (e.key === "Escape" && open) {
+        setOpen(false);
+      }
+    }
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [open]);
+
+  const drawerContent = (
+    <div
+      className={`fixed inset-0 z-[9999] lg:hidden transition-[visibility] duration-300 ${
+        open ? "visible pointer-events-auto" : "invisible pointer-events-none"
+      }`}
+      aria-hidden={!open}
+    >
+      {/* Backdrop */}
+      <div
+        className={`fixed inset-0 bg-black/60 backdrop-blur-sm transition-opacity duration-300 ${
+          open ? "opacity-100" : "opacity-0"
+        }`}
+        aria-hidden="true"
+        onClick={() => setOpen(false)}
+      />
+
+      {/* Drawer panel */}
+      <aside
+        id="admin-mobile-drawer"
+        role="dialog"
+        aria-modal="true"
+        aria-label="Admin navigation"
+        className={`fixed inset-y-0 left-0 z-[10000] w-72 sm:w-80 max-w-[85vw] h-[100dvh] overflow-y-auto overscroll-contain border-r border-border/80 bg-background p-5 shadow-2xl transition-transform duration-300 ease-in-out ${
+          open ? "translate-x-0" : "-translate-x-full"
+        }`}
+      >
+        {/* Top Header inside Drawer with Brand & Close Button */}
+        <div className="flex items-center justify-between pb-4 mb-3 border-b border-border/60">
+          <div>
+            <span className="block text-xl font-black tracking-[0.16em] uppercase text-foreground">
+              ELARIS
+            </span>
+            <span className="text-[9px] font-bold tracking-[0.2em] text-muted-foreground uppercase">
+              ADMIN PANEL
+            </span>
+          </div>
+          <button
+            type="button"
+            onClick={() => setOpen(false)}
+            className="flex h-9 w-9 items-center justify-center rounded-lg border border-border text-muted-foreground hover:bg-muted hover:text-foreground active:scale-95 transition-all"
+            aria-label="Close navigation menu"
+          >
+            <X size={18} />
+          </button>
+        </div>
+
+        <SidebarInner user={user} onNavClick={() => setOpen(false)} isMobileDrawer />
+      </aside>
+    </div>
+  );
 
   return (
     <>
@@ -211,50 +294,16 @@ export function AdminMobileNav({ user }: { user: UserInfo }) {
         id="admin-mobile-nav-trigger"
         type="button"
         onClick={() => setOpen(true)}
-        className="inline-flex lg:hidden items-center justify-center rounded-md p-2 text-muted-foreground hover:bg-muted hover:text-foreground transition-colors"
+        className="inline-flex lg:hidden items-center justify-center rounded-lg p-2 text-foreground hover:bg-muted active:scale-95 transition-all"
         aria-label="Open navigation menu"
         aria-expanded={open}
         aria-controls="admin-mobile-drawer"
       >
-        <Menu size={20} />
+        <Menu size={22} className="stroke-[2.2]" />
       </button>
 
-      {/* Backdrop */}
-      {open && (
-        <div
-          className="fixed inset-0 z-50 bg-black/40 backdrop-blur-sm lg:hidden"
-          aria-hidden="true"
-          onClick={() => setOpen(false)}
-        />
-      )}
-
-      {/* Drawer panel */}
-      <aside
-        id="admin-mobile-drawer"
-        role="dialog"
-        aria-modal="true"
-        aria-label="Admin navigation"
-        className={`fixed inset-y-0 left-0 z-50 w-72 overflow-y-auto border-r border-border/80 bg-background p-5 shadow-2xl transition-transform duration-300 ease-in-out lg:hidden ${
-          open ? "translate-x-0" : "-translate-x-full"
-        }`}
-      >
-        {/* Close button */}
-        <div className="flex items-center justify-between mb-4">
-          <span className="text-xs font-bold uppercase tracking-widest text-muted-foreground">
-            Navigation
-          </span>
-          <button
-            type="button"
-            onClick={() => setOpen(false)}
-            className="rounded-md p-1.5 text-muted-foreground hover:bg-muted hover:text-foreground transition-colors"
-            aria-label="Close navigation menu"
-          >
-            <X size={18} />
-          </button>
-        </div>
-
-        <SidebarInner user={user} onNavClick={() => setOpen(false)} />
-      </aside>
+      {/* Render drawer at body level via portal to avoid stacking context issues */}
+      {mounted && createPortal(drawerContent, document.body)}
     </>
   );
 }

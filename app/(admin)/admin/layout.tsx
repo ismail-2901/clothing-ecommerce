@@ -35,12 +35,12 @@ export default async function AdminLayout({
   };
 
   return (
-    <div className="min-h-screen bg-stone-50/50 text-foreground flex">
+    <div className="min-h-screen bg-stone-50/50 text-foreground flex flex-col lg:flex-row overflow-x-hidden">
       {/* Desktop sidebar (lg+) */}
       <AdminDesktopSidebar user={userInfo} />
 
       {/* Main Content Area */}
-      <div className="flex-1 lg:pl-64 flex flex-col min-w-0">
+      <div className="flex-1 lg:pl-64 flex flex-col min-w-0 max-w-full">
         {/* Top Header Bar */}
         <header className="sticky top-0 z-40 flex h-16 shrink-0 items-center justify-between border-b border-border/80 bg-background/95 backdrop-blur px-4 lg:px-8">
           {/* Mobile: hamburger + brand | Desktop: search bar */}
@@ -90,7 +90,7 @@ export default async function AdminLayout({
         </header>
 
         {/* Page Content */}
-        <main className="p-4 sm:p-6 lg:p-8 flex-1">{children}</main>
+        <main className="p-3.5 sm:p-6 lg:p-8 flex-1 max-w-full overflow-x-hidden">{children}</main>
       </div>
     </div>
   );
