@@ -40,15 +40,23 @@ export function detectShoppingIntent(message: string): AssistantStructuredOutput
     filters.maxPrice = budget * 100;
   }
 
-  if (normalized.includes("where is my order") || normalized.includes("order status")) {
+  if (normalized.match(/^(hi|hello|hey|greetings|help|who are you|what can you do)\b/)) {
     return {
-      intent: "ORDER_STATUS",
+      intent: "GENERAL_SUPPORT",
       filters,
-      response: "I can help with order status after verifying the signed-in customer session."
+      response: "Hello! I am ELARIS AI, your store shopping and customer assistant."
     };
   }
 
-  if (normalized.includes("return")) {
+  if (normalized.match(/track|order|where.*order|my order|status.*order|order.*status/)) {
+    return {
+      intent: "ORDER_STATUS",
+      filters,
+      response: "I can help with order status and real-time tracking."
+    };
+  }
+
+  if (normalized.includes("return") || normalized.includes("exchange")) {
     return {
       intent: "RETURN",
       filters,
@@ -56,11 +64,27 @@ export function detectShoppingIntent(message: string): AssistantStructuredOutput
     };
   }
 
-  if (normalized.includes("delivery") || normalized.includes("shipping")) {
+  if (normalized.includes("delivery") || normalized.includes("shipping") || normalized.includes("courier")) {
     return {
       intent: "DELIVERY",
       filters,
       response: "Delivery answers should be grounded in configured shipping rules."
+    };
+  }
+
+  if (normalized.match(/coupon|discount|promo|voucher|offer|deal|save\d+/)) {
+    return {
+      intent: "GENERAL_SUPPORT",
+      filters,
+      response: "Here are current offers and discounts available at ELARIS."
+    };
+  }
+
+  if (normalized.match(/contact|support|phone|email|address|location|store|hours|visit/)) {
+    return {
+      intent: "GENERAL_SUPPORT",
+      filters,
+      response: "Here is our store contact and location information."
     };
   }
 
