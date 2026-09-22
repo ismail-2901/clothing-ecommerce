@@ -95,8 +95,14 @@ async function callLLM(message: string, context: string): Promise<string | null>
   const apiKey = process.env.AI_PROVIDER_API_KEY;
   if (!apiKey) return null;
 
-  const provider = (process.env.AI_PROVIDER || "openai").toLowerCase();
-  const model = process.env.AI_MODEL_CHAT || (provider === "gemini" ? "gemini-1.5-flash" : "gpt-4o-mini");
+  const isGemini =
+    process.env.AI_PROVIDER?.toLowerCase() === "gemini" ||
+    apiKey.startsWith("AIza") ||
+    apiKey.startsWith("AQ.");
+
+  const model =
+    process.env.AI_MODEL_CHAT ||
+    (isGemini ? "gemini-flash-latest" : "gpt-4o-mini");
 
   const systemPrompt = `You are ELARIS AI, the knowledgeable and polite shopping assistant for ELARIS (a premium fashion clothing brand in Bangladesh).
 Knowledge context:
@@ -110,7 +116,7 @@ Instructions:
     const controller = new AbortController();
     const timeout = setTimeout(() => controller.abort(), 6000);
 
-    if (provider === "gemini" || apiKey.startsWith("AIza")) {
+    if (isGemini) {
       const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
