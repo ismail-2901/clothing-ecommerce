@@ -42,7 +42,13 @@ function buildUrl(base: string, overrides: Partial<Record<string, string>>, curr
   return `${base}${qs ? `?${qs}` : ""}`;
 }
 
-export function ShopFilters({ active }: { active: ActiveFilters }) {
+export function ShopFilters({
+  active,
+  categories: categoryProp,
+}: {
+  active: ActiveFilters;
+  categories?: Array<{ name: string; slug: string }>;
+}) {
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
@@ -61,17 +67,19 @@ export function ShopFilters({ active }: { active: ActiveFilters }) {
     active.q
   ].filter(Boolean).length;
 
-  const categories = [
-    { name: "All", slug: "" },
-    { name: "Women", slug: "women" },
-    { name: "Men", slug: "men" },
-    { name: "Tops", slug: "tops" },
-    { name: "Dresses", slug: "dresses" },
-    { name: "Outerwear", slug: "outerwear" },
-    { name: "Bottoms", slug: "bottoms" },
-    { name: "Activewear", slug: "activewear" },
-    { name: "Accessories", slug: "accessories" },
-  ];
+  const categories = categoryProp && categoryProp.length > 0
+    ? [{ name: "All", slug: "" }, ...categoryProp]
+    : [
+        { name: "All", slug: "" },
+        { name: "Women", slug: "women" },
+        { name: "Men", slug: "men" },
+        { name: "Tops", slug: "tops" },
+        { name: "Dresses", slug: "dresses" },
+        { name: "Outerwear", slug: "outerwear" },
+        { name: "Bottoms", slug: "bottoms" },
+        { name: "Activewear", slug: "activewear" },
+        { name: "Accessories", slug: "accessories" },
+      ];
 
   return (
     <aside className="space-y-7">

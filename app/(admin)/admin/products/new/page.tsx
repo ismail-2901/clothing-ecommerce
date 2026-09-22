@@ -2,29 +2,24 @@ export const dynamic = "force-dynamic";
 
 import { prisma } from "@/db/prisma";
 import { AdminProductForm } from "@/components/admin/admin-product-form";
+import { STANDARD_CATEGORIES } from "@/lib/constants/categories";
 
 export default async function AdminProductNewPage() {
-  let categories = await prisma.category.findMany({
-    where: { deletedAt: null },
-    select: { id: true, name: true, slug: true },
-    orderBy: { name: "asc" }
+  await prisma.category.createMany({
+    data: STANDARD_CATEGORIES.map((c) => ({
+      name: c.name,
+      slug: c.slug,
+      position: c.position,
+      description: c.description
+    })),
+    skipDuplicates: true
   });
 
-  if (categories.length === 0) {
-    await prisma.category.createMany({
-      data: [
-        { name: "Men", slug: "men" },
-        { name: "Women", slug: "women" },
-        { name: "Essentials", slug: "essentials" }
-      ],
-      skipDuplicates: true
-    });
-    categories = await prisma.category.findMany({
-      where: { deletedAt: null },
-      select: { id: true, name: true, slug: true },
-      orderBy: { name: "asc" }
-    });
-  }
+  const categories = await prisma.category.findMany({
+    where: { deletedAt: null },
+    select: { id: true, name: true, slug: true },
+    orderBy: [{ position: "asc" }, { name: "asc" }]
+  });
 
   return (
     <div>

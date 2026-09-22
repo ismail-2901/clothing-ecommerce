@@ -3,6 +3,7 @@ import Image from "next/image";
 import { ShopCatalogView } from "@/components/shop/shop-catalog-view";
 import { ShopFilters } from "@/components/shop/shop-filters";
 import { getFilteredProducts } from "@/features/catalog/data";
+import { prisma } from "@/db/prisma";
 
 type ShopPageProps = {
   searchParams: Promise<Record<string, string | string[] | undefined>>;
@@ -33,14 +34,21 @@ export default async function ShopPage({ searchParams }: ShopPageProps) {
 
   const { minPrice, maxPrice } = parsePriceRange(activePriceRange);
 
-  const allProducts = await getFilteredProducts({
-    category: activeCategory || undefined,
-    color: activeColor || undefined,
-    size: activeSize || undefined,
-    q: activeQ || undefined,
-    minPrice,
-    maxPrice
-  });
+  const [allProducts, categories] = await Promise.all([
+    getFilteredProducts({
+      category: activeCategory || undefined,
+      color: activeColor || undefined,
+      size: activeSize || undefined,
+      q: activeQ || undefined,
+      minPrice,
+      maxPrice
+    }),
+    prisma.category.findMany({
+      where: { deletedAt: null },
+      select: { name: true, slug: true },
+      orderBy: [{ position: "asc" }, { name: "asc" }]
+    })
+  ]);
 
   if (sort === "price_asc") {
     allProducts.sort((a, b) => (a.variants[0]?.price ?? 0) - (b.variants[0]?.price ?? 0));
@@ -118,6 +126,7 @@ export default async function ShopPage({ searchParams }: ShopPageProps) {
       <div className="grid gap-10 lg:grid-cols-[240px_1fr] items-start pt-2">
         {/* Sidebar Filters */}
         <ShopFilters
+          categories={categories}
           active={{
             category: activeCategory,
             size: activeSize,

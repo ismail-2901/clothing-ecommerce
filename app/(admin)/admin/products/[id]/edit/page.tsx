@@ -12,7 +12,7 @@ export default async function AdminProductEditPage({ params }: Props) {
   const categories = await prisma.category.findMany({
     where: { deletedAt: null },
     select: { id: true, name: true, slug: true },
-    orderBy: { name: "asc" },
+    orderBy: [{ position: "asc" }, { name: "asc" }],
   });
 
   const product = await prisma.product.findUnique({
