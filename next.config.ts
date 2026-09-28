@@ -1,4 +1,4 @@
-﻿import type { NextConfig } from "next";
+import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
   output: process.env.VERCEL ? undefined : "standalone", // standalone for Docker, native for Vercel
@@ -23,16 +23,6 @@ const nextConfig: NextConfig = {
   // Priority-6: Aggressive HTTP cache headers for immutable static assets
   async headers() {
     return [
-      {
-        // Next.js built assets -- immutable, cached for 1 year
-        source: "/_next/static/:path*",
-        headers: [
-          {
-            key: "Cache-Control",
-            value: "public, max-age=31536000, immutable"
-          }
-        ]
-      },
       {
         // Public folder assets (images, fonts) -- 1 week
         source: "/(.*\\.(?:png|jpg|jpeg|gif|webp|svg|ico|woff2?|ttf|otf|eot))",
