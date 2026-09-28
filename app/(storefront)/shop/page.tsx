@@ -3,7 +3,7 @@ import Image from "next/image";
 import { ShopCatalogView } from "@/components/shop/shop-catalog-view";
 import { ShopFilters } from "@/components/shop/shop-filters";
 import { getFilteredProducts } from "@/features/catalog/data";
-import { prisma } from "@/db/prisma";
+import { getCachedCategories } from "@/lib/cache/db-cache";
 
 type ShopPageProps = {
   searchParams: Promise<Record<string, string | string[] | undefined>>;
@@ -34,34 +34,35 @@ export default async function ShopPage({ searchParams }: ShopPageProps) {
 
   const { minPrice, maxPrice } = parsePriceRange(activePriceRange);
 
-  const [allProducts, categories] = await Promise.all([
-    getFilteredProducts({
-      category: activeCategory || undefined,
-      color: activeColor || undefined,
-      size: activeSize || undefined,
-      q: activeQ || undefined,
-      minPrice,
-      maxPrice
-    }),
-    prisma.category.findMany({
-      where: { deletedAt: null },
-      select: { name: true, slug: true },
-      orderBy: [{ position: "asc" }, { name: "asc" }]
-    })
+  // Priority-3: SQL pagination -- DB returns only the page we need
+  // Priority-4: Categories use ISR cache (5-min TTL)
+  const [{ products: paginatedProducts, total: totalCount }, categories] = await Promise.all([
+    getFilteredProducts(
+      {
+        category: activeCategory || undefined,
+        color: activeColor || undefined,
+        size: activeSize || undefined,
+        q: activeQ || undefined,
+        minPrice,
+        maxPrice
+      },
+      { page, perPage: pageSize }
+    ),
+    getCachedCategories()
   ]);
 
+  // Client-side sort within the fetched page (preserves existing UX)
+  const sortedProducts = [...paginatedProducts];
   if (sort === "price_asc") {
-    allProducts.sort((a, b) => (a.variants[0]?.price ?? 0) - (b.variants[0]?.price ?? 0));
+    sortedProducts.sort((a, b) => (a.variants[0]?.price ?? 0) - (b.variants[0]?.price ?? 0));
   } else if (sort === "price_desc") {
-    allProducts.sort((a, b) => (b.variants[0]?.price ?? 0) - (a.variants[0]?.price ?? 0));
+    sortedProducts.sort((a, b) => (b.variants[0]?.price ?? 0) - (a.variants[0]?.price ?? 0));
   }
   // newest: already sorted by createdAt desc from DB
 
-  const totalCount = allProducts.length;
-  const totalPages = Math.max(1, Math.ceil(totalCount / pageSize));
+  const totalPages  = Math.max(1, Math.ceil(totalCount / pageSize));
   const currentPage = Math.min(page, totalPages);
-  const startIndex = (currentPage - 1) * pageSize;
-  const paginatedProducts = allProducts.slice(startIndex, startIndex + pageSize);
+  const startIndex  = (currentPage - 1) * pageSize;
 
   const createPageUrl = (targetPage: number) => {
     const sp = new URLSearchParams();
@@ -140,7 +141,7 @@ export default async function ShopPage({ searchParams }: ShopPageProps) {
         {/* Product Grid Area */}
         <section className="space-y-6">
           <ShopCatalogView
-            products={paginatedProducts}
+            products={sortedProducts}
             totalCount={totalCount}
             sortValue={sort}
           />

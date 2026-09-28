@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { prisma } from "@/db/prisma";
 import { requireAdminSession } from "@/lib/auth/server";
+import { invalidateCatalogCache } from "@/features/catalog/data";
 
 const variantSchema = z.object({
   sku: z.string().min(1).max(100),
@@ -169,6 +170,9 @@ export async function POST(request: NextRequest) {
 
     return created;
   });
+
+  // Priority-4: Invalidate catalog cache so storefront reflects the new product
+  await invalidateCatalogCache();
 
   return NextResponse.json({ productId: product.id, slug: product.slug }, { status: 201 });
 }

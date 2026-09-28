@@ -1,5 +1,6 @@
-import type { Prisma } from "@prisma/client";
+﻿import type { Prisma } from "@prisma/client";
 import { prisma } from "@/db/prisma";
+import { cacheGet, cacheSet, cacheDelPattern } from "@/lib/redis/cache";
 
 export type CatalogVariant = {
   id: string;
@@ -51,28 +52,31 @@ export type CatalogFilter = {
   color?: string;
   size?: string;
   q?: string;
-  minPrice?: number; // in paisa (smallest unit)
-  maxPrice?: number; // in paisa
+  minPrice?: number;
+  maxPrice?: number;
+};
+
+// Priority-3: pagination is now done in SQL, not JS
+export type PaginatedCatalogResult = {
+  products: CatalogProduct[];
+  total: number;
 };
 
 const defaultCategories = [
   {
     name: "Men",
     slug: "men",
-    image:
-      "https://images.unsplash.com/photo-1516257984-b1b4d707412e?auto=format&fit=crop&w=1200&q=80"
+    image: "https://images.unsplash.com/photo-1516257984-b1b4d707412e?auto=format&fit=crop&w=1200&q=80"
   },
   {
     name: "Women",
     slug: "women",
-    image:
-      "https://images.unsplash.com/photo-1485968579580-b6d095142e6e?auto=format&fit=crop&w=1200&q=80"
+    image: "https://images.unsplash.com/photo-1485968579580-b6d095142e6e?auto=format&fit=crop&w=1200&q=80"
   },
   {
     name: "Essentials",
     slug: "essentials",
-    image:
-      "https://images.unsplash.com/photo-1520975954732-35dd22299614?auto=format&fit=crop&w=1200&q=80"
+    image: "https://images.unsplash.com/photo-1520975954732-35dd22299614?auto=format&fit=crop&w=1200&q=80"
   }
 ];
 
@@ -89,7 +93,6 @@ const defaultOffers = [
   }
 ];
 
-
 const productInclude = {
   category: true,
   collection: true,
@@ -104,9 +107,15 @@ type DbProduct = Prisma.ProductGetPayload<{
 
 // BUG-27 FIX: Strongly typed from Prisma schema rather than using unchecked any
 function mapDbProductToCatalogProduct(p: DbProduct): CatalogProduct {
-  const images = p.images.length > 0
-    ? p.images.map((img) => ({ src: img.url, alt: img.alt || p.name }))
-    : [{ src: "https://images.unsplash.com/photo-1521572163474-6864f9cf17ab?auto=format&fit=crop&w=1200&q=80", alt: p.name }];
+  const images =
+    p.images.length > 0
+      ? p.images.map((img) => ({ src: img.url, alt: img.alt || p.name }))
+      : [
+          {
+            src: "https://images.unsplash.com/photo-1521572163474-6864f9cf17ab?auto=format&fit=crop&w=1200&q=80",
+            alt: p.name
+          }
+        ];
 
   const rawVariants = p.variants.map((v) => ({
     id: v.id,
@@ -118,7 +127,7 @@ function mapDbProductToCatalogProduct(p: DbProduct): CatalogProduct {
     stock: v.stockQuantity
   }));
 
-  // Expand any legacy comma-combined sizes ("M, L, XL" → 3 entries)
+  // Expand any legacy comma-combined sizes ("M, L, XL" -> 3 entries)
   const expanded = rawVariants.flatMap((v) => {
     if (!v.size.includes(",")) return [v];
     return v.size
@@ -128,8 +137,8 @@ function mapDbProductToCatalogProduct(p: DbProduct): CatalogProduct {
       .map((size: string) => ({ ...v, size }));
   });
 
-  // Deduplicate by color+size (case-insensitive) — keep highest stock entry
-  const seen = new Map<string, typeof expanded[0]>();
+  // Deduplicate by color+size (case-insensitive) -- keep highest stock entry
+  const seen = new Map<string, (typeof expanded)[0]>();
   for (const v of expanded) {
     const key = `${v.color.trim().toLowerCase()}||${v.size.trim().toLowerCase()}`;
     const existing = seen.get(key);
@@ -155,7 +164,55 @@ function mapDbProductToCatalogProduct(p: DbProduct): CatalogProduct {
   };
 }
 
+/**
+ * Build the shared Prisma where clause from a CatalogFilter.
+ * Pure function used for both findMany and count queries.
+ */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+function buildWhereClause(filter: CatalogFilter): any {
+  const where: Record<string, unknown> = {
+    deletedAt: null,
+    status: "PUBLISHED"
+  };
+
+  if (filter.category) {
+    where.category = { slug: filter.category };
+  }
+
+  if (filter.size || filter.color) {
+    where.variants = {
+      some: {
+        deletedAt: null,
+        ...(filter.size && { size: { contains: filter.size, mode: "insensitive" } }),
+        ...(filter.color && { color: { equals: filter.color, mode: "insensitive" } })
+      }
+    };
+  }
+
+  if (filter.minPrice !== undefined || filter.maxPrice !== undefined) {
+    where.basePrice = {
+      ...(filter.minPrice !== undefined && { gte: filter.minPrice }),
+      ...(filter.maxPrice !== undefined && { lte: filter.maxPrice })
+    };
+  }
+
+  if (filter.q?.trim()) {
+    const query = filter.q.trim();
+    where.OR = [
+      { name: { contains: query, mode: "insensitive" } },
+      { description: { contains: query, mode: "insensitive" } },
+      { tags: { some: { name: { contains: query, mode: "insensitive" } } } }
+    ];
+  }
+
+  return where;
+}
+
 export async function getAllProducts(): Promise<CatalogProduct[]> {
+  const cacheKey = "catalog:all";
+  const cached = await cacheGet<CatalogProduct[]>(cacheKey);
+  if (cached) return cached;
+
   try {
     const dbProducts = await prisma.product.findMany({
       where: { deletedAt: null, status: "PUBLISHED" },
@@ -163,67 +220,62 @@ export async function getAllProducts(): Promise<CatalogProduct[]> {
       orderBy: { createdAt: "desc" }
     });
 
-    return dbProducts.map(mapDbProductToCatalogProduct);
+    const products = dbProducts.map(mapDbProductToCatalogProduct);
+    await cacheSet(cacheKey, products, 60);
+    return products;
   } catch (err) {
     console.error("[catalog:db]", err);
     return [];
   }
 }
 
-export async function getFilteredProducts(filter: CatalogFilter): Promise<CatalogProduct[]> {
+/**
+ * Priority-3: Paginated product query using SQL LIMIT/OFFSET.
+ * Returns products for the requested page AND the total matching count,
+ * so callers never need to fetch all rows just to compute pagination.
+ *
+ * Default perPage=1000 preserves backwards-compat with callers that
+ * previously fetched all results (they now get up to 1000 rows).
+ */
+export async function getFilteredProducts(
+  filter: CatalogFilter,
+  pagination?: { page?: number; perPage?: number }
+): Promise<PaginatedCatalogResult> {
+  const page = Math.max(1, pagination?.page ?? 1);
+  const perPage = Math.min(100, Math.max(1, pagination?.perPage ?? 1_000));
+
+  const cacheKey = `catalog:filtered:${JSON.stringify({ filter, page, perPage })}`;
+  const cached = await cacheGet<PaginatedCatalogResult>(cacheKey);
+  if (cached) return cached;
+
   try {
-    const where: any = {
-      deletedAt: null,
-      status: "PUBLISHED"
-    };
+    const where = buildWhereClause(filter);
 
-    if (filter.category) {
-      where.category = { slug: filter.category };
-    }
+    // Priority-3: Run count and page query in parallel -- single DB round-trip pair
+    const [dbProducts, total] = await Promise.all([
+      prisma.product.findMany({
+        where,
+        include: productInclude,
+        orderBy: { createdAt: "desc" },
+        skip: (page - 1) * perPage,
+        take: perPage
+      }),
+      prisma.product.count({ where })
+    ]);
 
-    if (filter.size || filter.color) {
-      where.variants = {
-        some: {
-          deletedAt: null,
-          ...(filter.size && { size: { contains: filter.size, mode: "insensitive" } }),
-          ...(filter.color && { color: { equals: filter.color, mode: "insensitive" } })
-        }
-      };
-    }
-
-    if (filter.minPrice !== undefined || filter.maxPrice !== undefined) {
-      where.basePrice = {
-        ...(filter.minPrice !== undefined && { gte: filter.minPrice }),
-        ...(filter.maxPrice !== undefined && { lte: filter.maxPrice })
-      };
-    }
-
-    if (filter.q?.trim()) {
-      const query = filter.q.trim();
-      where.OR = [
-        { name: { contains: query, mode: "insensitive" } },
-        { description: { contains: query, mode: "insensitive" } },
-        { tags: { some: { name: { contains: query, mode: "insensitive" } } } }
-      ];
-    }
-
-    const dbProducts = await prisma.product.findMany({
-      where,
-      include: productInclude,
-      orderBy: { createdAt: "desc" }
-    });
-
-    const products = dbProducts.map(mapDbProductToCatalogProduct);
+    let products = dbProducts.map(mapDbProductToCatalogProduct);
 
     // BUG-36 FIX: When filtering by size or color, post-filter the product's variants
     // so only the matching active variants are returned, and products with 0 matching
     // variants after filtering are excluded.
     if (filter.size || filter.color) {
-      return products
+      products = products
         .map((p) => {
           const matchingVariants = p.variants.filter((v) => {
-            const matchSize = !filter.size || v.size.toLowerCase().includes(filter.size.toLowerCase());
-            const matchColor = !filter.color || v.color.toLowerCase() === filter.color.toLowerCase();
+            const matchSize =
+              !filter.size || v.size.toLowerCase().includes(filter.size.toLowerCase());
+            const matchColor =
+              !filter.color || v.color.toLowerCase() === filter.color.toLowerCase();
             return matchSize && matchColor;
           });
           return { ...p, variants: matchingVariants };
@@ -231,14 +283,20 @@ export async function getFilteredProducts(filter: CatalogFilter): Promise<Catalo
         .filter((p) => p.variants.length > 0);
     }
 
-    return products;
+    const result: PaginatedCatalogResult = { products, total };
+    await cacheSet(cacheKey, result, 60);
+    return result;
   } catch (err) {
     console.error("[catalog:getFilteredProducts]", err);
-    return [];
+    return { products: [], total: 0 };
   }
 }
 
 export async function getProductBySlug(slug: string): Promise<CatalogProduct | undefined> {
+  const cacheKey = `catalog:slug:${slug}`;
+  const cached = await cacheGet<CatalogProduct>(cacheKey);
+  if (cached) return cached;
+
   try {
     const product = await prisma.product.findUnique({
       where: { slug },
@@ -249,7 +307,9 @@ export async function getProductBySlug(slug: string): Promise<CatalogProduct | u
       return undefined;
     }
 
-    return mapDbProductToCatalogProduct(product);
+    const mapped = mapDbProductToCatalogProduct(product);
+    await cacheSet(cacheKey, mapped, 120);
+    return mapped;
   } catch (err) {
     console.error("[catalog:getProductBySlug]", err);
     return undefined;
@@ -348,7 +408,17 @@ export async function getProductReviews(productId: string): Promise<ProductRevie
 }
 
 export async function getCatalogHighlights() {
-  const products = await getAllProducts();
+  const cacheKey = "catalog:highlights";
+  const cached = await cacheGet<Awaited<ReturnType<typeof _buildHighlights>>>(cacheKey);
+  if (cached) return cached;
+
+  const result = await _buildHighlights();
+  await cacheSet(cacheKey, result, 120);
+  return result;
+}
+
+async function _buildHighlights() {
+  const { products } = await getFilteredProducts({});
   return {
     hero: {
       kicker: "Single-brand clothing commerce",
@@ -362,4 +432,11 @@ export async function getCatalogHighlights() {
     offers: defaultOffers,
     curatedProducts: products
   };
+}
+
+/**
+ * Call this after any admin product mutation to invalidate catalog caches.
+ */
+export async function invalidateCatalogCache() {
+  await cacheDelPattern("catalog:*");
 }

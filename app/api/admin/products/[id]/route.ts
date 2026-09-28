@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { prisma } from "@/db/prisma";
 import { requireAdminSession } from "@/lib/auth/server";
+import { invalidateCatalogCache } from "@/features/catalog/data";
 
 type RouteParams = { params: Promise<{ id: string }> };
 
@@ -277,6 +278,9 @@ export async function DELETE(request: NextRequest, { params }: RouteParams) {
       });
     }
   });
+
+  // Priority-4: Invalidate catalog cache so storefront reflects deletion
+  await invalidateCatalogCache();
 
   return new NextResponse(null, { status: 204 });
 }

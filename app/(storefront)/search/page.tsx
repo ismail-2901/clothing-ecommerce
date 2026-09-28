@@ -20,9 +20,10 @@ export default async function SearchPage({ searchParams }: SearchPageProps) {
   const params = await searchParams;
   const q = readParam(params.q)?.trim() ?? "";
 
-  const products = q
-    ? await getFilteredProducts({ q })
-    : [];
+  const { products } = q
+    ? await getFilteredProducts({ q }, { page: 1, perPage: 20 })
+    : { products: [] as import("@/features/catalog/data").CatalogProduct[] };
+
 
   return (
     <div className="container-shell py-10">

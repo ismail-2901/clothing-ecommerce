@@ -1,4 +1,4 @@
-import { NextResponse } from "next/server";
+﻿import { NextResponse } from "next/server";
 import { getFilteredProducts } from "@/features/catalog/data";
 import { rateLimiter } from "@/lib/rate-limit/rate-limit";
 import { getClientIp } from "@/lib/auth/otp";
@@ -14,21 +14,22 @@ export async function GET(request: Request) {
     );
   }
 
-  const url = new URL(request.url);
-  const q = url.searchParams.get("q") ?? undefined;
-  const color = url.searchParams.get("color") ?? undefined;
-  const size = url.searchParams.get("size") ?? undefined;
+  const url      = new URL(request.url);
+  const q        = url.searchParams.get("q")        ?? undefined;
+  const color    = url.searchParams.get("color")    ?? undefined;
+  const size     = url.searchParams.get("size")     ?? undefined;
   const category = url.searchParams.get("category") ?? undefined;
 
-  const products = await getFilteredProducts({ q, color, size, category });
+  // Priority-3: SQL pagination -- pass a generous perPage for search suggestions
+  const { products } = await getFilteredProducts({ q, color, size, category }, { page: 1, perPage: 20 });
 
   return NextResponse.json({
     products: products.map((product) => ({
-      id: product.id,
-      name: product.name,
-      slug: product.slug,
+      id:      product.id,
+      name:    product.name,
+      slug:    product.slug,
       category: product.category,
-      price: product.variants[0]?.price ?? 0,
+      price:   product.variants[0]?.price ?? 0,
       inStock: product.variants.some((variant) => variant.stock > 0)
     }))
   });

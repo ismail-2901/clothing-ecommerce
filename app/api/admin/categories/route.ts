@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { prisma } from "@/db/prisma";
 import { requireAdminSession } from "@/lib/auth/server";
+import { revalidateTag } from "next/cache";
 
 const createCategorySchema = z.object({
   name: z.string().min(1).max(100),
@@ -74,6 +75,10 @@ export async function POST(request: NextRequest) {
       }
     });
   }
+
+  // Priority-4: Invalidate ISR categories cache (Next.js 16 requires profile arg)
+  revalidateTag("categories", "max");
+
 
   return NextResponse.json({ category }, { status: 201 });
 }
