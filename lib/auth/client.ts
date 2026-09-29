@@ -16,3 +16,9 @@ export const {
   requestPasswordReset,
   resetPassword
 } = authClient;
+
+// Which social providers are configured (set at build time via env)
+export const SOCIAL_PROVIDERS = {
+  google: !!(process.env.NEXT_PUBLIC_GOOGLE_ENABLED === "true"),
+  apple: !!(process.env.NEXT_PUBLIC_APPLE_ENABLED === "true")
+} as const;
