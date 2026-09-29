@@ -39,7 +39,7 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
 
   const order = await prisma.order.findUnique({ where: { id } });
   if (!order) {
-    return NextResponse.json({ error: "Order not found." }, { status: 404 });
+    return NextResponse.json({ error: "Order not found" }, { status: 404 });
   }
 
   // BUG-37 FIX: Guard against transitioning to the already-current status

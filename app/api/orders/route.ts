@@ -56,13 +56,34 @@ function deriveShippingFee(subtotal: number, city: string): number {
   return subtotal >= storePolicies.shipping.freeThreshold * 100 ? 0 : baseFee;
 }
 
+const orderLocks = new Map<string, Promise<NextResponse>>();
+const idempotencyStore = new Map<string, { body: any; status: number }>();
+
 export async function POST(request: NextRequest) {
-  let body: unknown;
-  try {
-    body = await request.json();
-  } catch {
-    return NextResponse.json({ error: "Invalid request body" }, { status: 400 });
+  const idempotencyKey =
+    request.headers.get("idempotency-key") ||
+    request.headers.get("Idempotency-Key") ||
+    request.headers.get("x-idempotency-key");
+
+  if (idempotencyKey) {
+    const cached = idempotencyStore.get(idempotencyKey);
+    if (cached) {
+      return NextResponse.json(cached.body, { status: cached.status });
+    }
+    const inFlight = orderLocks.get(idempotencyKey);
+    if (inFlight) {
+      const res = await inFlight;
+      return res.clone();
+    }
   }
+
+  const handleOrderCreation = async (): Promise<NextResponse> => {
+    let body: unknown;
+    try {
+      body = await request.json();
+    } catch {
+      return NextResponse.json({ error: "Invalid request body" }, { status: 400 });
+    }
 
   const parsed = createOrderSchema.safeParse(body);
   if (!parsed.success) {
@@ -263,6 +284,13 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: paymentResult.error || "Payment failed." }, { status: 400 });
   }
 
+  if (process.env.NODE_ENV === "production" && paymentResult.redirectUrl?.includes("/payment-sim")) {
+    return NextResponse.json(
+      { error: "Online payment gateway is temporarily unavailable. Please select Cash on Delivery." },
+      { status: 400 }
+    );
+  }
+
   // -----------------------------------------------------------------------
   // DB transaction: validate stock + reserve + create order
   // -----------------------------------------------------------------------
@@ -442,14 +470,20 @@ export async function POST(request: NextRequest) {
     });
   }
 
-  const response = NextResponse.json({
+  const responsePayload = {
     orderId: order.id,
     orderNumber: order.orderNumber,
     status: order.status,
     grandTotal: order.grandTotal,
     paymentStatus: paymentResult.status,
     paymentUrl: paymentResult.redirectUrl ?? null
-  }, { status: 201 });
+  };
+
+  if (idempotencyKey) {
+    idempotencyStore.set(idempotencyKey, { body: responsePayload, status: 201 });
+  }
+
+  const response = NextResponse.json(responsePayload, { status: 201 });
 
   if (!session) {
     response.cookies.delete(ANON_COOKIE);
@@ -467,6 +501,19 @@ export async function POST(request: NextRequest) {
   }
 
   return response;
+  };
+
+  if (idempotencyKey) {
+    const promise = handleOrderCreation();
+    orderLocks.set(idempotencyKey, promise);
+    try {
+      return await promise;
+    } finally {
+      orderLocks.delete(idempotencyKey);
+    }
+  }
+
+  return await handleOrderCreation();
 }
 
 

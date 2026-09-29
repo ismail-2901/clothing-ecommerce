@@ -462,37 +462,42 @@ export function CheckoutShell() {
                 {
                   id: "COD",
                   name: "Cash on Delivery",
-                  desc: "Pay in cash when your order arrives. Standard Bangladesh delivery.",
-                  badge: "Most Popular",
-                  icon: Banknote
+                  desc: "Pay in cash when your order arrives. Standard nationwide delivery across Bangladesh.",
+                  badge: "Active / Most Popular",
+                  icon: Banknote,
+                  disabled: false
                 },
                 {
                   id: "BKASH",
                   name: "bKash",
-                  desc: "Instant payment using your personal bKash mobile wallet.",
-                  badge: "Instant",
-                  icon: Wallet
+                  desc: "Instant payment using your bKash mobile wallet (Under Maintenance).",
+                  badge: "Maintenance",
+                  icon: Wallet,
+                  disabled: true
                 },
                 {
                   id: "NAGAD",
                   name: "Nagad",
-                  desc: "Fast checkout using your Nagad account with 0% extra fee.",
-                  badge: "Instant",
-                  icon: Wallet
+                  desc: "Fast checkout using your Nagad account (Under Maintenance).",
+                  badge: "Maintenance",
+                  icon: Wallet,
+                  disabled: true
                 },
                 {
                   id: "SSLCOMMERZ",
                   name: "SSLCommerz Gateway",
-                  desc: "All BD cards, internet banking, and mobile financial services.",
-                  badge: "Multi-Gateway",
-                  icon: ShieldCheck
+                  desc: "All BD cards, internet banking, and mobile financial services (Under Maintenance).",
+                  badge: "Maintenance",
+                  icon: ShieldCheck,
+                  disabled: true
                 },
                 {
                   id: "CARD",
                   name: "Credit / Debit Card",
-                  desc: "Direct card payment via Visa, MasterCard, or American Express.",
-                  badge: "Encrypted",
-                  icon: CreditCard
+                  desc: "Direct card payment via Visa, MasterCard, or American Express (Under Maintenance).",
+                  badge: "Maintenance",
+                  icon: CreditCard,
+                  disabled: true
                 }
               ].map((method) => {
                 const Icon = method.icon;
@@ -500,10 +505,12 @@ export function CheckoutShell() {
                 return (
                   <label
                     key={method.id}
-                    className={`flex items-start gap-3.5 rounded-xl border p-4 cursor-pointer transition-all ${
-                      isSelected
-                        ? "border-foreground bg-foreground/[0.03] shadow-sm ring-1 ring-foreground"
-                        : "border-border hover:border-foreground/40 bg-background"
+                    className={`flex items-start gap-3.5 rounded-xl border p-4 transition-all ${
+                      method.disabled
+                        ? "opacity-50 cursor-not-allowed bg-muted/20 border-border/50"
+                        : isSelected
+                        ? "border-foreground bg-foreground/[0.03] shadow-sm ring-1 ring-foreground cursor-pointer"
+                        : "border-border hover:border-foreground/40 bg-background cursor-pointer"
                     }`}
                   >
                     <input
@@ -511,15 +518,20 @@ export function CheckoutShell() {
                       name="paymentMethod"
                       value={method.id}
                       checked={isSelected}
-                      onChange={(e) => setFormData({ ...formData, paymentMethod: e.target.value })}
-                      className="mt-1 h-4 w-4 border-border text-foreground accent-foreground cursor-pointer"
+                      disabled={method.disabled}
+                      onChange={(e) => {
+                        if (!method.disabled) {
+                          setFormData({ ...formData, paymentMethod: e.target.value });
+                        }
+                      }}
+                      className="mt-1 h-4 w-4 border-border text-foreground accent-foreground disabled:cursor-not-allowed"
                     />
                     <div className="flex-1 space-y-1">
                       <div className="flex items-center gap-2">
                         <Icon size={16} className={isSelected ? "text-foreground" : "text-muted-foreground"} />
                         <span className="text-xs font-bold text-foreground">{method.name}</span>
                         {method.badge && (
-                          <span className="rounded bg-muted px-1.5 py-0.5 text-[9px] font-bold text-foreground uppercase">
+                          <span className={`rounded px-1.5 py-0.5 text-[9px] font-bold uppercase ${method.disabled ? "bg-muted text-muted-foreground" : "bg-emerald-100 text-emerald-800"}`}>
                             {method.badge}
                           </span>
                         )}

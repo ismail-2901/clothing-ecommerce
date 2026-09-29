@@ -77,6 +77,23 @@ export async function POST(
       });
 
       if (payment) {
+        if (payment.provider !== providerInstance.code) {
+          return NextResponse.json({ error: "Payment provider mismatch" }, { status: 422 });
+        }
+
+        if (webhookResult.amount !== undefined && webhookResult.amount !== payment.amount) {
+          return NextResponse.json({ error: "Payment amount mismatch" }, { status: 422 });
+        }
+
+        if (payment.status === "PAID" && webhookResult.status === "PAID") {
+          return NextResponse.json({
+            received: true,
+            provider: providerInstance.code,
+            reference: webhookResult.reference,
+            status: payment.status
+          });
+        }
+
         await prisma.$transaction(async (tx) => {
           await tx.payment.update({
             where: { id: payment.id },

@@ -263,7 +263,7 @@ export class SSLCommerzProvider implements PaymentProvider {
 
   async webhook(payload: unknown): Promise<WebhookResult> {
     const data = (payload || {}) as Record<string, unknown>;
-    const tranId = String(data.tran_id || data.tranId || "");
+    const tranId = String(data.val_id || data.tran_id || data.tranId || data.value_a || "");
     const statusStr = String(data.status || "").toUpperCase();
     const isPaid = statusStr === "VALID" || statusStr === "VALIDATED" || statusStr === "SUCCESS";
 

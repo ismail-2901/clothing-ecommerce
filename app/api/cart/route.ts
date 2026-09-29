@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
+import type { Prisma } from "@prisma/client";
 import { prisma } from "@/db/prisma";
 import { getServerSession } from "@/lib/auth/server";
 import { cookies } from "next/headers";
@@ -15,46 +16,78 @@ async function resolveCartIdentity(request: NextRequest) {
   return { userId: session?.userId ?? null, anonymousId: anonId };
 }
 
-async function getOrCreateCart(userId: string | null, anonymousId: string) {
-  const where = userId
-    ? { userId, status: "ACTIVE" as const }
-    : { anonymousId, status: "ACTIVE" as const };
-
-  let cart = await prisma.cart.findFirst({
-    where,
-    include: {
-      items: {
-        include: {
-          variant: {
-            include: {
-              product: { include: { images: { orderBy: { position: "asc" }, take: 1 } } }
-            }
-          }
-        }
-      },
-      coupon: true
-    }
-  });
-
-  if (!cart) {
-    cart = await prisma.cart.create({
-      data: { userId, anonymousId, status: "ACTIVE" },
+type CartWithRelations = Prisma.CartGetPayload<{
+  include: {
+    items: {
       include: {
-        items: {
+        variant: {
           include: {
-            variant: {
-              include: {
-                product: { include: { images: { orderBy: { position: "asc" }, take: 1 } } }
-              }
-            }
-          }
-        },
-        coupon: true
-      }
-    });
+            product: { include: { images: { orderBy: { position: "asc" }, take: 1 } } };
+          };
+        };
+      };
+    };
+    coupon: true;
+  };
+}>;
+
+const cartLocks = new Map<string, Promise<CartWithRelations>>();
+
+async function getOrCreateCart(userId: string | null, anonymousId: string): Promise<CartWithRelations> {
+  const key = userId ? `user:${userId}` : `anon:${anonymousId}`;
+  const existingLock = cartLocks.get(key);
+  if (existingLock) {
+    return existingLock;
   }
 
-  return cart;
+  const promise = (async () => {
+    try {
+      const where = userId
+        ? { userId, status: "ACTIVE" as const }
+        : { anonymousId, status: "ACTIVE" as const };
+
+      let cart = await prisma.cart.findFirst({
+        where,
+        include: {
+          items: {
+            include: {
+              variant: {
+                include: {
+                  product: { include: { images: { orderBy: { position: "asc" }, take: 1 } } }
+                }
+              }
+            }
+          },
+          coupon: true
+        }
+      });
+
+      if (!cart) {
+        cart = await prisma.cart.create({
+          data: { userId, anonymousId, status: "ACTIVE" },
+          include: {
+            items: {
+              include: {
+                variant: {
+                  include: {
+                    product: { include: { images: { orderBy: { position: "asc" }, take: 1 } } }
+                  }
+                }
+              }
+            },
+            coupon: true
+          }
+        });
+      }
+
+      return cart;
+    } finally {
+      cartLocks.delete(key);
+    }
+  })();
+
+  cartLocks.set(key, promise);
+  return promise;
 }
 
 function serializeCart(cart: Awaited<ReturnType<typeof getOrCreateCart>>) {

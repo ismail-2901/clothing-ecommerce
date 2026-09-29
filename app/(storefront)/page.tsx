@@ -1,9 +1,14 @@
 import Image from "next/image";
 import Link from "next/link";
-import { ArrowRight } from "lucide-react";
+import { ArrowRight, Sparkles } from "lucide-react";
 import { HeroSlider } from "@/components/home/hero-slider";
+import { getAllProducts } from "@/features/catalog/data";
+import { ProductCard } from "@/components/product/product-card";
 
-export default function HomePage() {
+export default async function HomePage() {
+  const products = await getAllProducts();
+  const featuredProducts = products.slice(0, 8);
+
   const categoryGrid = [
     {
       label: "Women",
@@ -65,6 +70,37 @@ export default function HomePage() {
           </div>
         </div>
       </section>
+
+      {/* ── Featured Products Grid ── */}
+      {featuredProducts.length > 0 && (
+        <section className="py-14 bg-background">
+          <div className="container-shell space-y-8">
+            <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-4 border-b border-border/80 pb-4">
+              <div>
+                <div className="flex items-center gap-1.5 text-xs font-bold uppercase tracking-widest text-muted-foreground">
+                  <Sparkles size={14} className="text-amber-500" />
+                  <span>Curated Collection</span>
+                </div>
+                <h2 className="mt-1 text-2xl sm:text-3xl font-extrabold tracking-tight text-foreground">
+                  Featured Arrivals
+                </h2>
+              </div>
+              <Link
+                href="/shop"
+                className="inline-flex items-center gap-1 text-xs font-bold text-foreground hover:underline underline-offset-4"
+              >
+                View All Products <ArrowRight size={14} />
+              </Link>
+            </div>
+
+            <div className="grid grid-cols-2 gap-4 sm:gap-6 md:grid-cols-3 lg:grid-cols-4">
+              {featuredProducts.map((product) => (
+                <ProductCard key={product.id} product={product} />
+              ))}
+            </div>
+          </div>
+        </section>
+      )}
     </div>
   );
 }

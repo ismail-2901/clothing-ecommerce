@@ -2,7 +2,7 @@
 
 import { useState, type FormEvent } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { Eye, EyeOff } from "lucide-react";
 import { signIn } from "@/lib/auth/client";
 import { Button } from "@/components/ui/button";
@@ -11,6 +11,7 @@ import { Spinner } from "@/components/ui/spinner";
 
 export function LoginForm() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
@@ -47,7 +48,8 @@ export function LoginForm() {
         // ignore merge network failure
       }
 
-      router.push("/account");
+      const callbackUrl = searchParams.get("callbackUrl");
+      router.push(callbackUrl && callbackUrl.startsWith("/") ? callbackUrl : "/account");
       router.refresh();
     } catch {
       setLoading(false);

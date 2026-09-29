@@ -3,7 +3,7 @@ import { prisma } from "@/db/prisma";
 
 export const dynamic = "force-dynamic";
 
-const LATEST_COMMITTED_MIGRATION = "20260903093835_add_otp_fields";
+const LATEST_COMMITTED_MIGRATION = "20260922220000_seed_standard_categories";
 
 export async function GET() {
   const startTime = Date.now();
@@ -39,8 +39,11 @@ export async function GET() {
       if (hasFailed) {
         migrationStatus = "failed";
       } else {
-        const latestFinished = migrations.find((m) => m.finished_at !== null)?.migration_name;
-        if (latestFinished === LATEST_COMMITTED_MIGRATION) {
+        // Check that the expected latest migration appears in the finished set
+        const finishedNames = migrations
+          .filter((m) => m.finished_at !== null)
+          .map((m) => m.migration_name);
+        if (finishedNames.includes(LATEST_COMMITTED_MIGRATION)) {
           migrationStatus = "ready";
         } else {
           migrationStatus = "pending";

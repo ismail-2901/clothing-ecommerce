@@ -3,7 +3,6 @@ import { NextResponse, type NextRequest } from "next/server";
 // Paths that require the user to be authenticated (session cookie present)
 const AUTH_REQUIRED_PATTERNS = [
   /^\/account(\/|$)/,
-  /^\/api\/orders(\/|$)/,
   /^\/api\/wishlist(\/|$)/,
   /^\/api\/checkout(\/|$)/,
 ];
@@ -14,12 +13,22 @@ const ADMIN_REQUIRED_PATTERNS = [
   /^\/api\/admin(\/|$)/,
 ];
 
-// better-auth session cookie name
+// better-auth session cookie names (standard + production HTTPS __Secure- prefix)
 const SESSION_COOKIE = "better-auth.session_token";
+const SECURE_SESSION_COOKIE = "__Secure-better-auth.session_token";
 
-export function proxy(request: NextRequest) {
+function hasSessionCookie(request: NextRequest): boolean {
+  // Try Next.js cookies API first
+  if (request.cookies.get(SECURE_SESSION_COOKIE)?.value) return true;
+  if (request.cookies.get(SESSION_COOKIE)?.value) return true;
+  // Fallback: raw Cookie header (Edge runtime may not expose __Secure- cookies via .get())
+  const raw = request.headers.get("cookie") ?? "";
+  return raw.includes(SECURE_SESSION_COOKIE + "=") || raw.includes(SESSION_COOKIE + "=");
+}
+
+export function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
-  const sessionCookie = request.cookies.get(SESSION_COOKIE)?.value;
+  const sessionCookie = hasSessionCookie(request);
 
   const isAdminPath = ADMIN_REQUIRED_PATTERNS.some((re) => re.test(pathname));
   const isAuthPath = AUTH_REQUIRED_PATTERNS.some((re) => re.test(pathname));
