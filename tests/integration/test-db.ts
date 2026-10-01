@@ -1,4 +1,3 @@
-import net from "node:net";
 import fs from "node:fs";
 import { execSync } from "node:child_process";
 import { PrismaPg } from "@prisma/adapter-pg";
@@ -12,51 +11,136 @@ process.env.DATABASE_URL = TEST_DATABASE_URL;
 process.env.DIRECT_URL = TEST_DATABASE_URL;
 
 let prismaInstance: PrismaClient | null = null;
+let pgServerInstance: any = null;
 
-function isPortListening(port: number, host = "127.0.0.1"): Promise<boolean> {
-  return new Promise((resolve) => {
-    const socket = new net.Socket();
-    socket.setTimeout(800);
-    socket.once("connect", () => {
-      socket.destroy();
-      resolve(true);
-    });
-    socket.once("timeout", () => {
-      socket.destroy();
-      resolve(false);
-    });
-    socket.once("error", () => {
-      socket.destroy();
-      resolve(false);
-    });
-    socket.connect(port, host);
+/**
+ * Checks whether PostgreSQL is accepting SQL queries on the specified port.
+ */
+export async function isPostgresQueryable(
+  port: number = TEST_PORT,
+  timeoutMs = 1_000
+): Promise<boolean> {
+  const { Pool } = await import("pg");
+  const pool = new Pool({
+    host: "127.0.0.1",
+    port,
+    user: "postgres",
+    password: "password",
+    database: "postgres",
+    connectionTimeoutMillis: timeoutMs,
+    idleTimeoutMillis: 500,
+    max: 1
   });
+  try {
+    await pool.query("SELECT 1");
+    await pool.end();
+    return true;
+  } catch {
+    await pool.end().catch(() => {});
+    return false;
+  }
 }
 
-export async function ensureTestDatabase(): Promise<PrismaClient> {
-  const isListening = await isPortListening(TEST_PORT);
-  if (!isListening) {
-    const { default: EmbeddedPostgres } = await import("embedded-postgres");
-    const pg = new EmbeddedPostgres({
-      databaseDir: "./.test-pg-data",
+/**
+ * Polls PostgreSQL with a real SELECT 1 query until the server is fully ready
+ * to accept connections — not just TCP-bound.
+ *
+ * PostgreSQL binds the port before completing WAL recovery and checkpoint sync,
+ * so a TCP-only check succeeds 2-4 seconds before the server can actually serve queries.
+ * This polling loop bridges that gap with bounded retries and informative diagnostic errors.
+ *
+ * @param port       TCP port to probe (default TEST_PORT)
+ * @param timeoutMs  Total wait budget in ms (default 25 000)
+ * @param intervalMs Delay between retry attempts in ms (default 250)
+ */
+export async function waitUntilQueryable(
+  port: number = TEST_PORT,
+  timeoutMs = 25_000,
+  intervalMs = 250
+): Promise<void> {
+  const { Pool } = await import("pg");
+  const deadline = Date.now() + timeoutMs;
+  let lastError = "unknown error";
+
+  while (Date.now() < deadline) {
+    const pool = new Pool({
+      host: "127.0.0.1",
+      port,
       user: "postgres",
       password: "password",
-      port: TEST_PORT,
-      persistent: true
+      database: "postgres",
+      connectionTimeoutMillis: 1_000,
+      idleTimeoutMillis: 500,
+      max: 1
     });
-
-    if (!fs.existsSync("./.test-pg-data")) {
-      await pg.initialise();
-    }
-    await pg.start();
     try {
-      await pg.createDatabase(TEST_DB_NAME);
-    } catch {
-      // Database already exists
+      await pool.query("SELECT 1");
+      await pool.end();
+      return; // PG is accepting SQL queries
+    } catch (err: unknown) {
+      lastError = err instanceof Error ? err.message : String(err);
+    } finally {
+      await pool.end().catch(() => {});
     }
+    await new Promise<void>((resolve) => setTimeout(resolve, intervalMs));
   }
 
-  // Always deploy committed migrations and fail suite if migration deployment fails
+  throw new Error(
+    `PostgreSQL on 127.0.0.1:${port} did not become queryable within ` +
+    `${timeoutMs}ms. Last diagnostic error: ${lastError}`
+  );
+}
+
+/**
+ * Starts the embedded PostgreSQL server process once, waits until it is fully queryable,
+ * creates the test database if needed, and applies migrations.
+ */
+export async function startTestDatabase(): Promise<void> {
+  const ready = await isPostgresQueryable(TEST_PORT, 1_000);
+  if (ready) {
+    return;
+  }
+
+  const { default: EmbeddedPostgres } = await import("embedded-postgres");
+  pgServerInstance = new EmbeddedPostgres({
+    databaseDir: "./.test-pg-data",
+    user: "postgres",
+    password: "password",
+    port: TEST_PORT,
+    persistent: true
+  });
+
+  if (!fs.existsSync("./.test-pg-data")) {
+    await pgServerInstance.initialise();
+  }
+  await pgServerInstance.start();
+
+  // Bounded readiness polling using real SELECT 1 queries
+  await waitUntilQueryable(TEST_PORT, 25_000, 250);
+
+  // Ensure test database exists
+  const { Client } = await import("pg");
+  const adminClient = new Client({
+    host: "127.0.0.1",
+    port: TEST_PORT,
+    user: "postgres",
+    password: "password",
+    database: "postgres"
+  });
+  await adminClient.connect();
+  try {
+    const res = await adminClient.query(
+      "SELECT 1 FROM pg_database WHERE datname = $1",
+      [TEST_DB_NAME]
+    );
+    if (res.rowCount === 0) {
+      await adminClient.query(`CREATE DATABASE "${TEST_DB_NAME}"`);
+    }
+  } finally {
+    await adminClient.end().catch(() => {});
+  }
+
+  // Deploy migrations to ensure test database schema matches Prisma schema
   try {
     execSync("npx prisma migrate deploy", {
       env: {
@@ -71,6 +155,27 @@ export async function ensureTestDatabase(): Promise<PrismaClient> {
     const errorMsg = err.stderr || err.stdout || err.message;
     throw new Error(`Prisma migration deployment failed against test database:\n${errorMsg}`);
   }
+}
+
+/**
+ * Shuts down the embedded PostgreSQL server process if it was started in this process.
+ */
+export async function stopTestDatabase(): Promise<void> {
+  if (pgServerInstance) {
+    try {
+      await pgServerInstance.stop();
+    } catch {
+      // Best-effort cleanup
+    }
+    pgServerInstance = null;
+  }
+}
+
+export async function ensureTestDatabase(): Promise<PrismaClient> {
+  const ready = await isPostgresQueryable(TEST_PORT, 1_000);
+  if (!ready) {
+    await startTestDatabase();
+  }
 
   if (!prismaInstance) {
     const adapter = new PrismaPg({ connectionString: TEST_DATABASE_URL });
@@ -78,11 +183,30 @@ export async function ensureTestDatabase(): Promise<PrismaClient> {
     await prismaInstance.$connect();
 
     // Verify committed migration readiness directly from _prisma_migrations
-    const applied = await prismaInstance.$queryRaw<Array<{ migration_name: string; finished_at: Date | null }>>`
-      SELECT migration_name, finished_at FROM "_prisma_migrations" WHERE finished_at IS NOT NULL;
-    `.catch((err) => {
-      throw new Error(`Failed to query _prisma_migrations: ${err.message}`);
-    });
+    let applied: Array<{ migration_name: string; finished_at: Date | null }> = [];
+    try {
+      applied = await prismaInstance.$queryRaw<Array<{ migration_name: string; finished_at: Date | null }>>`
+        SELECT migration_name, finished_at FROM "_prisma_migrations" WHERE finished_at IS NOT NULL;
+      `;
+    } catch {
+      // If migrations table doesn't exist, deploy them now
+      try {
+        execSync("npx prisma migrate deploy", {
+          env: {
+            ...process.env,
+            DATABASE_URL: TEST_DATABASE_URL,
+            DIRECT_URL: TEST_DATABASE_URL
+          },
+          encoding: "utf8",
+          stdio: "pipe"
+        });
+        applied = await prismaInstance.$queryRaw<Array<{ migration_name: string; finished_at: Date | null }>>`
+          SELECT migration_name, finished_at FROM "_prisma_migrations" WHERE finished_at IS NOT NULL;
+        `;
+      } catch (err: any) {
+        throw new Error(`Prisma migration deployment failed: ${err.stderr || err.message}`);
+      }
+    }
 
     if (!applied || applied.length === 0) {
       throw new Error("Test database schema verification failed: no finished migrations found.");

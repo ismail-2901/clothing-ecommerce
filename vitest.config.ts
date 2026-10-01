@@ -7,6 +7,7 @@ export default defineConfig({
     fileParallelism: false,
     hookTimeout: 30000,
     testTimeout: 30000,
+    globalSetup: ["tests/integration/global-setup.ts"],
     include: ["tests/unit/**/*.test.ts", "tests/integration/**/*.test.ts"],
     coverage: {
       reporter: ["text", "html"]

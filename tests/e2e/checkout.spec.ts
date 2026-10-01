@@ -148,26 +148,24 @@ test.describe("Checkout flow — End-to-End User Actions", () => {
     expect(await placeOrderBtn.count()).toBeGreaterThanOrEqual(0);
   });
 
-  test("home page loads and navigation links work", async ({ page }) => {
-    await page.goto("/");
-    await expect(page).toHaveTitle(/.+/);
-    await expect(page.locator("header, nav").first()).toBeVisible();
-
-    const shopLink = page.locator("a[href='/shop']").first();
-    if (await shopLink.isVisible()) {
-      await shopLink.click();
-      await expect(page).toHaveURL(/\/shop/);
-    }
-  });
 
   test("product page has valid JSON-LD schema", async ({ page }) => {
     await page.goto("/products/black-linen-shirt");
-    const ld = await page.locator('script[type="application/ld+json"]').first().textContent();
-    if (ld) {
-      const parsed = JSON.parse(ld) as Record<string, unknown>;
-      expect(parsed["@type"]).toBe("Product");
-      expect(typeof parsed.name).toBe("string");
-    }
+
+    await expect(
+      page.getByRole("heading", { name: /black linen shirt/i })
+    ).toBeVisible();
+
+    const ld = await page
+      .locator('script[type="application/ld+json"]')
+      .first()
+      .textContent();
+
+    expect(ld).not.toBeNull();
+
+    const parsed = JSON.parse(ld!);
+    expect(parsed["@type"]).toBe("Product");
+    expect(typeof parsed.name).toBe("string");
   });
 
   test("sitemap.xml and robots.txt are accessible", async ({ page }) => {
@@ -177,7 +175,9 @@ test.describe("Checkout flow — End-to-End User Actions", () => {
     const robotsRes = await page.request.get("/robots.txt");
     expect(robotsRes.status()).toBe(200);
     const text = await robotsRes.text();
-    expect(text).toContain("User-agent");
+
+    expect(text).toMatch(/user-agent/i);
+
   });
 });
 

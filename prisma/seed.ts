@@ -1,3 +1,4 @@
+import "dotenv/config";
 import { PrismaPg } from "@prisma/adapter-pg";
 import { PrismaClient, ProductStatus, RoleName } from "@prisma/client";
 import { hashPassword } from "better-auth/crypto";
@@ -231,7 +232,17 @@ async function createProduct(input: {
 }) {
   const product = await prisma.product.upsert({
     where: { slug: input.slug },
-    update: {},
+    update: {
+      // Ensure existing products (e.g. DRAFT or soft-deleted) are restored and
+      // have up-to-date catalog data when the seed is re-run.
+      status: ProductStatus.PUBLISHED,
+      deletedAt: null,
+      name: input.name,
+      description: input.description,
+      basePrice: input.basePrice,
+      material: input.material,
+      careInstructions: input.careInstructions
+    },
     create: {
       categoryId: input.categoryId,
       collectionId: input.collectionId,
@@ -245,15 +256,27 @@ async function createProduct(input: {
     }
   });
 
-  await prisma.productImage.create({
-    data: {
-      productId: product.id,
-      storageKey: `seed/${input.slug}.jpg`,
-      url: input.imageUrl,
-      alt: input.name,
-      position: 0
-    }
+  // Idempotent image: find existing seed image for this product and update it,
+  // or create it if it does not exist yet.
+  const existingImage = await prisma.productImage.findFirst({
+    where: { productId: product.id, storageKey: `seed/${input.slug}.jpg` }
   });
+  if (existingImage) {
+    await prisma.productImage.update({
+      where: { id: existingImage.id },
+      data: { url: input.imageUrl, alt: input.name }
+    });
+  } else {
+    await prisma.productImage.create({
+      data: {
+        productId: product.id,
+        storageKey: `seed/${input.slug}.jpg`,
+        url: input.imageUrl,
+        alt: input.name,
+        position: 0
+      }
+    });
+  }
 
   await Promise.all(
     input.variants.map((variant) =>
