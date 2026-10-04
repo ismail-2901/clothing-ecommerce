@@ -55,18 +55,18 @@ export function Footer() {
                   Thank you for subscribing to ELARIS.
                 </p>
               ) : (
-                <form onSubmit={handleSubscribe} className="mt-3 flex gap-2">
+                <form onSubmit={handleSubscribe} className="mt-3 flex flex-wrap gap-2">
                   <input
                     type="email"
                     required
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
                     placeholder="Enter your email"
-                    className="h-9 w-full rounded-md border border-border bg-background px-3 text-xs placeholder:text-muted-foreground focus:border-foreground focus:outline-none"
+                    className="h-9 min-w-0 flex-1 rounded-md border border-border bg-background px-3 text-xs placeholder:text-muted-foreground focus:border-foreground focus:outline-none"
                   />
                   <button
                     type="submit"
-                    className="h-9 shrink-0 rounded-md bg-foreground px-5 text-xs font-bold uppercase tracking-wider text-background hover:bg-foreground/90 transition-colors"
+                    className="h-9 shrink-0 rounded-md bg-foreground px-5 text-xs font-bold uppercase tracking-wider text-background hover:bg-foreground/90 transition-colors whitespace-nowrap"
                   >
                     Subscribe
                   </button>

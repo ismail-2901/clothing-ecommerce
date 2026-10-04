@@ -176,11 +176,11 @@ export function SiteHeader() {
             <UserRound size={19} />
           </Link>
 
-          {/* Wishlist */}
+          {/* Wishlist — hidden on smallest screens to prevent header overflow */}
           <Link
             href="/account/wishlist"
             aria-label={`Wishlist (${wishlistItems.length})`}
-            className="relative flex h-9 w-9 items-center justify-center rounded-full text-foreground/80 hover:bg-muted hover:text-foreground transition-colors"
+            className="relative hidden sm:flex h-9 w-9 items-center justify-center rounded-full text-foreground/80 hover:bg-muted hover:text-foreground transition-colors"
           >
             <Heart size={19} />
             {wishlistItems.length > 0 && (
@@ -240,6 +240,34 @@ export function SiteHeader() {
           >
             <MobileNavLinks onSelect={() => setMobileMenuOpen(false)} />
           </Suspense>
+
+          {/* Account quick-links in mobile drawer */}
+          <div className="mt-4 pt-4 border-t border-border/60 flex flex-col gap-1">
+            <Link
+              href="/account"
+              onClick={() => setMobileMenuOpen(false)}
+              className="flex items-center gap-3 rounded-md px-3 py-2 text-sm font-medium text-foreground/80 hover:bg-muted transition-colors"
+            >
+              <UserRound size={16} />
+              <span>My Account</span>
+            </Link>
+            <Link
+              href="/account/wishlist"
+              onClick={() => setMobileMenuOpen(false)}
+              className="flex items-center gap-3 rounded-md px-3 py-2 text-sm font-medium text-foreground/80 hover:bg-muted transition-colors"
+            >
+              <Heart size={16} />
+              <span>Wishlist{wishlistItems.length > 0 ? ` (${wishlistItems.length})` : ""}</span>
+            </Link>
+            <Link
+              href="/cart"
+              onClick={() => setMobileMenuOpen(false)}
+              className="flex items-center gap-3 rounded-md px-3 py-2 text-sm font-medium text-foreground/80 hover:bg-muted transition-colors"
+            >
+              <ShoppingBag size={16} />
+              <span>Cart{itemCount > 0 ? ` (${itemCount})` : ""}</span>
+            </Link>
+          </div>
         </div>
       )}
     </header>

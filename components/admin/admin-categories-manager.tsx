@@ -192,7 +192,7 @@ export function AdminCategoriesManager({
           ) : (
             <div className="overflow-hidden rounded-xl border border-border bg-background shadow-sm">
               <div className="overflow-x-auto">
-                <table className="w-full text-left text-xs">
+                <table className="w-full min-w-[500px] text-left text-xs">
                 <thead className="border-b border-border bg-muted/30 font-semibold text-muted-foreground">
                   <tr>
                     <th className="py-3 px-4">Category</th>

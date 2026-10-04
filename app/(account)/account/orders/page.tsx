@@ -218,11 +218,11 @@ export default async function AccountOrdersPage() {
         <span className="text-foreground">My Orders</span>
       </nav>
 
-      {/* 3-Column Layout */}
+      {/* 3-Column Layout — sidebars hidden on mobile */}
       <div className="grid gap-8 lg:grid-cols-[220px_1fr_260px] items-start">
 
-        {/* Left Sidebar */}
-        <aside className="space-y-6">
+        {/* Left Sidebar — hidden on mobile, shown at lg+ */}
+        <aside className="hidden lg:block space-y-6">
           <div className="rounded-xl border border-border bg-background p-4 flex items-center gap-3 shadow-sm">
             <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-muted border border-border text-sm font-bold text-foreground uppercase">
               {user.name?.charAt(0) ?? "?"}
@@ -356,28 +356,30 @@ export default async function AccountOrdersPage() {
                         )}
                       </div>
 
-                      <div className={`grid gap-1 text-center text-[9px]`} style={{ gridTemplateColumns: `repeat(${steps.length}, 1fr)` }}>
-                        {steps.map((step, idx) => (
-                          <div key={idx} className="space-y-1">
-                            <div
-                              className={`mx-auto flex h-6 w-6 items-center justify-center rounded-full text-[10px] ${
-                                step.cancelled
-                                  ? "bg-rose-600 text-white"
-                                  : step.current
-                                  ? "border-2 border-blue-600 bg-blue-50 text-blue-600"
-                                  : step.active
-                                  ? "bg-foreground text-background"
-                                  : "border border-border bg-muted/40 text-muted-foreground"
-                              }`}
-                            >
-                              {step.cancelled ? <X size={12} /> : step.active ? <Check size={12} /> : null}
+                      <div className="overflow-x-auto -mx-1 px-1">
+                        <div className={`grid gap-1 text-center text-[9px] min-w-max`} style={{ gridTemplateColumns: `repeat(${steps.length}, 56px)` }}>
+                          {steps.map((step, idx) => (
+                            <div key={idx} className="space-y-1">
+                              <div
+                                className={`mx-auto flex h-6 w-6 items-center justify-center rounded-full text-[10px] ${
+                                  step.cancelled
+                                    ? "bg-rose-600 text-white"
+                                    : step.current
+                                    ? "border-2 border-blue-600 bg-blue-50 text-blue-600"
+                                    : step.active
+                                    ? "bg-foreground text-background"
+                                    : "border border-border bg-muted/40 text-muted-foreground"
+                                }`}
+                              >
+                                {step.cancelled ? <X size={12} /> : step.active ? <Check size={12} /> : null}
+                              </div>
+                              <p className={`font-semibold ${step.active ? "text-foreground" : "text-muted-foreground"}`}>
+                                {step.label}
+                              </p>
+                              {step.date && <p className="text-[9px] text-muted-foreground">{step.date}</p>}
                             </div>
-                            <p className={`font-semibold ${step.active ? "text-foreground" : "text-muted-foreground"}`}>
-                              {step.label}
-                            </p>
-                            {step.date && <p className="text-[9px] text-muted-foreground">{step.date}</p>}
-                          </div>
-                        ))}
+                          ))}
+                        </div>
                       </div>
                     </div>
 
@@ -401,8 +403,8 @@ export default async function AccountOrdersPage() {
           )}
         </section>
 
-        {/* Right Sidebar */}
-        <aside className="space-y-6">
+        {/* Right Sidebar — hidden on mobile */}
+        <aside className="hidden lg:block space-y-6">
           <div className="rounded-xl border border-border bg-background p-5 space-y-4 shadow-sm text-xs">
             <div>
               <h2 className="font-bold text-foreground">Account Overview</h2>

@@ -2,6 +2,7 @@ import Link from "next/link";
 import Image from "next/image";
 import { ShopCatalogView } from "@/components/shop/shop-catalog-view";
 import { ShopFilters } from "@/components/shop/shop-filters";
+import { ShopFilterDrawer } from "@/components/shop/shop-filter-drawer";
 import { getFilteredProducts } from "@/features/catalog/data";
 import { getCachedCategories } from "@/lib/cache/db-cache";
 
@@ -124,19 +125,43 @@ export default async function ShopPage({ searchParams }: ShopPageProps) {
       </div>
 
       {/* Main Content: Sidebar Filters + Product Area */}
-      <div className="grid gap-10 lg:grid-cols-[240px_1fr] items-start pt-2">
-        {/* Sidebar Filters */}
-        <ShopFilters
-          categories={categories}
-          active={{
-            category: activeCategory,
-            size: activeSize,
-            color: activeColor,
-            priceRange: activePriceRange,
-            q: activeQ,
-            sort
-          }}
-        />
+      <div className="space-y-4 lg:grid lg:gap-10 lg:grid-cols-[240px_1fr] lg:items-start lg:space-y-0 pt-2">
+        {/* Mobile filter trigger row + sort — visible only below lg */}
+        <div className="flex items-center gap-3 lg:hidden">
+          <ShopFilterDrawer
+            activeFilterCount={[activeSize, activePriceRange, activeColor, activeQ].filter(Boolean).length}
+          >
+            <ShopFilters
+              categories={categories}
+              active={{
+                category: activeCategory,
+                size: activeSize,
+                color: activeColor,
+                priceRange: activePriceRange,
+                q: activeQ,
+                sort
+              }}
+            />
+          </ShopFilterDrawer>
+          <p className="text-xs text-muted-foreground">
+            {totalCount} {totalCount === 1 ? "product" : "products"}
+          </p>
+        </div>
+
+        {/* Desktop Sidebar Filters — hidden below lg */}
+        <div className="hidden lg:block">
+          <ShopFilters
+            categories={categories}
+            active={{
+              category: activeCategory,
+              size: activeSize,
+              color: activeColor,
+              priceRange: activePriceRange,
+              q: activeQ,
+              sort
+            }}
+          />
+        </div>
 
         {/* Product Grid Area */}
         <section className="space-y-6">

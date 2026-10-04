@@ -251,42 +251,46 @@ export function CheckoutShell() {
         const isDeliveryFilled = isContactFilled && Boolean(formData.address.trim() && formData.city.trim());
         const isPaymentFilled = Boolean(formData.paymentMethod);
         return (
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 py-2">
-            <div className="flex items-center gap-3">
-              <div className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-xs font-bold ${isContactFilled ? "bg-emerald-600 text-white" : "bg-foreground text-background"}`}>
+          <div className="grid grid-cols-4 gap-2 py-2">
+            <div className="flex items-center gap-1.5 sm:gap-3 min-w-0">
+              <div className={`flex h-7 w-7 sm:h-8 sm:w-8 shrink-0 items-center justify-center rounded-full text-xs font-bold ${isContactFilled ? "bg-emerald-600 text-white" : "bg-foreground text-background"}`}>
                 {isContactFilled ? "✓" : "1"}
               </div>
-              <div>
-                <p className="text-xs font-bold text-foreground">Contact</p>
-                <p className="text-[11px] text-muted-foreground">{isContactFilled ? "Completed" : "Your details"}</p>
+              <div className="min-w-0 hidden sm:block">
+                <p className="text-xs font-bold text-foreground truncate">Contact</p>
+                <p className="text-[11px] text-muted-foreground truncate">{isContactFilled ? "Completed" : "Your details"}</p>
               </div>
+              <p className="text-[10px] font-bold text-foreground sm:hidden truncate">Contact</p>
             </div>
-            <div className="flex items-center gap-3">
-              <div className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-xs font-bold ${isDeliveryFilled ? "bg-emerald-600 text-white" : isContactFilled ? "bg-foreground text-background" : "border border-border bg-muted/40 text-muted-foreground"}`}>
+            <div className="flex items-center gap-1.5 sm:gap-3 min-w-0">
+              <div className={`flex h-7 w-7 sm:h-8 sm:w-8 shrink-0 items-center justify-center rounded-full text-xs font-bold ${isDeliveryFilled ? "bg-emerald-600 text-white" : isContactFilled ? "bg-foreground text-background" : "border border-border bg-muted/40 text-muted-foreground"}`}>
                 {isDeliveryFilled ? "✓" : "2"}
               </div>
-              <div>
-                <p className="text-xs font-bold text-foreground">Delivery</p>
-                <p className="text-[11px] text-muted-foreground">{isDeliveryFilled ? "Completed" : "Shipping address"}</p>
+              <div className="min-w-0 hidden sm:block">
+                <p className="text-xs font-bold text-foreground truncate">Delivery</p>
+                <p className="text-[11px] text-muted-foreground truncate">{isDeliveryFilled ? "Completed" : "Shipping address"}</p>
               </div>
+              <p className="text-[10px] font-bold text-foreground sm:hidden truncate">Delivery</p>
             </div>
-            <div className="flex items-center gap-3">
-              <div className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-xs font-bold ${isDeliveryFilled && isPaymentFilled ? "bg-foreground text-background" : "border border-border bg-muted/40 text-muted-foreground"}`}>
+            <div className="flex items-center gap-1.5 sm:gap-3 min-w-0">
+              <div className={`flex h-7 w-7 sm:h-8 sm:w-8 shrink-0 items-center justify-center rounded-full text-xs font-bold ${isDeliveryFilled && isPaymentFilled ? "bg-foreground text-background" : "border border-border bg-muted/40 text-muted-foreground"}`}>
                 3
               </div>
-              <div>
-                <p className="text-xs font-bold text-foreground">Payment</p>
-                <p className="text-[11px] text-muted-foreground">{formData.paymentMethod}</p>
+              <div className="min-w-0 hidden sm:block">
+                <p className="text-xs font-bold text-foreground truncate">Payment</p>
+                <p className="text-[11px] text-muted-foreground truncate">{formData.paymentMethod}</p>
               </div>
+              <p className="text-[10px] font-bold text-foreground sm:hidden truncate">Payment</p>
             </div>
-            <div className="flex items-center gap-3">
-              <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full border border-border bg-muted/40 text-xs font-bold text-muted-foreground">
+            <div className="flex items-center gap-1.5 sm:gap-3 min-w-0">
+              <div className="flex h-7 w-7 sm:h-8 sm:w-8 shrink-0 items-center justify-center rounded-full border border-border bg-muted/40 text-xs font-bold text-muted-foreground">
                 4
               </div>
-              <div>
-                <p className="text-xs font-bold text-foreground">Review</p>
-                <p className="text-[11px] text-muted-foreground">Confirm order</p>
+              <div className="min-w-0 hidden sm:block">
+                <p className="text-xs font-bold text-foreground truncate">Review</p>
+                <p className="text-[11px] text-muted-foreground truncate">Confirm order</p>
               </div>
+              <p className="text-[10px] font-bold text-foreground sm:hidden truncate">Review</p>
             </div>
           </div>
         );

@@ -61,8 +61,8 @@ export default async function AccountWishlistPage() {
       </nav>
 
       <div className="grid gap-10 lg:grid-cols-[260px_1fr] items-start">
-        {/* Left Sidebar */}
-        <aside className="space-y-6">
+        {/* Left Sidebar — hidden on mobile */}
+        <aside className="hidden lg:block space-y-6">
           {/* User profile card */}
           <div className="rounded-xl border border-border bg-background p-4 flex items-center gap-3 shadow-sm">
             <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-muted border border-border text-sm font-bold text-foreground uppercase">

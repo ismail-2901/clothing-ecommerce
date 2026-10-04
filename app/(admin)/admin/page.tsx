@@ -285,7 +285,7 @@ export default async function AdminDashboardPage() {
           </div>
 
           <div className="overflow-x-auto">
-            <table className="w-full text-left text-xs">
+            <table className="w-full min-w-[600px] text-left text-xs">
               <thead className="border-b border-border text-muted-foreground font-semibold">
                 <tr>
                   <th className="pb-3 pr-4">Order</th>

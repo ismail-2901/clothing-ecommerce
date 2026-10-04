@@ -12,8 +12,8 @@ export function AnnouncementBar() {
           <button type="button" className="elaris-ann-btn hidden sm:flex" aria-label="Previous announcement">
             <ChevronLeft size={12} />
           </button>
-          <p className="elaris-ann-text">
-            {storePolicies.shipping.freeDeliveryText}&nbsp;&nbsp;|&nbsp;&nbsp;Easy return within {storePolicies.returns.days} days&nbsp;&nbsp;|&nbsp;&nbsp;New collection now live
+          <p className="elaris-ann-text line-clamp-1 text-center sm:text-left">
+            {storePolicies.shipping.freeDeliveryText}&nbsp;&nbsp;|&nbsp;&nbsp;Easy return within {storePolicies.returns.days} days<span className="hidden sm:inline">&nbsp;&nbsp;|&nbsp;&nbsp;New collection now live</span>
           </p>
           <button type="button" className="elaris-ann-btn hidden sm:flex" aria-label="Next announcement">
             <ChevronRight size={12} />

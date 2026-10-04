@@ -55,6 +55,7 @@
     color: var(--foreground);
     font-family: var(--font-sans);
     text-rendering: optimizeLegibility;
+    overflow-x: hidden;
   }
 
   a {

@@ -150,69 +150,128 @@ export function ProductDetail({
       {/* PDP Main Showcase (Left: Vertical Thumbnails + Main Image | Right: Product Buy Box) */}
       <div className="grid gap-10 lg:grid-cols-[1.3fr_1fr] items-start">
         {/* Left: Gallery */}
-        <div className="flex flex-col-reverse sm:flex-row gap-4">
-          {/* Vertical Thumbnail Column */}
-          <div className="flex sm:flex-col gap-2.5 overflow-x-auto sm:overflow-y-auto sm:max-h-[560px] pb-2 sm:pb-0 scrollbar-none">
+        <div className="flex flex-col gap-4">
+          {/* Thumbnail strip — horizontal scroll on mobile, vertical on sm+ */}
+          <div className="flex sm:hidden gap-2 overflow-x-auto overscroll-x-contain pb-1 scrollbar-none">
             {galleryImages.map((img, idx) => (
               <button
                 key={idx}
                 type="button"
                 onClick={() => setActiveImageIndex(idx)}
-                className={`relative h-20 w-16 sm:h-24 sm:w-20 shrink-0 overflow-hidden rounded-lg border-2 transition-all ${
+                className={`relative h-16 w-14 shrink-0 overflow-hidden rounded-lg border-2 transition-all ${
                   idx === activeImageIndex
                     ? "border-foreground shadow-sm"
                     : "border-border/70 opacity-70 hover:opacity-100"
                 }`}
               >
-                <Image src={img.src} alt={img.alt || product.name} fill className="object-cover" sizes="80px" />
+                <Image src={img.src} alt={img.alt || product.name} fill className="object-cover" sizes="56px" />
               </button>
             ))}
           </div>
 
-          {/* Main Large Image Box */}
-          <div className="relative aspect-[3/4] flex-1 overflow-hidden rounded-2xl bg-muted border border-border/80 group">
+          <div className="hidden sm:flex flex-row gap-4">
+            {/* Vertical Thumbnail Column for sm+ */}
+            <div className="flex flex-col gap-2.5 overflow-y-auto max-h-[560px] scrollbar-none">
+              {galleryImages.map((img, idx) => (
+                <button
+                  key={idx}
+                  type="button"
+                  onClick={() => setActiveImageIndex(idx)}
+                  className={`relative h-24 w-20 shrink-0 overflow-hidden rounded-lg border-2 transition-all ${
+                    idx === activeImageIndex
+                      ? "border-foreground shadow-sm"
+                      : "border-border/70 opacity-70 hover:opacity-100"
+                  }`}
+                >
+                  <Image src={img.src} alt={img.alt || product.name} fill className="object-cover" sizes="80px" />
+                </button>
+              ))}
+            </div>
+
+            {/* Main Large Image Box — sm+ */}
+            <div className="relative aspect-[3/4] flex-1 overflow-hidden rounded-2xl bg-muted border border-border/80 group">
+              <Image
+                src={galleryImages[activeImageIndex]?.src || "/elaris-women.jpg"}
+                alt={product.name}
+                fill
+                priority
+                className="object-cover transition-transform duration-500 group-hover:scale-105"
+                sizes="(min-width: 1024px) 45vw, 100vw"
+              />
+
+              {/* Expand button */}
+              <button
+                type="button"
+                className="absolute top-4 right-4 flex h-9 w-9 items-center justify-center rounded-full bg-white/90 text-foreground shadow-md hover:bg-white transition-colors"
+                aria-label="Expand image"
+              >
+                <Maximize2 size={16} />
+              </button>
+
+              {/* Prev / Next carousel controls */}
+              <button
+                type="button"
+                onClick={() =>
+                  setActiveImageIndex((prev) => (prev > 0 ? prev - 1 : galleryImages.length - 1))
+                }
+                className="absolute left-4 top-1/2 -translate-y-1/2 flex h-9 w-9 items-center justify-center rounded-full bg-white/90 text-foreground shadow-md hover:bg-white transition-colors"
+                aria-label="Previous image"
+              >
+                <ChevronLeft size={18} />
+              </button>
+              <button
+                type="button"
+                onClick={() =>
+                  setActiveImageIndex((prev) => (prev < galleryImages.length - 1 ? prev + 1 : 0))
+                }
+                className="absolute right-4 top-1/2 -translate-y-1/2 flex h-9 w-9 items-center justify-center rounded-full bg-white/90 text-foreground shadow-md hover:bg-white transition-colors"
+                aria-label="Next image"
+              >
+                <ChevronRight size={18} />
+              </button>
+
+              {/* Image counter indicator */}
+              <div className="absolute bottom-4 left-4 rounded-md bg-black/70 px-2.5 py-1 text-[11px] font-bold text-white backdrop-blur-sm">
+                {activeImageIndex + 1}/{galleryImages.length}
+              </div>
+            </div>
+          </div>
+
+          {/* Mobile main image — shown below sm */}
+          <div className="relative aspect-[3/4] overflow-hidden rounded-2xl bg-muted border border-border/80 sm:hidden">
             <Image
               src={galleryImages[activeImageIndex]?.src || "/elaris-women.jpg"}
               alt={product.name}
               fill
               priority
-              className="object-cover transition-transform duration-500 group-hover:scale-105"
-              sizes="(min-width: 1024px) 45vw, 100vw"
+              className="object-cover"
+              sizes="100vw"
             />
 
-            {/* Expand button */}
-            <button
-              type="button"
-              className="absolute top-4 right-4 flex h-9 w-9 items-center justify-center rounded-full bg-white/90 text-foreground shadow-md hover:bg-white transition-colors"
-              aria-label="Expand image"
-            >
-              <Maximize2 size={16} />
-            </button>
-
-            {/* Prev / Next carousel controls */}
+            {/* Prev / Next carousel controls — mobile */}
             <button
               type="button"
               onClick={() =>
                 setActiveImageIndex((prev) => (prev > 0 ? prev - 1 : galleryImages.length - 1))
               }
-              className="absolute left-4 top-1/2 -translate-y-1/2 flex h-9 w-9 items-center justify-center rounded-full bg-white/90 text-foreground shadow-md hover:bg-white transition-colors"
+              className="absolute left-3 top-1/2 -translate-y-1/2 flex h-8 w-8 items-center justify-center rounded-full bg-white/90 text-foreground shadow-md"
               aria-label="Previous image"
             >
-              <ChevronLeft size={18} />
+              <ChevronLeft size={16} />
             </button>
             <button
               type="button"
               onClick={() =>
                 setActiveImageIndex((prev) => (prev < galleryImages.length - 1 ? prev + 1 : 0))
               }
-              className="absolute right-4 top-1/2 -translate-y-1/2 flex h-9 w-9 items-center justify-center rounded-full bg-white/90 text-foreground shadow-md hover:bg-white transition-colors"
+              className="absolute right-3 top-1/2 -translate-y-1/2 flex h-8 w-8 items-center justify-center rounded-full bg-white/90 text-foreground shadow-md"
               aria-label="Next image"
             >
-              <ChevronRight size={18} />
+              <ChevronRight size={16} />
             </button>
 
-            {/* Image counter indicator */}
-            <div className="absolute bottom-4 left-4 rounded-md bg-black/70 px-2.5 py-1 text-[11px] font-bold text-white backdrop-blur-sm">
+            {/* Image counter */}
+            <div className="absolute bottom-3 left-3 rounded-md bg-black/70 px-2 py-0.5 text-[10px] font-bold text-white">
               {activeImageIndex + 1}/{galleryImages.length}
             </div>
           </div>

@@ -27,13 +27,13 @@ export default function TrackPage() {
 
       {/* Track by number form */}
       <div className="mt-8 max-w-lg">
-        <form className="flex gap-2">
+        <form className="flex flex-wrap gap-2">
           <label className="sr-only" htmlFor="track-order-number">Order number</label>
           <input
             id="track-order-number"
             type="text"
             placeholder="Enter order number (e.g. ATC-0001)"
-            className="h-11 flex-1 rounded-md border border-border bg-background px-4 text-sm placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-foreground focus-visible:ring-offset-1"
+            className="h-11 min-w-0 flex-1 rounded-md border border-border bg-background px-4 text-sm placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-foreground focus-visible:ring-offset-1"
           />
           <button
             type="submit"

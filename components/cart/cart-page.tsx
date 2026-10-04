@@ -119,7 +119,7 @@ export function CartPageContent() {
       </div>
 
       {/* Main Cart Grid */}
-      <div className="grid gap-10 lg:grid-cols-[1.5fr_0.9fr] items-start">
+      <div className="grid gap-8 lg:grid-cols-[1.5fr_0.9fr] items-start">
         {/* Cart Items Table */}
         <div className="space-y-6">
           {/* Table Header */}
@@ -137,32 +137,61 @@ export function CartPageContent() {
               const isChecked = selectedItems[itemKey] ?? true;
               const price = item.unitPrice ?? item.price;
               return (
-                <div key={itemKey} className="py-5 grid grid-cols-1 sm:grid-cols-[1.6fr_1fr_1fr_1fr] items-center gap-4">
-                  {/* Product Info */}
-                  <div className="flex items-center gap-3">
+                <div key={itemKey} className="py-5">
+                  {/* Mobile layout: product info + inline controls */}
+                  <div className="flex gap-3">
                     <input
                       type="checkbox"
                       checked={isChecked}
                       onChange={(e) =>
                         setSelectedItems((prev) => ({ ...prev, [itemKey]: e.target.checked }))
                       }
-                      className="h-4 w-4 rounded border-border text-foreground accent-foreground cursor-pointer"
+                      className="mt-1 h-4 w-4 shrink-0 rounded border-border text-foreground accent-foreground cursor-pointer"
                     />
-                    <div className="relative h-20 w-16 sm:h-24 sm:w-20 shrink-0 overflow-hidden rounded-md bg-muted">
+                    <div className="relative h-24 w-20 shrink-0 overflow-hidden rounded-md bg-muted">
                       {item.image ? (
                         <Image src={item.image} alt={item.name} fill className="object-cover" sizes="80px" />
                       ) : (
                         <div className="h-full w-full bg-zinc-100" />
                       )}
                     </div>
-                    <div className="space-y-1">
+                    <div className="flex-1 min-w-0 space-y-1">
                       <h3 className="text-sm font-bold text-foreground">{item.name}</h3>
                       <p className="text-xs text-muted-foreground">
-                        {item.color ? `Color: ${item.color}` : "Color: Default"} {item.size ? `| Size: ${item.size}` : ""}
+                        {item.color ? `Color: ${item.color}` : "Color: Default"}{item.size ? ` | Size: ${item.size}` : ""}
                       </p>
                       <div className="flex items-center gap-1.5">
                         <span className="h-2 w-2 rounded-full bg-emerald-500" />
                         <span className="text-[11px] font-medium text-emerald-600">In Stock</span>
+                      </div>
+                      {/* Mobile-only price */}
+                      <div className="flex items-center gap-2 sm:hidden pt-0.5">
+                        <span className="text-sm font-bold">{formatMoney(price)}</span>
+                        <span className="text-xs text-muted-foreground line-through">{formatMoney(Math.round(price * 1.25))}</span>
+                        <span className="rounded bg-black px-1.5 py-0.5 text-[9px] font-bold text-white uppercase">20% OFF</span>
+                      </div>
+                      {/* Mobile-only qty + total row */}
+                      <div className="flex items-center justify-between sm:hidden pt-1">
+                        <div className="inline-flex items-center rounded-md border border-border bg-background">
+                          <button
+                            type="button"
+                            onClick={() => updateQuantity(itemKey, item.quantity - 1)}
+                            className="px-2.5 py-1.5 hover:bg-muted text-muted-foreground hover:text-foreground transition-colors"
+                            aria-label="Decrease quantity"
+                          >
+                            <Minus size={13} />
+                          </button>
+                          <span className="w-8 text-center text-xs font-semibold">{item.quantity}</span>
+                          <button
+                            type="button"
+                            onClick={() => updateQuantity(itemKey, item.quantity + 1)}
+                            className="px-2.5 py-1.5 hover:bg-muted text-muted-foreground hover:text-foreground transition-colors"
+                            aria-label="Increase quantity"
+                          >
+                            <Plus size={13} />
+                          </button>
+                        </div>
+                        <span className="text-sm font-extrabold">{formatMoney(price * item.quantity)}</span>
                       </div>
                       <div className="flex items-center gap-3 pt-1 text-xs text-muted-foreground">
                         <button
@@ -193,19 +222,13 @@ export function CartPageContent() {
                     </div>
                   </div>
 
-                  {/* Price */}
-                  <div className="text-center">
-                    <p className="text-sm font-bold">{formatMoney(price)}</p>
-                    <p className="text-xs text-muted-foreground line-through">
-                      {formatMoney(Math.round(price * 1.25))}
-                    </p>
-                    <span className="inline-block mt-1 rounded bg-black px-1.5 py-0.5 text-[9px] font-bold text-white uppercase">
-                      20% OFF
-                    </span>
-                  </div>
-
-                  {/* Quantity Stepper */}
-                  <div className="flex justify-center">
+                  {/* Desktop-only: price / qty / total inline grid row */}
+                  <div className="hidden sm:grid grid-cols-[1fr_auto_auto] items-center gap-6 mt-3 pl-[calc(16px+80px+12px)]">
+                    <div>
+                      <p className="text-sm font-bold">{formatMoney(price)}</p>
+                      <p className="text-xs text-muted-foreground line-through">{formatMoney(Math.round(price * 1.25))}</p>
+                      <span className="inline-block mt-0.5 rounded bg-black px-1.5 py-0.5 text-[9px] font-bold text-white uppercase">20% OFF</span>
+                    </div>
                     <div className="inline-flex items-center rounded-md border border-border bg-background">
                       <button
                         type="button"
@@ -225,11 +248,7 @@ export function CartPageContent() {
                         <Plus size={13} />
                       </button>
                     </div>
-                  </div>
-
-                  {/* Total */}
-                  <div className="text-right">
-                    <p className="text-sm sm:text-base font-extrabold">
+                    <p className="text-sm font-extrabold min-w-[80px] text-right">
                       {formatMoney(price * item.quantity)}
                     </p>
                   </div>
