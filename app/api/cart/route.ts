@@ -90,6 +90,26 @@ async function getOrCreateCart(userId: string | null, anonymousId: string): Prom
   return promise;
 }
 
+// M1: Re-fetch a cart by its known ID after a mutation, skipping the getOrCreateCart
+// findFirst + lock machinery (saves one round-trip per add/remove/update).
+async function refreshCartById(cartId: string): Promise<CartWithRelations> {
+  return prisma.cart.findUniqueOrThrow({
+    where: { id: cartId },
+    include: {
+      items: {
+        include: {
+          variant: {
+            include: {
+              product: { include: { images: { orderBy: { position: "asc" }, take: 1 } } }
+            }
+          }
+        }
+      },
+      coupon: true
+    }
+  });
+}
+
 function serializeCart(cart: Awaited<ReturnType<typeof getOrCreateCart>>) {
   const items = cart.items.map((item) => {
     const effectivePrice = item.variant.priceOverride ?? item.variant.product.basePrice;
@@ -192,7 +212,8 @@ export async function POST(request: NextRequest) {
     update: { quantity: newQuantity }
   });
 
-  const updatedCart = await getOrCreateCart(userId, anonymousId);
+  // M1: re-fetch by known cart.id — skips getOrCreateCart's findFirst + lock
+  const updatedCart = await refreshCartById(cart.id);
   const response = NextResponse.json(serializeCart(updatedCart));
   response.cookies.set(ANON_COOKIE, anonymousId, { maxAge: COOKIE_MAX_AGE, httpOnly: true, sameSite: "lax" });
   return response;
@@ -227,7 +248,7 @@ export async function DELETE(request: NextRequest) {
 
   await prisma.cartItem.delete({ where: { id: parsed.data.cartItemId } });
 
-  const updatedCart = await getOrCreateCart(userId, anonymousId);
+  const updatedCart = await refreshCartById(cart.id);
   const response = NextResponse.json(serializeCart(updatedCart));
   response.cookies.set(ANON_COOKIE, anonymousId, { maxAge: COOKIE_MAX_AGE, httpOnly: true, sameSite: "lax" });
   return response;
@@ -275,7 +296,7 @@ export async function PATCH(request: NextRequest) {
     await prisma.cartItem.update({ where: { id: cartItemId }, data: { quantity } });
   }
 
-  const updatedCart = await getOrCreateCart(userId, anonymousId);
+  const updatedCart = await refreshCartById(cart.id);
   const response = NextResponse.json(serializeCart(updatedCart));
   response.cookies.set(ANON_COOKIE, anonymousId, { maxAge: COOKIE_MAX_AGE, httpOnly: true, sameSite: "lax" });
   return response;

@@ -1,3 +1,4 @@
+import { cache } from "react";
 import { auth } from "@/lib/auth/auth";
 import { headers } from "next/headers";
 import { prisma } from "@/db/prisma";
@@ -5,16 +6,20 @@ import type { RoleName, Permission } from "@/lib/auth/permissions";
 import { hasPermission } from "@/lib/auth/permissions";
 import { NextResponse } from "next/server";
 
-
+// P4: React cache() deduplicates the session lookup within a single request.
+// Multiple server functions calling getServerSession() or requireAdminSession()
+// in the same SSR/API render will share one network round-trip to the auth service.
+const getSessionCached = cache(async () => {
+  const h = await headers();
+  return auth.api.getSession({ headers: h });
+});
 
 /**
  * Get the current Better Auth session server-side.
  * Returns null if unauthenticated.
  */
 export async function getServerSession() {
-  const session = await auth.api.getSession({
-    headers: await headers()
-  });
+  const session = await getSessionCached();
   return session?.session ?? null;
 }
 
@@ -34,9 +39,7 @@ export async function requireSession() {
  */
 export async function getServerUser() {
   try {
-    const session = await auth.api.getSession({
-      headers: await headers()
-    });
+    const session = await getSessionCached();
     if (!session?.user?.id) return null;
 
     const user = await prisma.user.findUnique({
@@ -67,9 +70,7 @@ export async function requireAdminSession(
   | { ok: false; response: NextResponse }
 > {
   // Check Better Auth session
-  const session = await auth.api.getSession({
-    headers: await headers()
-  });
+  const session = await getSessionCached();
 
   if (!session?.user?.id) {
     return {

@@ -19,7 +19,11 @@ const nextConfig: NextConfig = {
       }
     ],
     deviceSizes: [640, 750, 828, 1080, 1200, 1920],
-    imageSizes: [16, 32, 64, 96, 128, 256]
+    imageSizes: [16, 32, 64, 96, 128, 256],
+    // Serve AVIF then WebP for supported browsers — significant payload reduction
+    formats: ["image/avif", "image/webp"],
+    // Remote images are immutable (CDN URLs don't change) — cache aggressively
+    minimumCacheTTL: 60 * 60 * 24 * 31 // 31 days
   },
   // Priority-6: Aggressive HTTP cache headers for immutable static assets
   async headers() {

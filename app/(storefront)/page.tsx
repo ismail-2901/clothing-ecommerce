@@ -2,12 +2,13 @@ import Image from "next/image";
 import Link from "next/link";
 import { ArrowRight, Sparkles } from "lucide-react";
 import { HeroSlider } from "@/components/home/hero-slider";
-import { getAllProducts } from "@/features/catalog/data";
+import { getFilteredProducts } from "@/features/catalog/data";
 import { ProductCard } from "@/components/product/product-card";
 
 export default async function HomePage() {
-  const products = await getAllProducts();
-  const featuredProducts = products.slice(0, 8);
+  // P5: fetch only the 8 featured products needed — avoids loading entire catalog
+  const { products: featuredProducts } = await getFilteredProducts({}, { page: 1, perPage: 8 });
+
 
   const categoryGrid = [
     {
@@ -94,8 +95,8 @@ export default async function HomePage() {
             </div>
 
             <div className="grid grid-cols-2 gap-4 sm:gap-6 md:grid-cols-3 lg:grid-cols-4">
-              {featuredProducts.map((product) => (
-                <ProductCard key={product.id} product={product} />
+              {featuredProducts.map((product, idx) => (
+                <ProductCard key={product.id} product={product} priority={idx === 0} />
               ))}
             </div>
           </div>

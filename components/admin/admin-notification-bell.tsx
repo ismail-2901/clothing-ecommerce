@@ -35,7 +35,8 @@ export function AdminNotificationBell() {
 
   useEffect(() => {
     fetchUnread();
-    const interval = setInterval(fetchUnread, 5000);
+    // P2: raised from 5s to 30s — admin notification freshness does not need sub-minute polling
+    const interval = setInterval(fetchUnread, 30_000);
 
     const handleRefresh = () => fetchUnread();
     window.addEventListener("admin-notifications-refresh", handleRefresh);
@@ -71,6 +72,7 @@ export function AdminNotificationNavBadge() {
   const [unreadCount, setUnreadCount] = useState<number>(0);
 
   useEffect(() => {
+    // P2: NavBadge listens to CustomEvent dispatched by AdminNotificationBell — no extra API calls
     const handleCount = (e: Event) => {
       const customEvent = e as CustomEvent<{ unreadCount: number }>;
       if (typeof customEvent.detail?.unreadCount === "number") {
@@ -80,30 +82,8 @@ export function AdminNotificationNavBadge() {
 
     window.addEventListener("admin-notification-count", handleCount);
 
-    // Initial check
-    fetch("/api/admin/notifications")
-      .then((res) => (res.ok ? res.json() : null))
-      .then((data) => {
-        if (data && typeof data.unreadCount === "number") {
-          setUnreadCount(data.unreadCount);
-        }
-      })
-      .catch(() => undefined);
-
-    const interval = setInterval(() => {
-      fetch("/api/admin/notifications")
-        .then((res) => (res.ok ? res.json() : null))
-        .then((data) => {
-          if (data && typeof data.unreadCount === "number") {
-            setUnreadCount(data.unreadCount);
-          }
-        })
-        .catch(() => undefined);
-    }, 5000);
-
     return () => {
       window.removeEventListener("admin-notification-count", handleCount);
-      clearInterval(interval);
     };
   }, []);
 

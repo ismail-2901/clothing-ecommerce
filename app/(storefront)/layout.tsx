@@ -1,3 +1,4 @@
+import { cache } from "react";
 import { FloatingAssistant } from "@/components/ai/floating-assistant";
 import { CartProvider } from "@/components/cart/cart-provider";
 import { Footer } from "@/components/layout/footer";
@@ -6,13 +7,15 @@ import { WishlistProvider } from "@/components/wishlist/wishlist-provider";
 import { getServerSession } from "@/lib/auth/server";
 import { prisma } from "@/db/prisma";
 
-async function getWishlistProductIds(userId: string): Promise<string[]> {
+// M4: Wrapped with React cache() so multiple callers in the same SSR render
+// share one DB round-trip — wishlist is keyed on userId (unique index).
+const getWishlistProductIds = cache(async (userId: string): Promise<string[]> => {
   const wishlist = await prisma.wishlist.findUnique({
     where: { userId },
     select: { items: { select: { productId: true } } }
   });
   return (wishlist?.items ?? []).map((i) => i.productId);
-}
+});
 
 export default async function StorefrontLayout({
   children

@@ -1,4 +1,5 @@
-﻿import type { Prisma } from "@prisma/client";
+import { cache } from "react";
+import type { Prisma } from "@prisma/client";
 import { prisma } from "@/db/prisma";
 import { cacheGet, cacheSet, cacheDelPattern } from "@/lib/redis/cache";
 
@@ -292,7 +293,11 @@ export async function getFilteredProducts(
   }
 }
 
-export async function getProductBySlug(slug: string): Promise<CatalogProduct | undefined> {
+// Wrapped with React cache() so generateMetadata and the page component
+// share a single DB call within the same SSR request — eliminates double-fetch (P1).
+export const getProductBySlug = cache(async function getProductBySlugImpl(
+  slug: string
+): Promise<CatalogProduct | undefined> {
   const cacheKey = `catalog:slug:${slug}`;
   const cached = await cacheGet<CatalogProduct>(cacheKey);
   if (cached) return cached;
@@ -314,63 +319,34 @@ export async function getProductBySlug(slug: string): Promise<CatalogProduct | u
     console.error("[catalog:getProductBySlug]", err);
     return undefined;
   }
-}
+});
 
 export async function getProductReviews(productId: string): Promise<ProductReviewSummary> {
   try {
-    const reviews = await prisma.review.findMany({
-      where: {
-        productId,
-        isVisible: true,
-        deletedAt: null
-      },
-      include: {
-        user: {
-          select: {
-            id: true,
-            name: true
-          }
-        }
-      },
+    // P6: fetch reviews and kick off verified-purchase query in parallel
+    const reviewsPromise = prisma.review.findMany({
+      where: { productId, isVisible: true, deletedAt: null },
+      include: { user: { select: { id: true, name: true } } },
       orderBy: { createdAt: "desc" }
     });
 
+    const verifiedOrdersPromise = prisma.orderItem.findMany({
+      where: {
+        productId,
+        order: { paymentStatus: "PAID" }
+      },
+      select: { order: { select: { userId: true } } }
+    });
+
+    const [reviews, verifiedOrders] = await Promise.all([reviewsPromise, verifiedOrdersPromise]);
+
     if (reviews.length === 0) {
-      return {
-        averageRating: 0,
-        totalCount: 0,
-        verifiedCount: 0,
-        reviews: []
-      };
+      return { averageRating: 0, totalCount: 0, verifiedCount: 0, reviews: [] };
     }
 
-    const userIds = reviews
-      .map((r) => r.userId)
-      .filter((id): id is string => Boolean(id));
-
     const verifiedUserIds = new Set<string>();
-
-    if (userIds.length > 0) {
-      const verifiedOrders = await prisma.orderItem.findMany({
-        where: {
-          productId,
-          order: {
-            userId: { in: userIds },
-            paymentStatus: "PAID"
-          }
-        },
-        select: {
-          order: {
-            select: { userId: true }
-          }
-        }
-      });
-
-      for (const item of verifiedOrders) {
-        if (item.order?.userId) {
-          verifiedUserIds.add(item.order.userId);
-        }
-      }
+    for (const item of verifiedOrders) {
+      if (item.order?.userId) verifiedUserIds.add(item.order.userId);
     }
 
     const totalCount = reviews.length;
@@ -390,20 +366,10 @@ export async function getProductReviews(productId: string): Promise<ProductRevie
       isVerifiedPurchase: Boolean(r.userId && verifiedUserIds.has(r.userId))
     }));
 
-    return {
-      averageRating,
-      totalCount,
-      verifiedCount,
-      reviews: formattedReviews
-    };
+    return { averageRating, totalCount, verifiedCount, reviews: formattedReviews };
   } catch (err) {
     console.error("[catalog:reviews]", err);
-    return {
-      averageRating: 0,
-      totalCount: 0,
-      verifiedCount: 0,
-      reviews: []
-    };
+    return { averageRating: 0, totalCount: 0, verifiedCount: 0, reviews: [] };
   }
 }
 
@@ -418,7 +384,8 @@ export async function getCatalogHighlights() {
 }
 
 async function _buildHighlights() {
-  const { products } = await getFilteredProducts({});
+  // M3: fetch only 12 curated products — default perPage of 1000 was wasteful
+  const { products } = await getFilteredProducts({}, { page: 1, perPage: 12 });
   return {
     hero: {
       kicker: "Single-brand clothing commerce",
