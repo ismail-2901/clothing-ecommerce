@@ -83,6 +83,10 @@ export function HeroSlider() {
 
   return (
     <section className="elaris-hero" aria-label="Hero slider">
+      {/* MED-12: Accessible announcement mechanism for slide changes */}
+      <div className="sr-only" aria-live="polite" aria-atomic="true">
+        {`Slide ${current + 1} of ${slides.length}: ${active.kicker} - ${active.headline.join(" ")}`}
+      </div>
       <div className="elaris-hero-grid">
         {/* Left column: text content + slide controls */}
         <div className="elaris-hero-left">

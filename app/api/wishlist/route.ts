@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { getServerSession } from "@/lib/auth/server";
 import { prisma } from "@/db/prisma";
+import { rateLimiter } from "@/lib/rate-limit/rate-limit";
 import { z } from "zod";
 
 const bodySchema = z.object({ productId: z.string().min(1) });
@@ -25,6 +26,12 @@ export async function POST(request: Request) {
   const session = await getServerSession();
   if (!session?.userId) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
+  // HIGH-02 FIX: Rate limit wishlist mutations (30 req/min per user)
+  const rl = await rateLimiter.consume(`wishlist:${session.userId}`, 30, 60_000);
+  if (!rl.allowed) {
+    return NextResponse.json({ error: "Too many wishlist updates. Please slow down." }, { status: 429 });
   }
 
   const body = await request.json().catch(() => null);
@@ -61,6 +68,12 @@ export async function DELETE(request: Request) {
   const session = await getServerSession();
   if (!session?.userId) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
+  // HIGH-02 FIX: Rate limit wishlist mutations (30 req/min per user)
+  const rl = await rateLimiter.consume(`wishlist:${session.userId}`, 30, 60_000);
+  if (!rl.allowed) {
+    return NextResponse.json({ error: "Too many wishlist updates. Please slow down." }, { status: 429 });
   }
 
   const body = await request.json().catch(() => null);

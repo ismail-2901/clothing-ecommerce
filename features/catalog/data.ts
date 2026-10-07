@@ -235,15 +235,18 @@ export async function getAllProducts(): Promise<CatalogProduct[]> {
  * Returns products for the requested page AND the total matching count,
  * so callers never need to fetch all rows just to compute pagination.
  *
- * Default perPage=1000 preserves backwards-compat with callers that
- * previously fetched all results (they now get up to 1000 rows).
+ * MED-01: Default perPage reduced from 1000 to safe bounded value of 50.
+ * Callers requesting another valid limit are preserved up to safe max 100.
  */
 export async function getFilteredProducts(
   filter: CatalogFilter,
   pagination?: { page?: number; perPage?: number }
 ): Promise<PaginatedCatalogResult> {
   const page = Math.max(1, pagination?.page ?? 1);
-  const perPage = Math.min(100, Math.max(1, pagination?.perPage ?? 1_000));
+  const requestedLimit = pagination?.perPage;
+  const perPage = requestedLimit !== undefined
+    ? Math.min(100, Math.max(1, requestedLimit))
+    : 50;
 
   const cacheKey = `catalog:filtered:${JSON.stringify({ filter, page, perPage })}`;
   const cached = await cacheGet<PaginatedCatalogResult>(cacheKey);
@@ -323,30 +326,37 @@ export const getProductBySlug = cache(async function getProductBySlugImpl(
 
 export async function getProductReviews(productId: string): Promise<ProductReviewSummary> {
   try {
-    // P6: fetch reviews and kick off verified-purchase query in parallel
-    const reviewsPromise = prisma.review.findMany({
+    // MED-11: Fetch reviews first, then scope verified purchase check strictly to reviewers
+    const reviews = await prisma.review.findMany({
       where: { productId, isVisible: true, deletedAt: null },
       include: { user: { select: { id: true, name: true } } },
       orderBy: { createdAt: "desc" }
     });
 
-    const verifiedOrdersPromise = prisma.orderItem.findMany({
-      where: {
-        productId,
-        order: { paymentStatus: "PAID" }
-      },
-      select: { order: { select: { userId: true } } }
-    });
-
-    const [reviews, verifiedOrders] = await Promise.all([reviewsPromise, verifiedOrdersPromise]);
-
     if (reviews.length === 0) {
       return { averageRating: 0, totalCount: 0, verifiedCount: 0, reviews: [] };
     }
 
+    const reviewerUserIds = Array.from(
+      new Set(reviews.map((r) => r.userId).filter((id): id is string => Boolean(id)))
+    );
+
     const verifiedUserIds = new Set<string>();
-    for (const item of verifiedOrders) {
-      if (item.order?.userId) verifiedUserIds.add(item.order.userId);
+    if (reviewerUserIds.length > 0) {
+      const verifiedOrders = await prisma.orderItem.findMany({
+        where: {
+          productId,
+          order: {
+            userId: { in: reviewerUserIds },
+            paymentStatus: "PAID"
+          }
+        },
+        select: { order: { select: { userId: true } } }
+      });
+
+      for (const item of verifiedOrders) {
+        if (item.order?.userId) verifiedUserIds.add(item.order.userId);
+      }
     }
 
     const totalCount = reviews.length;

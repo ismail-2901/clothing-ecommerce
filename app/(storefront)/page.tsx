@@ -1,9 +1,16 @@
+import type { Metadata } from "next";
 import Image from "next/image";
 import Link from "next/link";
 import { ArrowRight, Sparkles } from "lucide-react";
 import { HeroSlider } from "@/components/home/hero-slider";
 import { getFilteredProducts } from "@/features/catalog/data";
 import { ProductCard } from "@/components/product/product-card";
+
+export const metadata: Metadata = {
+  alternates: {
+    canonical: "/"
+  }
+};
 
 export default async function HomePage() {
   // P5: fetch only the 8 featured products needed — avoids loading entire catalog

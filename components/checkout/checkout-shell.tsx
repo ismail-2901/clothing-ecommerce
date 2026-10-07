@@ -35,11 +35,14 @@ export function CheckoutShell() {
     paymentMethod: "COD"
   });
 
-  // BUG-29 FIX: Restore saved checkout info from localStorage if user previously opted in
+  // MED-03: Remove sensitive checkout PII from persistent localStorage.
+  // Clean up any legacy localStorage entry from past versions to protect customer privacy on shared machines.
+  // Transient session-scoped memory/sessionStorage is used during an active checkout session only.
   useEffect(() => {
     if (typeof window !== "undefined") {
       try {
-        const saved = localStorage.getItem("elaris_saved_checkout_info");
+        localStorage.removeItem("elaris_saved_checkout_info");
+        const saved = sessionStorage.getItem("elaris_checkout_session_info");
         if (saved) {
           const parsed = JSON.parse(saved);
           setFormData((prev) => ({
@@ -114,12 +117,14 @@ export function CheckoutShell() {
       const cleanPhone = formData.phone.trim().replace(/^(\+?880|0)+/, "");
       const formattedPhone = `+880${cleanPhone}`;
 
-      // BUG-29 FIX: Persist or remove saved user details in localStorage
+      // MED-03: Remove sensitive customer PII from persistent localStorage.
+      // Transient sessionStorage scoped to the current browser tab session is used when user opts in.
       if (typeof window !== "undefined") {
         try {
+          localStorage.removeItem("elaris_saved_checkout_info");
           if (formData.saveInfo) {
-            localStorage.setItem(
-              "elaris_saved_checkout_info",
+            sessionStorage.setItem(
+              "elaris_checkout_session_info",
               JSON.stringify({
                 fullName: formData.fullName,
                 email: formData.email,
@@ -131,7 +136,7 @@ export function CheckoutShell() {
               })
             );
           } else {
-            localStorage.removeItem("elaris_saved_checkout_info");
+            sessionStorage.removeItem("elaris_checkout_session_info");
           }
         } catch {
           // ignore storage error
@@ -175,7 +180,8 @@ export function CheckoutShell() {
       const generatedId = result.orderNumber || result.orderId || `ELR-${new Date().toISOString().slice(0, 10).replace(/-/g, "")}-1842`;
       const effectiveDiscount = appliedDiscount ?? summary.couponDiscount ?? 0;
       const effectiveTotal = Math.max(0, (summary.subtotal ?? 0) - effectiveDiscount + (summary.shippingFee ?? 0));
-      const confirmedTotal = result.grandTotal ?? effectiveTotal;
+      // MED-08: Make server-calculated grandTotal the authoritative source of truth.
+      const confirmedTotal = typeof result.grandTotal === "number" ? result.grandTotal : effectiveTotal;
 
       // Save order snapshot to sessionStorage for reliable instant feedback on success page
       if (typeof window !== "undefined") {
@@ -214,7 +220,12 @@ export function CheckoutShell() {
         return;
       }
 
-      // COD or immediate success: clear cart now
+      // COD or immediate success: clear cart and clear session PII now
+      try {
+        sessionStorage.removeItem("elaris_checkout_session_info");
+      } catch {
+        // ignore storage error
+      }
       await clearCart();
       router.push(`/checkout/success?orderId=${generatedId}&name=${encodeURIComponent(formData.fullName)}&total=${confirmedTotal}`);
     } catch (err) {

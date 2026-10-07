@@ -4,7 +4,10 @@ import Link from "next/link";
 
 export const metadata: Metadata = {
   title: "Returns & Refunds – Elaris",
-  description: "Our 14-day return window, exchange and refund process."
+  description: "Our 14-day return window, exchange and refund process.",
+  alternates: {
+    canonical: "/returns"
+  }
 };
 
 export default function ReturnsPage() {

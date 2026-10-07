@@ -1,12 +1,21 @@
 export const dynamic = "force-dynamic";
 
+import type { Metadata } from "next";
 import Link from "next/link";
 import Image from "next/image";
-import { Search } from "lucide-react";
 import { getServerUser } from "@/lib/auth/server";
 import { AdminLockScreen } from "@/components/admin/admin-lock-screen";
 import { AdminNotificationBell } from "@/components/admin/admin-notification-bell";
 import { AdminDesktopSidebar, AdminMobileNav } from "@/components/admin/admin-sidebar";
+import { AdminHeaderSearch } from "@/components/admin/admin-header-search";
+
+export const metadata: Metadata = {
+  title: "Admin Dashboard – Elaris",
+  robots: {
+    index: false,
+    follow: false
+  }
+};
 
 export default async function AdminLayout({
   children
@@ -31,8 +40,17 @@ export default async function AdminLayout({
 
   const userInfo = {
     name: user?.name ?? "Administrator",
-    email: user?.email ?? "admin@elaris.internal"
+    email: user?.email ?? "admin@elaris.internal",
+    image: user?.image ?? null
   };
+
+  const initials = (userInfo.name || "AD")
+    .trim()
+    .split(/\s+/)
+    .map((n: string) => n[0])
+    .join("")
+    .slice(0, 2)
+    .toUpperCase() || "AD";
 
   return (
     <div className="min-h-screen bg-stone-50/50 text-foreground flex flex-col lg:flex-row overflow-x-hidden">
@@ -56,15 +74,8 @@ export default async function AdminLayout({
               ELARIS
             </Link>
 
-            {/* Search — hidden on small screens */}
-            <div className="relative hidden sm:block w-64 lg:w-96">
-              <Search size={15} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-muted-foreground" />
-              <input
-                type="text"
-                placeholder="Search products, orders, customers..."
-                className="h-9 w-full rounded-md border border-border/80 bg-muted/30 pl-9 pr-3 text-xs placeholder:text-muted-foreground focus:border-foreground focus:bg-background focus:outline-none transition-all"
-              />
-            </div>
+            {/* Search — functional header search (HIGH-05) */}
+            <AdminHeaderSearch />
           </div>
 
           {/* Right Header Controls */}
@@ -78,8 +89,12 @@ export default async function AdminLayout({
               className="flex items-center gap-2.5 sm:gap-3 border-l border-border/80 pl-3 sm:pl-4 hover:opacity-80 transition-opacity group cursor-pointer"
               title="Admin Security & Password Settings"
             >
-              <div className="relative h-8 w-8 sm:h-9 sm:w-9 overflow-hidden rounded-full border border-border bg-muted shrink-0 group-hover:border-foreground transition-colors">
-                <Image src="/elaris-women.jpg" alt="Admin" fill className="object-cover" sizes="36px" />
+              <div className="relative h-8 w-8 sm:h-9 sm:w-9 overflow-hidden rounded-full border border-border bg-stone-900 text-stone-100 flex items-center justify-center shrink-0 group-hover:border-foreground transition-colors">
+                {userInfo.image ? (
+                  <Image src={userInfo.image} alt="Admin" fill className="object-cover" sizes="36px" />
+                ) : (
+                  <span className="text-xs font-bold tracking-tight">{initials}</span>
+                )}
               </div>
               <div className="hidden md:block text-left">
                 <p className="text-xs font-bold text-foreground leading-tight group-hover:underline">{userInfo.name}</p>

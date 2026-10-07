@@ -4,7 +4,10 @@ import Link from "next/link";
 export const metadata: Metadata = {
   title: "About Elaris – Wear Your Story",
   description:
-    "Elaris is a premium single-brand clothing store built around timeless design, responsible materials, and a direct relationship with our customers."
+    "Elaris is a premium single-brand clothing store built around timeless design, responsible materials, and a direct relationship with our customers.",
+  alternates: {
+    canonical: "/about"
+  }
 };
 
 export default function AboutPage() {

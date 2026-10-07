@@ -8,6 +8,7 @@ import { signIn } from "@/lib/auth/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Spinner } from "@/components/ui/spinner";
+import { getSafeCallbackUrl } from "@/lib/utils/url";
 
 export function LoginForm() {
   const router = useRouter();
@@ -49,7 +50,7 @@ export function LoginForm() {
       }
 
       const callbackUrl = searchParams.get("callbackUrl");
-      router.push(callbackUrl && callbackUrl.startsWith("/") ? callbackUrl : "/account");
+      router.push(getSafeCallbackUrl(callbackUrl, "/account"));
       router.refresh();
     } catch {
       setLoading(false);

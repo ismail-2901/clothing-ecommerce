@@ -46,6 +46,7 @@ export function AdminSearchInput({ placeholder = "Search..." }: { placeholder?: 
       />
       <input
         type="text"
+        aria-label={placeholder || "Search"}
         placeholder={placeholder}
         value={value}
         onChange={(e) => setValue(e.target.value)}

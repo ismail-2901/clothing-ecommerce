@@ -6,6 +6,7 @@ import { formatMoney } from "@/lib/utils/money";
 import { storeConfig, storePolicies } from "@/config/store";
 import { rateLimiter } from "@/lib/rate-limit/rate-limit";
 import { getClientIp } from "@/lib/auth/otp";
+import { getServerSession } from "@/lib/auth/server";
 import { prisma } from "@/db/prisma";
 
 const bodySchema = z.object({
@@ -37,14 +38,23 @@ function findKnowledge(message: string): string | null {
   return null;
 }
 
-async function findOrderDetails(message: string): Promise<string | null> {
+async function findOrderDetails(
+  message: string,
+  session: { userId?: string } | null
+): Promise<string | null> {
   const match = message.match(/\b((?:ATC|ORD|ATELIER)[A-Z0-9_-]+)\b/i) || message.match(/#([a-zA-Z0-9-]{6,})/);
   if (!match) return null;
   const orderNum = (match[1] || match[0]).replace(/^#/, "").trim();
 
+  // HIGH-09 FIX: Require authenticated session to look up and inspect customer orders
+  if (!session?.userId) {
+    return `To protect your privacy and view details for order #${orderNum}, please sign in to your ELARIS account, or visit our tracking page at /track with your verified order token.`;
+  }
+
   try {
     const order = await prisma.order.findFirst({
       where: {
+        userId: session.userId,
         OR: [
           { orderNumber: { equals: orderNum, mode: "insensitive" } },
           { id: orderNum }
@@ -57,7 +67,7 @@ async function findOrderDetails(message: string): Promise<string | null> {
     });
 
     if (!order) {
-      return `I searched for order #${orderNum}, but couldn't find a matching record. Please verify the order number (e.g., #ATC-XXXXX) or sign in to view your orders under Account → Orders.`;
+      return `I couldn't find an order matching #${orderNum} under your account. Please check your order history under Account → Orders or verify the order number.`;
     }
 
     const itemsSummary = order.items.map((i) => `${i.quantity}x ${i.name} (${i.color}/${i.size})`).join(", ");
@@ -72,23 +82,66 @@ async function findOrderDetails(message: string): Promise<string | null> {
   }
 }
 
-async function findCouponDetails(): Promise<string> {
+async function findCouponDetails(session: { userId?: string } | null): Promise<string> {
+  // HIGH-08 FIX: For guests, return standard public store offers without exposing database coupons
+  if (!session?.userId) {
+    return `Current offers at ELARIS:\n• Free nationwide delivery on orders over ${formatMoney(storePolicies.shipping.freeThreshold * 100)} (use code '${storePolicies.shipping.freeShippingCode}' or applied automatically at checkout).\n• Sign in to your account to view member-exclusive discount codes, or explore our latest arrivals on the shop page!`;
+  }
+
   try {
+    const now = new Date();
     const coupons = await prisma.coupon.findMany({
-      where: { status: "ACTIVE" },
-      take: 4,
+      where: {
+        status: "ACTIVE",
+        deletedAt: null,
+        AND: [
+          { OR: [{ startsAt: null }, { startsAt: { lte: now } }] },
+          { OR: [{ endsAt: null }, { endsAt: { gte: now } }] }
+        ]
+      },
+      take: 6,
       orderBy: { createdAt: "desc" }
     });
-    if (coupons.length > 0) {
-      const list = coupons.map((c) => {
-        const val = c.type === "PERCENTAGE" ? `${c.value}% OFF` : `৳${c.value / 100} OFF`;
-        const min = c.minSubtotal ? ` (Min spend: ৳${c.minSubtotal / 100})` : "";
+
+    const publicCoupons = coupons.filter((c) => {
+      const codeUpper = c.code.toUpperCase();
+      const titleUpper = c.title.toUpperCase();
+      const isInternal =
+        codeUpper.includes("STAFF") ||
+        codeUpper.includes("INTERNAL") ||
+        codeUpper.includes("SECRET") ||
+        codeUpper.includes("TEST") ||
+        codeUpper.includes("ADMIN") ||
+        titleUpper.includes("INTERNAL") ||
+        titleUpper.includes("STAFF");
+      const isExhausted = c.usageLimit !== null && c.usageCount >= c.usageLimit;
+      return !isInternal && !isExhausted;
+    });
+
+    if (publicCoupons.length > 0) {
+      // MED-02: Format PERCENTAGE, FIXED_AMOUNT, and FREE_SHIPPING coupons consistently with formatMoney
+      const list = publicCoupons.slice(0, 4).map((c) => {
+        let val: string;
+        if (c.type === "PERCENTAGE") {
+          val = `${c.value}% OFF`;
+          if (c.maxDiscount) {
+            val += ` (up to ${formatMoney(c.maxDiscount)})`;
+          }
+        } else if (c.type === "FIXED_AMOUNT") {
+          val = `${formatMoney(c.value)} OFF`;
+        } else if (c.type === "FREE_SHIPPING") {
+          val = "Free Shipping";
+        } else {
+          val = `${formatMoney(c.value)} OFF`;
+        }
+
+        const min = c.minSubtotal ? ` (Min spend: ${formatMoney(c.minSubtotal)})` : "";
         return `• Code '${c.code}': ${val}${min}`;
       }).join("\n");
-      return `Current active offers & coupons at ELARIS:\n${list}\n• Code '${storePolicies.shipping.freeShippingCode}': Free nationwide delivery on orders over ৳${storePolicies.shipping.freeThreshold.toLocaleString()}.\nApply code at checkout!`;
+      return `Current active offers & coupons for members:\n${list}\n• Code '${storePolicies.shipping.freeShippingCode}': Free nationwide delivery on orders over ${formatMoney(storePolicies.shipping.freeThreshold * 100)}.\nApply code at checkout!`;
     }
   } catch {}
-  return `Current offers:\n• Use code '${storePolicies.shipping.freeShippingCode}' for free delivery on orders over ৳${storePolicies.shipping.freeThreshold.toLocaleString()}.\n• Explore current deals and new arrivals on our collection pages!`;
+  return `Current offers:\n• Use code '${storePolicies.shipping.freeShippingCode}' for free delivery on orders over ${formatMoney(storePolicies.shipping.freeThreshold * 100)}.\n• Explore current deals and new arrivals on our collection pages!`;
 }
 
 async function callLLM(message: string, context: string): Promise<string | null> {
@@ -207,9 +260,10 @@ export async function POST(request: NextRequest) {
 
   const { message } = parsed.data;
   const normalized = message.toLowerCase();
+  const session = await getServerSession();
 
   // 1. Check for real-time order tracking with order number
-  const orderDetails = await findOrderDetails(message);
+  const orderDetails = await findOrderDetails(message, session);
   if (orderDetails) {
     return NextResponse.json({
       intent: "ORDER_STATUS",
@@ -220,7 +274,7 @@ export async function POST(request: NextRequest) {
 
   // 2. Check for discount / coupon queries
   if (normalized.match(/coupon|discount|promo|voucher|deal|save\d+/)) {
-    const couponInfo = await findCouponDetails();
+    const couponInfo = await findCouponDetails(session);
     return NextResponse.json({
       intent: "GENERAL_SUPPORT",
       text: couponInfo,

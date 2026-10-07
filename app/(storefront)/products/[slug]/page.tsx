@@ -32,8 +32,19 @@ export async function generateMetadata({ params }: ProductPageProps): Promise<Me
       title,
       description,
       url,
-      type: "website",
-      ...(image ? { images: [{ url: image, alt: product.images[0].alt }] } : {})
+      type: "article",
+      ...(image
+        ? {
+            images: [
+              {
+                url: image,
+                alt: product.images[0].alt,
+                width: 1200,
+                height: 630
+              }
+            ]
+          }
+        : {})
     },
     other: {
       "product:price:amount": formattedPrice,

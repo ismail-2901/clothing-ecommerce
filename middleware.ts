@@ -4,10 +4,20 @@ import { NextResponse, type NextRequest } from "next/server";
 const AUTH_REQUIRED_PATTERNS = [
   /^\/account(\/|$)/,
   /^\/api\/wishlist(\/|$)/,
-  /^\/api\/checkout(\/|$)/,
 ];
 
-// Paths that require admin role — cookie check here, DB role check in handlers
+// Paths that require admin role.
+//
+// CRIT-02 Defence-in-depth model (two independent layers):
+//   Layer 1 (here): unauthenticated filter — any request without a session
+//     cookie is redirected to /login or gets a 401.  This is a cheap, fast
+//     guard that never touches the database.
+//   Layer 2 (handlers + layout): authoritative check — requireAdminSession()
+//     in every /api/admin handler, and admin/layout.tsx via getServerUser(),
+//     both query the DB to confirm the user holds ADMIN or SUPER_ADMIN role.
+//     A valid customer session cookie cannot pass Layer 2.
+//
+// Never weaken Layer 2 checks even if Layer 1 is present.
 const ADMIN_REQUIRED_PATTERNS = [
   /^\/admin(\/|$)/,
   /^\/api\/admin(\/|$)/,
@@ -62,6 +72,22 @@ export function middleware(request: NextRequest) {
     "Permissions-Policy",
     "camera=(), microphone=(), geolocation=(), payment=()"
   );
+
+  // MED-09: Secure Content-Security-Policy compatible with Next.js, Cloudinary, and Sentry
+  const cspDirectives = [
+    "default-src 'self'",
+    "script-src 'self' 'unsafe-inline' 'unsafe-eval'",
+    "style-src 'self' 'unsafe-inline'",
+    "img-src 'self' data: blob: https://res.cloudinary.com https://images.unsplash.com https://lh3.googleusercontent.com https://avatars.githubusercontent.com",
+    "font-src 'self' data:",
+    "connect-src 'self' https://res.cloudinary.com https://*.sentry.io https://*.ingest.sentry.io https://generativelanguage.googleapis.com",
+    "media-src 'self' https://res.cloudinary.com",
+    "frame-ancestors 'none'",
+    "base-uri 'self'",
+    "form-action 'self' https:",
+    "object-src 'none'"
+  ];
+  response.headers.set("Content-Security-Policy", cspDirectives.join("; "));
 
   if (request.nextUrl.protocol === "https:") {
     response.headers.set("Strict-Transport-Security", "max-age=31536000; includeSubDomains");

@@ -3,19 +3,25 @@
 
 import * as Sentry from "@sentry/nextjs";
 
-Sentry.init({
-  dsn: process.env.NEXT_PUBLIC_SENTRY_DSN,
+const dsn = process.env.NEXT_PUBLIC_SENTRY_DSN;
 
-  // Safe trace sampling rate:
-  // - 100% (1.0) in development for local testing and verification
-  // - 10% (0.1) in production to capture representative performance spans without excessive quota usage
-  tracesSampleRate: process.env.NODE_ENV === "production" ? 0.1 : 1.0,
+if (dsn) {
+  Sentry.init({
+    dsn,
+    // Safe trace sampling rate:
+    // - 100% (1.0) in development for local testing and verification
+    // - 10% (0.1) in production to capture representative performance spans without excessive quota usage
+    tracesSampleRate: process.env.NODE_ENV === "production" ? 0.1 : 1.0,
 
-  // Session Replay is intentionally omitted by default to safeguard customer privacy,
-  // preventing accidental capture of sensitive customer checkout and payment data.
+    // Session Replay is intentionally omitted by default to safeguard customer privacy,
+    // preventing accidental capture of sensitive customer checkout and payment data.
 
-  // Setting debug to false in production to prevent console noise
-  debug: false,
-});
+    // Setting debug to false in production to prevent console noise
+    debug: false,
+    environment: process.env.NODE_ENV,
+  });
+}
 
-export const onRouterTransitionStart = Sentry.captureRouterTransitionStart;
+export const onRouterTransitionStart = dsn
+  ? Sentry.captureRouterTransitionStart
+  : () => () => {};

@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { prisma } from "@/db/prisma";
 import { calculateCartTotals, type CouponRule } from "@/features/pricing/pricing";
+import { rateLimiter } from "@/lib/rate-limit/rate-limit";
+import { getClientIp } from "@/lib/auth/otp";
 
 const schema = z.object({
   code: z.string().min(1).max(50).toUpperCase(),
@@ -12,6 +14,16 @@ const schema = z.object({
 });
 
 export async function POST(request: NextRequest) {
+  // HIGH-03 FIX: Rate limit coupon validation (10 req/min per IP) to prevent brute force enumeration
+  const ip = getClientIp(request);
+  const rl = await rateLimiter.consume(`coupon-validate:${ip}`, 10, 60_000);
+  if (!rl.allowed) {
+    return NextResponse.json(
+      { error: "Too many coupon validation attempts. Please try again later.", valid: false },
+      { status: 429 }
+    );
+  }
+
   let body: unknown;
   try {
     body = await request.json();

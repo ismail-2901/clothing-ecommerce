@@ -11,6 +11,9 @@ import { cookies } from "next/headers";
 import { sendOrderConfirmationEmail } from "@/lib/notifications/notification-service";
 import { trackCustomerEventAsync } from "@/features/admin/customer-events";
 import { generateRandomString } from "better-auth/crypto";
+import { redis } from "@/lib/redis/redis";
+import { rateLimiter } from "@/lib/rate-limit/rate-limit";
+import { getClientIp } from "@/lib/auth/otp";
 
 const GUEST_ORDER_TOKEN_COOKIE = "guest_order_token";
 const GUEST_ORDER_TOKEN_TTL_SECONDS = 60 * 60 * 24 * 7; // 7 days
@@ -32,7 +35,10 @@ const createOrderSchema = z.object({
   }),
   // shippingFee is NOT accepted from the client — derived server-side from city
   couponCode: z.string().max(50).optional(),
-  paymentProvider: z.enum(["COD", "SSLCOMMERZ", "BKASH", "NAGAD", "CARD"]),
+  // CRIT-06: NAGAD and CARD are not yet integrated — removed from accepted values.
+  // The checkout UI already marks them disabled; this ensures the API rejects any
+  // direct attempt to submit an order with those providers.
+  paymentProvider: z.enum(["COD", "SSLCOMMERZ", "BKASH"]),
   // Inline cart: used when no server-side Cart record exists (localStorage-based storefront)
   cartItems: z.array(
     z.object({
@@ -56,8 +62,49 @@ function deriveShippingFee(subtotal: number, city: string): number {
   return subtotal >= storePolicies.shipping.freeThreshold * 100 ? 0 : baseFee;
 }
 
+// CRIT-03: Redis-backed idempotency helpers.
+// Each key is stored with a 10-minute TTL so duplicate retries within that
+// window return the cached response without creating a second order.
+// When Redis is unavailable the helpers no-op safely.
+
+const IDEMPOTENCY_PREFIX = "order:idem:";
+const IDEMPOTENCY_TTL_SECONDS = 600; // 10 minutes
+
+async function idempotencyGet(key: string): Promise<{ body: unknown; status: number } | null> {
+  if (!redis) return null;
+  try {
+    const raw = await redis.get(`${IDEMPOTENCY_PREFIX}${key}`);
+    if (!raw) return null;
+    return JSON.parse(raw) as { body: unknown; status: number };
+  } catch {
+    return null;
+  }
+}
+
+async function idempotencySet(
+  key: string,
+  body: unknown,
+  status: number
+): Promise<void> {
+  if (!redis) return;
+  try {
+    // NX = only set if not already present (prevents overwriting a racing response)
+    await redis.set(
+      `${IDEMPOTENCY_PREFIX}${key}`,
+      JSON.stringify({ body, status }),
+      "EX",
+      IDEMPOTENCY_TTL_SECONDS,
+      "NX"
+    );
+  } catch {
+    // Best-effort — never block order creation
+  }
+}
+
+// In-process fallback for environments without Redis (dev, test).
+// Provides within-process deduplication complementing the cross-instance Redis layer.
 const orderLocks = new Map<string, Promise<NextResponse>>();
-const idempotencyStore = new Map<string, { body: any; status: number }>();
+const orderResponses = new Map<string, { body: unknown; status: number }>();
 
 export async function POST(request: NextRequest) {
   const idempotencyKey =
@@ -66,10 +113,17 @@ export async function POST(request: NextRequest) {
     request.headers.get("x-idempotency-key");
 
   if (idempotencyKey) {
-    const cached = idempotencyStore.get(idempotencyKey);
+    // Layer 1: Redis (cross-instance, persistent across restarts)
+    const cached = await idempotencyGet(idempotencyKey);
     if (cached) {
       return NextResponse.json(cached.body, { status: cached.status });
     }
+    // Layer 2: In-process Map (fallback for Redis-unavailable environments)
+    const memCached = orderResponses.get(idempotencyKey);
+    if (memCached) {
+      return NextResponse.json(memCached.body, { status: memCached.status });
+    }
+    // Deduplicate concurrent in-flight requests within the same process
     const inFlight = orderLocks.get(idempotencyKey);
     if (inFlight) {
       const res = await inFlight;
@@ -92,6 +146,22 @@ export async function POST(request: NextRequest) {
 
   const input = parsed.data;
   const session = await getServerSession();
+
+  // HIGH-01 FIX: Rate limit checkout creation (5 orders/min per user or IP)
+  const clientIp = getClientIp(request);
+  const rateLimitKey = session?.userId ? `orders:${session.userId}` : `orders:ip:${clientIp}`;
+  const rl = await rateLimiter.consume(rateLimitKey, 5, 60_000);
+  if (!rl.allowed) {
+    const retryAfter = Math.max(1, Math.ceil((rl.resetAt.getTime() - Date.now()) / 1000));
+    return NextResponse.json(
+      { error: "Too many checkout attempts. Please wait a moment before trying again." },
+      {
+        status: 429,
+        headers: { "Retry-After": String(retryAfter) }
+      }
+    );
+  }
+
   const cookieStore = await cookies();
   const anonymousId = cookieStore.get(ANON_COOKIE)?.value;
 
@@ -227,6 +297,23 @@ export async function POST(request: NextRequest) {
     couponId = resolvedCoupon.id;
   }
 
+  // CRIT-05: Pre-flight perCustomerLimit check (non-atomic, catches obvious violations early).
+  // The definitive atomic enforcement is inside the DB transaction below.
+  if (resolvedCoupon?.perCustomerLimit != null && resolvedCoupon.perCustomerLimit > 0) {
+    const identityWhere = session?.userId
+      ? { userId: session.userId }
+      : { guestEmail: input.email };
+    const customerUseCount = await prisma.order.count({
+      where: { couponId: resolvedCoupon.id, ...identityWhere }
+    });
+    if (customerUseCount >= resolvedCoupon.perCustomerLimit) {
+      return NextResponse.json(
+        { error: `You have already used this coupon the maximum number of times allowed.` },
+        { status: 422 }
+      );
+    }
+  }
+
   const couponRule = resolvedCoupon
     ? {
         code: resolvedCoupon.code,
@@ -334,10 +421,10 @@ export async function POST(request: NextRequest) {
       }
 
 
-      // Atomic coupon usage: increment only if still under limit (race-safe)
+      // Atomic coupon usage: increment only if still under global limit (race-safe)
       if (couponId) {
         const couponRow = resolvedCoupon;
-        const hasLimit = couponRow?.usageLimit != null;
+        const hasGlobalLimit = couponRow?.usageLimit != null;
 
         const updated = await tx.$executeRaw`
           UPDATE "Coupon"
@@ -350,8 +437,26 @@ export async function POST(request: NextRequest) {
             )
         `;
 
-        if (updated === 0 && hasLimit) {
+        if (updated === 0 && hasGlobalLimit) {
           throw new Error("Coupon usage limit reached. Please try without the coupon.");
+        }
+
+        // CRIT-05: Atomic per-customer limit check inside the transaction.
+        // Re-counts within the transaction so concurrent checkouts cannot both pass.
+        if (couponRow?.perCustomerLimit != null && couponRow.perCustomerLimit > 0) {
+          const identityWhere = session?.userId
+            ? { userId: session.userId }
+            : { guestEmail: input.email };
+          const customerUseCount = await tx.order.count({
+            where: { couponId, ...identityWhere }
+          });
+          // +1 because the current order hasn't been created yet but the coupon
+          // usage was already incremented above.
+          if (customerUseCount + 1 > couponRow.perCustomerLimit) {
+            throw new Error(
+              `You have already used this coupon the maximum number of times allowed.`
+            );
+          }
         }
       }
 
@@ -479,8 +584,11 @@ export async function POST(request: NextRequest) {
     paymentUrl: paymentResult.redirectUrl ?? null
   };
 
+  // CRIT-03: Persist successful response to both Redis and in-process cache.
   if (idempotencyKey) {
-    idempotencyStore.set(idempotencyKey, { body: responsePayload, status: 201 });
+    await idempotencySet(idempotencyKey, responsePayload, 201);
+    // Also write to in-process Map as fallback for Redis-unavailable environments
+    orderResponses.set(idempotencyKey, { body: responsePayload, status: 201 });
   }
 
   const response = NextResponse.json(responsePayload, { status: 201 });

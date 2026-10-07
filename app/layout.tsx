@@ -46,7 +46,27 @@ export default function RootLayout({
 }: Readonly<{ children: React.ReactNode }>) {
   return (
     <html lang="en" className={inter.variable}>
-      <body className={inter.className}>{children}</body>
+      <body className={inter.className}>
+        <noscript>
+          <div
+            role="status"
+            aria-live="polite"
+            style={{
+              padding: "12px 16px",
+              textAlign: "center",
+              backgroundColor: "#fef3c7",
+              color: "#92400e",
+              borderBottom: "1px solid #fde68a",
+              fontSize: "14px",
+              fontWeight: 500,
+              fontFamily: "system-ui, -apple-system, sans-serif"
+            }}
+          >
+            JavaScript is disabled in your browser. While catalog pages and static policies remain readable, interactive features like adding to cart and checkout require JavaScript.
+          </div>
+        </noscript>
+        {children}
+      </body>
     </html>
   );
 }

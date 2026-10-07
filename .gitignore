@@ -22,3 +22,7 @@ data/admin-credentials.json
 /blob-report/
 /playwright/.cache/
 /playwright/.auth/
+
+# pnpm (standardized on npm)
+pnpm-lock.yaml
+pnpm-workspace.yaml

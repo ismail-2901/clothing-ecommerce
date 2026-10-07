@@ -31,63 +31,86 @@ type CartWithRelations = Prisma.CartGetPayload<{
   };
 }>;
 
-const cartLocks = new Map<string, Promise<CartWithRelations>>();
-
+// CRIT-04: Postgres advisory-lock-based cart creation.
+// Uses pg_advisory_xact_lock with a stable 32-bit key derived from the
+// identity string to serialise concurrent cart creation in the DB layer.
+// This eliminates duplicate-ACTIVE-cart races without a schema migration,
+// and works correctly across multiple serverless instances because the lock
+// lives in Postgres, not in process memory.
 async function getOrCreateCart(userId: string | null, anonymousId: string): Promise<CartWithRelations> {
-  const key = userId ? `user:${userId}` : `anon:${anonymousId}`;
-  const existingLock = cartLocks.get(key);
-  if (existingLock) {
-    return existingLock;
+  const where = userId
+    ? { userId, status: "ACTIVE" as const }
+    : { anonymousId, status: "ACTIVE" as const };
+
+  // Fast-path: cart already exists (the common case)
+  let cart = await prisma.cart.findFirst({
+    where,
+    include: {
+      items: {
+        include: {
+          variant: {
+            include: {
+              product: { include: { images: { orderBy: { position: "asc" }, take: 1 } } }
+            }
+          }
+        }
+      },
+      coupon: true
+    }
+  });
+
+  if (cart) return cart;
+
+  // Slow-path: acquire a per-identity advisory lock inside a transaction so
+  // exactly one concurrent request proceeds with cart creation.
+  const identityKey = userId ?? anonymousId;
+  // djb2 hash -> positive 32-bit integer safe for advisory lock key
+  let lockKey = 5381;
+  for (let i = 0; i < identityKey.length; i++) {
+    lockKey = ((lockKey << 5) + lockKey + identityKey.charCodeAt(i)) & 0x7fffffff;
   }
 
-  const promise = (async () => {
-    try {
-      const where = userId
-        ? { userId, status: "ACTIVE" as const }
-        : { anonymousId, status: "ACTIVE" as const };
+  cart = await prisma.$transaction(async (tx) => {
+    // All concurrent requests for this identity queue here until the lock is released
+    await tx.$executeRaw`SELECT pg_advisory_xact_lock(${lockKey})`;
 
-      let cart = await prisma.cart.findFirst({
-        where,
-        include: {
-          items: {
-            include: {
-              variant: {
-                include: {
-                  product: { include: { images: { orderBy: { position: "asc" }, take: 1 } } }
-                }
+    // Re-check inside the lock — a racing request may have just created the cart
+    const existing = await tx.cart.findFirst({
+      where,
+      include: {
+        items: {
+          include: {
+            variant: {
+              include: {
+                product: { include: { images: { orderBy: { position: "asc" }, take: 1 } } }
               }
             }
-          },
-          coupon: true
-        }
-      });
-
-      if (!cart) {
-        cart = await prisma.cart.create({
-          data: { userId, anonymousId, status: "ACTIVE" },
-          include: {
-            items: {
-              include: {
-                variant: {
-                  include: {
-                    product: { include: { images: { orderBy: { position: "asc" }, take: 1 } } }
-                  }
-                }
-              }
-            },
-            coupon: true
           }
-        });
+        },
+        coupon: true
       }
+    });
 
-      return cart;
-    } finally {
-      cartLocks.delete(key);
-    }
-  })();
+    if (existing) return existing;
 
-  cartLocks.set(key, promise);
-  return promise;
+    return tx.cart.create({
+      data: { userId, anonymousId, status: "ACTIVE" },
+      include: {
+        items: {
+          include: {
+            variant: {
+              include: {
+                product: { include: { images: { orderBy: { position: "asc" }, take: 1 } } }
+              }
+            }
+          }
+        },
+        coupon: true
+      }
+    });
+  });
+
+  return cart;
 }
 
 // M1: Re-fetch a cart by its known ID after a mutation, skipping the getOrCreateCart

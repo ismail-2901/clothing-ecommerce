@@ -3,7 +3,11 @@ import { ResetPasswordForm } from "@/components/account/reset-password-form";
 
 export const metadata: Metadata = {
   title: "Set New Password – Elaris",
-  description: "Set a new password for your account."
+  description: "Set a new password for your account.",
+  robots: {
+    index: false,
+    follow: false
+  }
 };
 
 export default function ResetPasswordPage() {

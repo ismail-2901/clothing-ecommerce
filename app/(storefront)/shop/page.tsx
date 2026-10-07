@@ -1,3 +1,4 @@
+import type { Metadata } from "next";
 import Link from "next/link";
 import Image from "next/image";
 import { ShopCatalogView } from "@/components/shop/shop-catalog-view";
@@ -5,6 +6,14 @@ import { ShopFilters } from "@/components/shop/shop-filters";
 import { ShopFilterDrawer } from "@/components/shop/shop-filter-drawer";
 import { getFilteredProducts } from "@/features/catalog/data";
 import { getCachedCategories } from "@/lib/cache/db-cache";
+
+export const metadata: Metadata = {
+  title: "Shop All",
+  description: "Browse the complete Elaris clothing collection.",
+  alternates: {
+    canonical: "/shop"
+  }
+};
 
 type ShopPageProps = {
   searchParams: Promise<Record<string, string | string[] | undefined>>;

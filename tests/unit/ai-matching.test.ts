@@ -3,7 +3,7 @@ import { detectShoppingIntent } from "@/lib/ai/intent";
 import * as catalogData from "@/features/catalog/data";
 import { matchProducts } from "@/lib/ai/recommendation";
 
-vi.spyOn(catalogData, "getAllProducts").mockResolvedValue([
+const mockProducts = [
   {
     id: "prod_black_linen_shirt",
     name: "Black Linen Shirt",
@@ -20,7 +20,13 @@ vi.spyOn(catalogData, "getAllProducts").mockResolvedValue([
       { id: "test-variant-1", sku: "BLS-M", color: "black", size: "M", price: 245000, stock: 5 }
     ]
   }
-]);
+];
+
+vi.spyOn(catalogData, "getAllProducts").mockResolvedValue(mockProducts);
+vi.spyOn(catalogData, "getFilteredProducts").mockResolvedValue({
+  products: mockProducts,
+  total: mockProducts.length
+});
 
 describe("grounded AI matching", () => {
   it("extracts structured filters from natural language", () => {

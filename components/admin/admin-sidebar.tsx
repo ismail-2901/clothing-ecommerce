@@ -72,7 +72,21 @@ export const navGroups = [
   }
 ] as const;
 
-type UserInfo = { name?: string | null; email?: string | null };
+type UserInfo = { name?: string | null; email?: string | null; image?: string | null };
+
+function getInitials(name?: string | null, email?: string | null): string {
+  if (name && name.trim()) {
+    const parts = name.trim().split(/\s+/);
+    if (parts.length >= 2) {
+      return (parts[0][0] + parts[1][0]).toUpperCase();
+    }
+    return parts[0].slice(0, 2).toUpperCase();
+  }
+  if (email && email.trim()) {
+    return email.slice(0, 2).toUpperCase();
+  }
+  return "AD";
+}
 
 function SidebarInner({
   user,
@@ -173,8 +187,12 @@ function SidebarInner({
 
         {/* User info at bottom */}
         <div className="flex items-center gap-2.5 px-1 pt-1 border-t border-border/40">
-          <div className="relative h-7 w-7 overflow-hidden rounded-full border border-border bg-muted shrink-0">
-            <Image src="/elaris-women.jpg" alt="Admin" fill className="object-cover" sizes="28px" />
+          <div className="relative h-7 w-7 overflow-hidden rounded-full border border-border bg-stone-900 text-stone-100 flex items-center justify-center shrink-0">
+            {user.image ? (
+              <Image src={user.image} alt={user.name ?? "Admin"} fill className="object-cover" sizes="28px" />
+            ) : (
+              <span className="text-[10px] font-bold tracking-tight">{getInitials(user.name, user.email)}</span>
+            )}
           </div>
           <div className="min-w-0">
             <p className="text-xs font-bold text-foreground truncate">{user.name ?? "Admin"}</p>

@@ -7,6 +7,19 @@ import {
   sendVerificationEmail
 } from "@/lib/notifications/notification-service";
 
+// MED-04: Startup validation for BETTER_AUTH_SECRET.
+// Production must fail clearly if the secret is missing or insecure (< 32 chars).
+// Secret value is never logged or exposed in error messages.
+const authSecret = process.env.BETTER_AUTH_SECRET;
+if (!authSecret || authSecret.trim().length < 32) {
+  if (process.env.NODE_ENV === "production") {
+    throw new Error(
+      "[auth] Startup validation failed: BETTER_AUTH_SECRET is missing or insecure. " +
+      "Production requires an unpredictable secret of at least 32 characters."
+    );
+  }
+}
+
 export const auth = betterAuth({
   database: prismaAdapter(prisma, {
     provider: "postgresql",
@@ -29,6 +42,11 @@ export const auth = betterAuth({
       await sendPasswordResetEmail({ to: user.email, resetUrl: url });
     }
   },
+  // MED-14: Architecture documentation for email verification.
+  // sendOnSignUp is intentionally set to false because user registration executes
+  // an interactive 6-digit OTP verification flow (/api/auth/send-otp + /api/auth/verify-otp)
+  // via Brevo. Setting sendOnSignUp to true would fire a duplicate, conflicting magic-link
+  // email during sign-up, breaking the user-facing OTP onboarding experience.
   emailVerification: {
     sendOnSignUp: false,
     async sendVerificationEmail({ user, url }) {

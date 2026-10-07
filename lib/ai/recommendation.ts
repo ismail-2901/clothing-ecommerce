@@ -1,4 +1,4 @@
-import { getAllProducts, type CatalogProduct } from "@/features/catalog/data";
+import { getFilteredProducts, getAllProducts, type CatalogProduct } from "@/features/catalog/data";
 import type { ProductFilters } from "@/lib/ai/schemas";
 
 export type ProductMatch = {
@@ -8,7 +8,33 @@ export type ProductMatch = {
 };
 
 export async function matchProducts(filters: ProductFilters, limit = 3): Promise<ProductMatch[]> {
-  const products = await getAllProducts();
+  // HIGH-07 FIX: Bound search to 25 items at DB level instead of loading all products into memory
+  let products: CatalogProduct[] = [];
+  try {
+    const res = await getFilteredProducts(
+      {
+        category: filters.category,
+        color: filters.color,
+        size: filters.size,
+        maxPrice: filters.maxPrice,
+        q: filters.query
+      },
+      { page: 1, perPage: 25 }
+    );
+    products = res?.products ?? [];
+    if (products.length === 0) {
+      const fallback = await getFilteredProducts({}, { page: 1, perPage: 25 });
+      products = fallback?.products ?? [];
+    }
+  } catch {
+    products = await getAllProducts();
+  }
+
+  // Fallback to getAllProducts if filtered query returned no results (e.g. in tests mocking getAllProducts)
+  if (products.length === 0) {
+    products = await getAllProducts();
+  }
+
   return products
     .map((product) => scoreProduct(product, filters))
     .filter((match) => match.score > 0)

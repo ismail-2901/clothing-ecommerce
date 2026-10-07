@@ -26,10 +26,17 @@ export const storeConfig = {
   },
   businessTimezone: "Asia/Dhaka",
   social: {
-    instagram: "https://instagram.com/elarisstore",
-    facebook: "https://facebook.com/elarisstore"
+    instagram: process.env.STORE_INSTAGRAM_URL || "https://instagram.com/elarisstore",
+    facebook: process.env.STORE_FACEBOOK_URL || "https://facebook.com/elarisstore",
+    tiktok: process.env.STORE_TIKTOK_URL || undefined,
+    youtube: process.env.STORE_YOUTUBE_URL || undefined
+  } as {
+    instagram?: string;
+    facebook?: string;
+    tiktok?: string;
+    youtube?: string;
   }
-} as const;
+};
 
 export const storePolicies = {
   returns: {

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, Suspense } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { Loader2 } from "lucide-react";
@@ -120,7 +120,9 @@ export default function LoginPage() {
             </span>
           </div>
 
-          <LoginForm />
+          <Suspense fallback={<div className="h-48 animate-pulse bg-muted/20 rounded-xl" />}>
+            <LoginForm />
+          </Suspense>
         </div>
       </div>
     </main>

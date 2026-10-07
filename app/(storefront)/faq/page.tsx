@@ -4,7 +4,10 @@ import type { Metadata } from "next";
 
 export const metadata: Metadata = {
   title: "FAQ – Elaris",
-  description: "Answers to common questions about orders, delivery, returns, and products."
+  description: "Answers to common questions about orders, delivery, returns, and products.",
+  alternates: {
+    canonical: "/faq"
+  }
 };
 
 // Group by category

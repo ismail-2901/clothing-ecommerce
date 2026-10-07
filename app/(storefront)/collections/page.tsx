@@ -5,7 +5,10 @@ import { ArrowRight, Sparkles } from "lucide-react";
 
 export const metadata: Metadata = {
   title: "Collections – Elaris",
-  description: "Explore curated seasonal editions, streetwear lookbooks, and elevated wardrobe collections at Elaris."
+  description: "Explore curated seasonal editions, streetwear lookbooks, and elevated wardrobe collections at Elaris.",
+  alternates: {
+    canonical: "/collections"
+  }
 };
 
 interface CollectionItem {

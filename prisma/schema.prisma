@@ -128,6 +128,19 @@ enum SupportTicketStatus {
   CLOSED
 }
 
+enum SupportTicketPriority {
+  LOW
+  NORMAL
+  HIGH
+  URGENT
+}
+
+enum MessageRole {
+  USER
+  ASSISTANT
+  SYSTEM
+}
+
 enum InventoryMovementType {
   ADJUSTMENT
   RESERVATION
@@ -340,7 +353,7 @@ model Product {
   updatedAt        DateTime      @updatedAt
   deletedAt        DateTime?
 
-  category   Category    @relation(fields: [categoryId], references: [id])
+  category   Category    @relation(fields: [categoryId], references: [id], onDelete: Restrict)
   collection Collection? @relation(fields: [collectionId], references: [id], onDelete: SetNull)
   variants   ProductVariant[]
   images     ProductImage[]
@@ -525,19 +538,6 @@ model Discount {
   collection Collection? @relation(fields: [collectionId], references: [id], onDelete: Cascade)
 
   @@index([isActive, startsAt, endsAt])
-}
-
-model Promotion {
-  id          String    @id @default(uuid())
-  title       String
-  description String?
-  startsAt    DateTime?
-  endsAt      DateTime?
-  isActive    Boolean   @default(true)
-  rules       Json
-  createdAt   DateTime  @default(now())
-  updatedAt   DateTime  @updatedAt
-  deletedAt   DateTime?
 }
 
 model Order {
@@ -744,9 +744,9 @@ model Conversation {
 }
 
 model ConversationMessage {
-  id             String   @id @default(uuid())
+  id             String      @id @default(uuid())
   conversationId String
-  role           String
+  role           MessageRole
   content        String
   metadata       Json?
   createdAt      DateTime @default(now())
@@ -854,8 +854,8 @@ model SupportTicket {
   id        String              @id @default(uuid())
   userId    String?
   subject   String
-  status    SupportTicketStatus @default(OPEN)
-  priority  String              @default("NORMAL")
+  status    SupportTicketStatus   @default(OPEN)
+  priority  SupportTicketPriority @default(NORMAL)
   metadata  Json?
   createdAt DateTime            @default(now())
   updatedAt DateTime            @updatedAt

@@ -4,7 +4,10 @@ import Link from "next/link";
 
 export const metadata: Metadata = {
   title: "Shipping Policy – Elaris",
-  description: "Delivery times, fees, and shipping information for Elaris orders."
+  description: "Delivery times, fees, and shipping information for Elaris orders.",
+  alternates: {
+    canonical: "/shipping"
+  }
 };
 
 export default function ShippingPage() {

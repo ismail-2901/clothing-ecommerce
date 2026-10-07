@@ -6,7 +6,10 @@ import type { Metadata } from "next";
 
 export const metadata: Metadata = {
   title: "Offers & Discounts – Elaris",
-  description: "Browse active offers and coupon codes at Elaris."
+  description: "Browse active offers and coupon codes at Elaris.",
+  alternates: {
+    canonical: "/offers"
+  }
 };
 
 export default async function OffersPage() {

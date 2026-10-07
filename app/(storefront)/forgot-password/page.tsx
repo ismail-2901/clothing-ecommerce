@@ -3,7 +3,11 @@ import { ForgotPasswordForm } from "@/components/account/forgot-password-form";
 
 export const metadata: Metadata = {
   title: "Reset Password – Elaris",
-  description: "Request a password reset link."
+  description: "Request a password reset link.",
+  robots: {
+    index: false,
+    follow: false
+  }
 };
 
 export default function ForgotPasswordPage() {

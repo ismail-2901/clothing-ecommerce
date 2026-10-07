@@ -10,6 +10,13 @@ export const TEST_DATABASE_URL = `postgresql://postgres:password@127.0.0.1:${TES
 process.env.DATABASE_URL = TEST_DATABASE_URL;
 process.env.DIRECT_URL = TEST_DATABASE_URL;
 
+// Supply a deterministic test-only secret so lib/auth/auth.ts can load.
+// This value is never used outside the test environment.
+if (!process.env.BETTER_AUTH_SECRET) {
+  process.env.BETTER_AUTH_SECRET =
+    "test-only-secret-do-not-use-in-production-must-be-32-chars-min";
+}
+
 let prismaInstance: PrismaClient | null = null;
 let pgServerInstance: any = null;
 

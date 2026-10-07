@@ -349,7 +349,6 @@ Route handlers:
 - `/api/auth/[...all]`
 - `/api/cart`
 - `/api/cart/items`
-- `/api/checkout`
 - `/api/orders`
 - `/api/payments/[provider]/webhook`
 - `/api/search`
@@ -464,3 +463,18 @@ ORDER_PREFIX=ORD
 Business-specific values such as legal policy text, brand assets, payment
 credentials, shipping fees, tax rules, and email templates remain configurable
 placeholders until supplied by the merchant.
+
+## 18. Technical Debt & Architecture Review (Audit Closure)
+
+### 18.1 OTP Architecture (LOW-07)
+- **Current State:** Email verification uses an in-house HMAC-SHA256 OTP engine (`lib/auth/otp.ts`) storing hashed codes in `User.verificationCode` and `User.verificationExpires`.
+- **Better Auth Alignment:** Better Auth's schema contains a generic `verification` table (`model Verification`), which is currently idle.
+- **Decision & Technical Debt:** The custom engine provides production-grade security: `crypto.timingSafeEqual`, 60-second cooldown, 5-attempt brute-force lock, and Redis IP/account rate limiting. A destructive schema migration to transfer OTPs to the `verification` table carries regression risks for active users with no functional gain. Technical debt is documented; migration is deferred to a future phase if phone OTP or magic-link auth is added.
+
+### 18.2 Schema Models: HomepageSection & FAQ (LOW-08)
+- **Current State:** `model HomepageSection` and `model FAQ` are provisioned in PostgreSQL with 0 records. Content is currently statically served from `features/content/policies.ts` and component trees.
+- **Decision:** Models have zero foreign keys and zero runtime queries. They are intentionally preserved for future admin CMS functionality (dynamic FAQ editor and drag-and-drop homepage banners). Destructive table dropping was rejected to maintain non-breaking forward compatibility.
+
+### 18.3 AI Integration Architecture (LOW-09)
+- **Current State:** `app/api/ai/chat/route.ts` uses lightweight native `fetch` with direct REST endpoints for Google Gemini and OpenAI, backed by local deterministic knowledge and grounded Prisma catalog searches.
+- **Decision:** The unused npm package `ai` was uninstalled to minimize dependencies and eliminate vulnerability overhead while preserving 100% of the working shopping assistant logic.

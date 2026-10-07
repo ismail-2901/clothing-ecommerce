@@ -18,15 +18,21 @@ export async function POST(
   }
 
   // ------------------------------------------------------------------
-  // BUG-21 FIX: Verify webhook authenticity BEFORE parsing or trusting
-  // the payload. Returns 401 so the gateway knows to retry with correct
-  // credentials rather than silently dropping the event.
+  // HIGH-13 FIX: Read the raw request body FIRST, before any parsing.
+  // Signature verification MUST run against the original byte-for-byte
+  // body; reconstructing JSON from a parsed object changes whitespace
+  // and key order, causing every HMAC check to fail.
   // ------------------------------------------------------------------
+  let rawBody: string;
   try {
-    // For signature-based verification we need the raw body; pass the
-    // request object's Headers so the provider can read X-Webhook-Secret,
-    // Authorization, or provider-specific signature headers.
-    await providerInstance.verifyWebhookSignature(undefined, request.headers);
+    rawBody = await request.text();
+  } catch {
+    return NextResponse.json({ error: "Failed to read request body" }, { status: 400 });
+  }
+
+  // Verify webhook authenticity against the raw body BEFORE parsing.
+  try {
+    await providerInstance.verifyWebhookSignature(rawBody, request.headers);
   } catch (err) {
     if (err instanceof WebhookVerificationError) {
       console.error(`[webhook:${provider}] Signature verification failed:`, err.message);
@@ -35,21 +41,22 @@ export async function POST(
     throw err;
   }
 
+  // Parse the already-read body
   let payload: unknown;
   const contentType = request.headers.get("content-type") || "";
 
   try {
     if (contentType.includes("application/json")) {
-      payload = await request.json();
+      payload = JSON.parse(rawBody);
     } else if (contentType.includes("application/x-www-form-urlencoded")) {
-      const formData = await request.formData();
+      const params = new URLSearchParams(rawBody);
       const obj: Record<string, unknown> = {};
-      formData.forEach((value, key) => {
+      params.forEach((value, key) => {
         obj[key] = value;
       });
       payload = obj;
     } else {
-      payload = await request.text();
+      payload = rawBody;
     }
   } catch (err) {
     return NextResponse.json({ error: "Failed to parse webhook payload" }, { status: 400 });
