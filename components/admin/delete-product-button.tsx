@@ -7,9 +7,11 @@ import { Trash2 } from "lucide-react";
 export function DeleteProductButton({
   productId,
   productName,
+  redirectTo,
 }: {
   productId: string;
   productName: string;
+  redirectTo?: string;
 }) {
   const router = useRouter();
   const [confirming, setConfirming] = useState(false);
@@ -20,7 +22,11 @@ export function DeleteProductButton({
     await fetch(`/api/admin/products/${productId}`, { method: "DELETE" });
     setLoading(false);
     setConfirming(false);
-    router.refresh();
+    if (redirectTo) {
+      router.push(redirectTo);
+    } else {
+      router.refresh();
+    }
   }
 
   if (confirming) {

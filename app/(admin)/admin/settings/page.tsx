@@ -30,6 +30,43 @@ export default function AdminSettingsPage() {
       }
     }
   }, []);
+
+  useEffect(() => {
+    try {
+      const cached = localStorage.getItem("elaris_store_settings");
+      if (cached) {
+        const parsed = JSON.parse(cached);
+        if (parsed.storeName !== undefined) setStoreName(parsed.storeName);
+        if (parsed.tagline !== undefined) setTagline(parsed.tagline);
+        if (parsed.supportEmail !== undefined) setSupportEmail(parsed.supportEmail);
+        if (parsed.supportPhone !== undefined) setSupportPhone(parsed.supportPhone);
+        if (parsed.address !== undefined) setAddress(parsed.address);
+        if (parsed.freeShippingMin !== undefined) setFreeShippingMin(parsed.freeShippingMin);
+        if (parsed.insideDhakaFee !== undefined) setInsideDhakaFee(parsed.insideDhakaFee);
+        if (parsed.outsideDhakaFee !== undefined) setOutsideDhakaFee(parsed.outsideDhakaFee);
+      }
+    } catch {}
+
+    fetch("/api/admin/settings")
+      .then((res) => (res.ok ? res.json() : null))
+      .then((data) => {
+        if (data?.settings) {
+          const s = data.settings;
+          if (s.storeName !== undefined) setStoreName(s.storeName);
+          if (s.tagline !== undefined) setTagline(s.tagline);
+          if (s.supportEmail !== undefined) setSupportEmail(s.supportEmail);
+          if (s.supportPhone !== undefined) setSupportPhone(s.supportPhone);
+          if (s.address !== undefined) setAddress(s.address);
+          if (s.freeShippingMin !== undefined) setFreeShippingMin(s.freeShippingMin);
+          if (s.insideDhakaFee !== undefined) setInsideDhakaFee(s.insideDhakaFee);
+          if (s.outsideDhakaFee !== undefined) setOutsideDhakaFee(s.outsideDhakaFee);
+          try {
+            localStorage.setItem("elaris_store_settings", JSON.stringify(s));
+          } catch {}
+        }
+      })
+      .catch(console.error);
+  }, []);
   const [storeName, setStoreName] = useState("ELARIS");
   const [tagline, setTagline] = useState("More Than Clothing. Wear Your Story.");
   const [supportEmail, setSupportEmail] = useState("support@elaris.com");
@@ -42,6 +79,24 @@ export default function AdminSettingsPage() {
 
   const handleSave = () => {
     setSaved(true);
+    const payload = {
+      storeName,
+      tagline,
+      supportEmail,
+      supportPhone,
+      address,
+      freeShippingMin,
+      insideDhakaFee,
+      outsideDhakaFee,
+    };
+    try {
+      localStorage.setItem("elaris_store_settings", JSON.stringify(payload));
+      fetch("/api/admin/settings", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      }).catch(console.error);
+    } catch {}
     setTimeout(() => setSaved(false), 2500);
   };
 

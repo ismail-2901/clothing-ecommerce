@@ -3,6 +3,7 @@ export const dynamic = "force-dynamic";
 import { notFound } from "next/navigation";
 import { prisma } from "@/db/prisma";
 import { AdminProductForm, type ProductFormInitialData } from "@/components/admin/admin-product-form";
+import { DeleteProductButton } from "@/components/admin/delete-product-button";
 
 type Props = { params: Promise<{ id: string }> };
 
@@ -69,15 +70,22 @@ export default async function AdminProductEditPage({ params }: Props) {
 
   return (
     <div>
-      <div>
-        <p className="text-xs font-semibold uppercase tracking-[0.18em] text-muted-foreground">
-          Catalog Operations
-        </p>
-        <h1 className="mt-2 text-3xl font-semibold">Edit Product</h1>
-        <p className="mt-1 text-sm text-muted-foreground">
-          Update details, variants, and images for{" "}
-          <span className="font-medium text-foreground">{product.name}</span>.
-        </p>
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+        <div>
+          <p className="text-xs font-semibold uppercase tracking-[0.18em] text-muted-foreground">
+            Catalog Operations
+          </p>
+          <h1 className="mt-2 text-3xl font-semibold">Edit Product</h1>
+          <p className="mt-1 text-sm text-muted-foreground">
+            Update details, variants, and images for{" "}
+            <span className="font-medium text-foreground">{product.name}</span>.
+          </p>
+        </div>
+        <DeleteProductButton
+          productId={product.id}
+          productName={product.name}
+          redirectTo="/admin/products"
+        />
       </div>
       <AdminProductForm categories={categories} initialData={initialData} />
     </div>

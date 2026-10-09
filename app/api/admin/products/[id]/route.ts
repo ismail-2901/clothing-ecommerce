@@ -265,6 +265,11 @@ export async function DELETE(request: NextRequest, { params }: RouteParams) {
       data: { deletedAt: new Date(), status: "ARCHIVED" },
     });
 
+    await tx.productVariant.updateMany({
+      where: { productId: id, deletedAt: null },
+      data: { deletedAt: new Date() },
+    });
+
     if (userId) {
       await tx.auditLog.create({
         data: {

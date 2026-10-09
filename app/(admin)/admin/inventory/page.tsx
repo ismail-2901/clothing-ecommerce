@@ -17,6 +17,7 @@ import { prisma } from "@/db/prisma";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { AdminSearchInput } from "@/components/admin/admin-search-input";
+import { DeleteProductButton } from "@/components/admin/delete-product-button";
 
 type PageProps = {
   searchParams: Promise<{ q?: string; status?: string }>;
@@ -27,6 +28,7 @@ export default async function AdminInventoryPage({ searchParams }: PageProps) {
 
   const whereClause: Record<string, unknown> = {
     deletedAt: null,
+    product: { deletedAt: null },
   };
 
   if (q && q.trim()) {
@@ -281,13 +283,16 @@ export default async function AdminInventoryPage({ searchParams }: PageProps) {
                         )}
                       </td>
                       <td className="py-3.5 px-4 text-right">
-                        <Link
-                          href={`/admin/products/${v.productId}/edit`}
-                          className="inline-flex items-center gap-1 rounded-md border border-border px-2.5 py-1 text-xs font-semibold text-foreground hover:bg-muted/40 transition"
-                        >
-                          <Edit size={12} />
-                          <span>Edit</span>
-                        </Link>
+                        <div className="flex items-center justify-end gap-1.5">
+                          <Link
+                            href={`/admin/products/${v.productId}/edit`}
+                            className="inline-flex items-center gap-1 rounded-md border border-border px-2.5 py-1 text-xs font-semibold text-foreground hover:bg-muted/40 transition"
+                          >
+                            <Edit size={12} />
+                            <span>Edit</span>
+                          </Link>
+                          <DeleteProductButton productId={v.productId} productName={v.product} />
+                        </div>
                       </td>
                     </tr>
                   );

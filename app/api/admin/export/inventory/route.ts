@@ -8,7 +8,7 @@ export async function GET() {
   if (!auth.ok) return auth.response;
 
   const variants = await prisma.productVariant.findMany({
-    where: { deletedAt: null },
+    where: { deletedAt: null, product: { deletedAt: null } },
     include: { product: { select: { name: true, slug: true, status: true, basePrice: true } } },
     orderBy: [{ product: { name: "asc" } }, { color: "asc" }, { size: "asc" }]
   });
