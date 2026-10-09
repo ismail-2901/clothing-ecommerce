@@ -5,19 +5,20 @@ import { AdminProductForm } from "@/components/admin/admin-product-form";
 import { STANDARD_CATEGORIES } from "@/lib/constants/categories";
 
 export default async function AdminProductNewPage() {
-  await prisma.category.createMany({
-    data: STANDARD_CATEGORIES.map((c) => ({
-      name: c.name,
-      slug: c.slug,
-      position: c.position,
-      description: c.description
-    })),
-    skipDuplicates: true
-  });
-
   const categories = await prisma.category.findMany({
     where: { deletedAt: null },
-    select: { id: true, name: true, slug: true },
+    select: {
+      id: true,
+      name: true,
+      slug: true,
+      parentId: true,
+      parent: { select: { id: true, name: true } },
+      children: {
+        where: { deletedAt: null },
+        select: { id: true, name: true, slug: true },
+        orderBy: [{ position: "asc" }, { name: "asc" }]
+      }
+    },
     orderBy: [{ position: "asc" }, { name: "asc" }]
   });
 

@@ -11,6 +11,9 @@ type CategoryOption = {
   id: string;
   name: string;
   slug: string;
+  parentId?: string | null;
+  parent?: { id: string; name: string } | null;
+  children?: Array<{ id: string; name: string; slug: string }>;
 };
 
 // One row = one color with multiple sizes
@@ -105,9 +108,16 @@ export function AdminProductForm({
   const [name, setName] = useState(initialData?.name ?? "");
   const [slug, setSlug] = useState(initialData?.slug ?? "");
   const [description, setDescription] = useState(initialData?.description ?? "");
-  const [categoryId, setCategoryId] = useState(
-    initialData?.categoryId ?? categories[0]?.id ?? ""
-  );
+
+  const topLevelCategories = categories.filter((c) => !c.parentId);
+  const initialCategoryObj = categories.find((c) => c.id === initialData?.categoryId);
+  const initialParentId =
+    initialCategoryObj?.parentId ||
+    (initialCategoryObj ? initialCategoryObj.id : (topLevelCategories[0]?.id ?? categories[0]?.id ?? ""));
+  const initialSubId = initialCategoryObj?.parentId ? initialCategoryObj.id : "";
+
+  const [parentCategoryId, setParentCategoryId] = useState<string>(initialParentId);
+  const [subcategoryId, setSubcategoryId] = useState<string>(initialSubId);
   const [basePrice, setBasePrice] = useState<number | "">(
     initialData ? Math.round(initialData.basePrice / 100) : ""
   );
@@ -191,7 +201,8 @@ export function AdminProductForm({
     e.preventDefault();
     setError(null);
 
-    if (!categoryId) { setError("Please select a category."); return; }
+    const effectiveCategoryId = subcategoryId || parentCategoryId;
+    if (!effectiveCategoryId) { setError("Please select a category."); return; }
     if (!basePrice || Number(basePrice) <= 0) { setError("Please specify a valid base price."); return; }
     if (groups.some((g) => g.sizes.length === 0)) {
       setError("Each color variant must have at least one size selected.");
@@ -259,11 +270,13 @@ export function AdminProductForm({
         });
       });
 
+      const effectiveCategoryId = subcategoryId || parentCategoryId;
+
       const payload = {
         name: name.trim(),
         slug: cleanSlug,
         description: description.trim(),
-        categoryId,
+        categoryId: effectiveCategoryId,
         basePrice: basePricePoisha,
         material: material.trim() || undefined,
         careInstructions: careInstructions.trim() || undefined,
@@ -299,6 +312,16 @@ export function AdminProductForm({
       setError("Network error occurred while saving product.");
     }
   }
+
+  const subcategoriesForSelectedParent = (() => {
+    if (!parentCategoryId) return [];
+    const directChildren = categories.find((c) => c.id === parentCategoryId)?.children || [];
+    const fromList = categories.filter((c) => c.parentId === parentCategoryId);
+    const map = new Map<string, { id: string; name: string }>();
+    for (const c of directChildren) map.set(c.id, { id: c.id, name: c.name });
+    for (const c of fromList) map.set(c.id, { id: c.id, name: c.name });
+    return Array.from(map.values());
+  })();
 
   return (
     <form onSubmit={handleSubmit} className="mt-8 grid gap-6 lg:grid-cols-[1fr_360px]">
@@ -509,22 +532,52 @@ export function AdminProductForm({
           <h2 className="font-semibold">Category & Pricing</h2>
           <div className="mt-4 grid gap-4">
             <div className="grid gap-1.5">
-              <label htmlFor="product-category" className="text-sm font-medium">Category *</label>
+              <label htmlFor="primary-category" className="text-sm font-medium">Category *</label>
               <select
-                id="product-category"
+                id="primary-category"
                 required
-                value={categoryId}
-                onChange={(e) => setCategoryId(e.target.value)}
+                value={parentCategoryId}
+                onChange={(e) => {
+                  setParentCategoryId(e.target.value);
+                  setSubcategoryId("");
+                }}
                 className="h-11 w-full rounded-md border border-border bg-background px-4 text-sm focus-visible:outline-none"
               >
-                {categories.length === 0 ? (
+                {topLevelCategories.length === 0 ? (
                   <option value="">No categories available</option>
                 ) : (
-                  categories.map((c) => (
+                  topLevelCategories.map((c) => (
                     <option key={c.id} value={c.id}>
                       {c.name}
                     </option>
                   ))
+                )}
+              </select>
+            </div>
+
+            <div className="grid gap-1.5">
+              <div className="flex items-center justify-between">
+                <label htmlFor="sub-category" className="text-sm font-medium">Subcategory</label>
+                <span className="text-[11px] text-muted-foreground">Optional</span>
+              </div>
+              <select
+                id="sub-category"
+                value={subcategoryId}
+                onChange={(e) => setSubcategoryId(e.target.value)}
+                disabled={subcategoriesForSelectedParent.length === 0}
+                className="h-11 w-full rounded-md border border-border bg-background px-4 text-sm focus-visible:outline-none disabled:opacity-60 disabled:cursor-not-allowed"
+              >
+                {subcategoriesForSelectedParent.length === 0 ? (
+                  <option value="">No subcategories (Saved under main category)</option>
+                ) : (
+                  <>
+                    <option value="">General / All (No subcategory)</option>
+                    {subcategoriesForSelectedParent.map((sub) => (
+                      <option key={sub.id} value={sub.id}>
+                        {sub.name}
+                      </option>
+                    ))}
+                  </>
                 )}
               </select>
             </div>

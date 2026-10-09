@@ -18,18 +18,21 @@ import { Button } from "@/components/ui/button";
 import { prisma } from "@/db/prisma";
 import { DeleteProductButton } from "@/components/admin/delete-product-button";
 import { AdminSearchInput } from "@/components/admin/admin-search-input";
+import { AdminCategoryFilter } from "@/components/admin/admin-category-filter";
 import type { ProductStatus } from "@prisma/client";
 
 type PageProps = {
-  searchParams: Promise<{ q?: string; status?: string }>;
+  searchParams: Promise<{ q?: string; status?: string; category?: string }>;
 };
 
 export default async function AdminProductsPage({ searchParams }: PageProps) {
-  const { q, status } = (await searchParams) || {};
+  const { q, status, category } = (await searchParams) || {};
 
   const whereClause: Record<string, unknown> = {
     deletedAt: null,
   };
+
+  const andConditions: Record<string, unknown>[] = [];
 
   if (status && ["PUBLISHED", "DRAFT", "ARCHIVED"].includes(status.toUpperCase())) {
     whereClause.status = status.toUpperCase() as ProductStatus;
@@ -37,18 +40,40 @@ export default async function AdminProductsPage({ searchParams }: PageProps) {
 
   if (q && q.trim()) {
     const term = q.trim();
-    whereClause.OR = [
-      { name: { contains: term, mode: "insensitive" } },
-      { slug: { contains: term, mode: "insensitive" } },
-      { variants: { some: { sku: { contains: term, mode: "insensitive" } } } },
-    ];
+    andConditions.push({
+      OR: [
+        { name: { contains: term, mode: "insensitive" } },
+        { slug: { contains: term, mode: "insensitive" } },
+        { category: { name: { contains: term, mode: "insensitive" } } },
+        { category: { parent: { name: { contains: term, mode: "insensitive" } } } },
+        { variants: { some: { sku: { contains: term, mode: "insensitive" } } } },
+      ],
+    });
   }
 
-  const [dbProducts, totalCount, publishedCount, draftCount] = await Promise.all([
+  if (category && category.trim()) {
+    andConditions.push({
+      OR: [
+        { categoryId: category },
+        { category: { parentId: category } },
+      ],
+    });
+  }
+
+  if (andConditions.length > 0) {
+    whereClause.AND = andConditions;
+  }
+
+  const [dbProducts, totalCount, publishedCount, draftCount, allCategories] = await Promise.all([
     prisma.product.findMany({
       where: whereClause,
       include: {
-        category: { select: { name: true } },
+        category: {
+          select: {
+            name: true,
+            parent: { select: { name: true } }
+          }
+        },
         images: { take: 1, orderBy: { position: "asc" }, select: { url: true } },
         variants: {
           where: { deletedAt: null },
@@ -60,6 +85,20 @@ export default async function AdminProductsPage({ searchParams }: PageProps) {
     prisma.product.count({ where: { deletedAt: null } }),
     prisma.product.count({ where: { status: "PUBLISHED", deletedAt: null } }),
     prisma.product.count({ where: { status: "DRAFT", deletedAt: null } }),
+    prisma.category.findMany({
+      where: { deletedAt: null },
+      select: {
+        id: true,
+        name: true,
+        parentId: true,
+        children: {
+          where: { deletedAt: null },
+          select: { id: true, name: true },
+          orderBy: [{ position: "asc" }, { name: "asc" }],
+        },
+      },
+      orderBy: [{ position: "asc" }, { name: "asc" }],
+    }),
   ]);
 
   const products = dbProducts.map((p) => {
@@ -75,6 +114,7 @@ export default async function AdminProductsPage({ searchParams }: PageProps) {
       slug: p.slug,
       image,
       category: p.category?.name || "Uncategorized",
+      parentCategory: p.category?.parent?.name || null,
       variantsCount: p.variants.length,
       minPrice,
       maxPrice,
@@ -163,8 +203,11 @@ export default async function AdminProductsPage({ searchParams }: PageProps) {
 
       {/* Filter Toolbar */}
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between rounded-xl border border-border bg-background p-4 shadow-sm">
-        <div className="w-full sm:max-w-md">
-          <AdminSearchInput placeholder="Search product name, slug, SKU…" />
+        <div className="flex flex-1 flex-col gap-2.5 sm:flex-row sm:items-center">
+          <div className="w-full sm:max-w-md">
+            <AdminSearchInput placeholder="Search product name, slug, SKU, category…" />
+          </div>
+          <AdminCategoryFilter categories={allCategories} />
         </div>
 
         <div className="flex items-center gap-1.5 overflow-x-auto pb-1 sm:pb-0">
@@ -177,6 +220,7 @@ export default async function AdminProductsPage({ searchParams }: PageProps) {
             const active = (status?.toUpperCase() || "") === tab.value;
             const queryParams = new URLSearchParams();
             if (q) queryParams.set("q", q);
+            if (category) queryParams.set("category", category);
             if (tab.value) queryParams.set("status", tab.value);
             const href = `/admin/products${queryParams.toString() ? `?${queryParams.toString()}` : ""}`;
 
@@ -257,8 +301,19 @@ export default async function AdminProductsPage({ searchParams }: PageProps) {
                           </div>
                         </div>
                       </td>
-                      <td className="py-3.5 px-4 font-medium text-foreground">
-                        {p.category}
+                      <td className="py-3.5 px-4">
+                        {p.parentCategory ? (
+                          <div className="flex flex-col gap-0.5">
+                            <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
+                              {p.parentCategory}
+                            </span>
+                            <span className="font-medium text-foreground">
+                              {p.category}
+                            </span>
+                          </div>
+                        ) : (
+                          <span className="font-medium text-foreground">{p.category}</span>
+                        )}
                       </td>
                       <td className="py-3.5 px-4 text-center">
                         <span className="rounded bg-muted px-2 py-0.5 text-[11px] font-bold text-foreground">

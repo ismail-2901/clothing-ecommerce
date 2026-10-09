@@ -12,7 +12,18 @@ export default async function AdminProductEditPage({ params }: Props) {
 
   const categories = await prisma.category.findMany({
     where: { deletedAt: null },
-    select: { id: true, name: true, slug: true },
+    select: {
+      id: true,
+      name: true,
+      slug: true,
+      parentId: true,
+      parent: { select: { id: true, name: true } },
+      children: {
+        where: { deletedAt: null },
+        select: { id: true, name: true, slug: true },
+        orderBy: [{ position: "asc" }, { name: "asc" }]
+      }
+    },
     orderBy: [{ position: "asc" }, { name: "asc" }],
   });
 
