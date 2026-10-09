@@ -24,6 +24,11 @@ type CategoryItem = {
   slug: string;
   description: string | null;
   imageUrl: string | null;
+  parentId?: string | null;
+  parent?: {
+    id: string;
+    name: string;
+  } | null;
   _count: {
     products: number;
   };
@@ -36,6 +41,7 @@ export function AdminCategoriesManager({
 }) {
   const router = useRouter();
   const [searchTerm, setSearchTerm] = useState("");
+  const [parentId, setParentId] = useState("");
   const [name, setName] = useState("");
   const [slug, setSlug] = useState("");
   const [description, setDescription] = useState("");
@@ -65,6 +71,7 @@ export function AdminCategoriesManager({
           slug: slug.trim(),
           description: description.trim() || undefined,
           imageUrl: imageUrl.trim() || undefined,
+          parentId: parentId || undefined,
         }),
       });
 
@@ -79,6 +86,7 @@ export function AdminCategoriesManager({
       setSlug("");
       setDescription("");
       setImageUrl("");
+      setParentId("");
       setSuccess(true);
       setLoading(false);
       router.refresh();
@@ -207,7 +215,18 @@ export function AdminCategoriesManager({
                     <tr key={c.id} className="hover:bg-muted/20 transition">
                       <td className="py-3.5 px-4 font-bold text-foreground">
                         <div>
-                          <p className="text-foreground">{c.name}</p>
+                          <div className="flex items-center gap-2">
+                            <p className="text-foreground">{c.name}</p>
+                            {c.parent ? (
+                              <span className="rounded bg-muted px-1.5 py-0.5 text-[10px] font-semibold text-muted-foreground border border-border/60">
+                                Sub of {c.parent.name}
+                              </span>
+                            ) : (
+                              <span className="rounded bg-foreground/10 px-1.5 py-0.5 text-[10px] font-semibold text-foreground">
+                                Top Level
+                              </span>
+                            )}
+                          </div>
                           {c.description && (
                             <p className="text-[11px] font-normal text-muted-foreground line-clamp-1">
                               {c.description}
@@ -269,6 +288,25 @@ export function AdminCategoriesManager({
                 Category created successfully!
               </div>
             )}
+
+            <div className="space-y-1.5">
+              <label className="text-xs font-semibold text-foreground">Parent Category (Optional)</label>
+              <select
+                value={parentId}
+                onChange={(e) => setParentId(e.target.value)}
+                className="h-9 w-full rounded-lg border border-border bg-background px-3 text-xs text-foreground focus:outline-none focus:ring-1 focus:ring-foreground"
+              >
+                <option value="">None (Top-Level Category)</option>
+                {initialCategories
+                  .filter((cat) => !cat.parentId)
+                  .map((cat) => (
+                    <option key={cat.id} value={cat.id}>
+                      {cat.name}
+                    </option>
+                  ))}
+              </select>
+              <p className="text-[11px] text-muted-foreground">Select parent to create a subcategory (e.g. inside Men, Women, Accessories)</p>
+            </div>
 
             <div className="space-y-1.5">
               <label className="text-xs font-semibold text-foreground">Category Name *</label>

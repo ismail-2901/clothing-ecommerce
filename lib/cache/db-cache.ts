@@ -18,7 +18,17 @@ export const getCachedCategories = unstable_cache(
     try {
       return await prisma.category.findMany({
         where: { deletedAt: null },
-        select: { name: true, slug: true },
+        select: {
+          id: true,
+          name: true,
+          slug: true,
+          parentId: true,
+          children: {
+            where: { deletedAt: null },
+            select: { id: true, name: true, slug: true },
+            orderBy: [{ position: "asc" }, { name: "asc" }]
+          }
+        },
         orderBy: [{ position: "asc" }, { name: "asc" }]
       });
     } catch (err) {

@@ -177,7 +177,12 @@ function buildWhereClause(filter: CatalogFilter): any {
   };
 
   if (filter.category) {
-    where.category = { slug: filter.category };
+    where.category = {
+      OR: [
+        { slug: filter.category },
+        { parent: { slug: filter.category } }
+      ]
+    };
   }
 
   if (filter.size || filter.color) {

@@ -7,11 +7,12 @@ export default async function AdminCategoriesPage() {
   const categories = await prisma.category.findMany({
     where: { deletedAt: null },
     include: {
+      parent: { select: { id: true, name: true } },
       _count: {
         select: { products: { where: { deletedAt: null } } },
       },
     },
-    orderBy: { name: "asc" },
+    orderBy: [{ position: "asc" }, { name: "asc" }],
   });
 
   return <AdminCategoriesManager initialCategories={categories} />;

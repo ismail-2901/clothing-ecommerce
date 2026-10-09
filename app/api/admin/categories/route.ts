@@ -9,6 +9,7 @@ const createCategorySchema = z.object({
   slug: z.string().min(1).max(100).regex(/^[a-z0-9-]+$/),
   description: z.string().max(500).optional(),
   imageUrl: z.string().optional(),
+  parentId: z.string().nullable().optional(),
 });
 
 export async function GET(request: NextRequest) {
@@ -18,11 +19,12 @@ export async function GET(request: NextRequest) {
   const categories = await prisma.category.findMany({
     where: { deletedAt: null },
     include: {
+      parent: { select: { id: true, name: true } },
       _count: {
         select: { products: { where: { deletedAt: null } } }
       }
     },
-    orderBy: { name: "asc" }
+    orderBy: [{ position: "asc" }, { name: "asc" }]
   });
 
   return NextResponse.json({ categories });
@@ -45,7 +47,7 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "Validation failed", issues: parsed.error.issues }, { status: 422 });
   }
 
-  const { name, slug, description, imageUrl } = parsed.data;
+  const { name, slug, description, imageUrl, parentId } = parsed.data;
 
   const existing = await prisma.category.findFirst({
     where: { slug, deletedAt: null }
@@ -61,6 +63,7 @@ export async function POST(request: NextRequest) {
       slug,
       description: description ?? null,
       imageUrl: imageUrl ?? null,
+      parentId: parentId || null,
     }
   });
 

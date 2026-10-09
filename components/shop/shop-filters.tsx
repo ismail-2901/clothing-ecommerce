@@ -42,12 +42,20 @@ function buildUrl(base: string, overrides: Partial<Record<string, string>>, curr
   return `${base}${qs ? `?${qs}` : ""}`;
 }
 
+export type CategoryFilterItem = {
+  id?: string;
+  name: string;
+  slug: string;
+  parentId?: string | null;
+  children?: Array<{ id?: string; name: string; slug: string }>;
+};
+
 export function ShopFilters({
   active,
   categories: categoryProp,
 }: {
   active: ActiveFilters;
-  categories?: Array<{ name: string; slug: string }>;
+  categories?: CategoryFilterItem[];
 }) {
   const router = useRouter();
   const pathname = usePathname();
@@ -67,19 +75,67 @@ export function ShopFilters({
     active.q
   ].filter(Boolean).length;
 
-  const categories = categoryProp && categoryProp.length > 0
-    ? [{ name: "All", slug: "" }, ...categoryProp]
-    : [
-        { name: "All", slug: "" },
-        { name: "Women", slug: "women" },
-        { name: "Men", slug: "men" },
-        { name: "Tops", slug: "tops" },
-        { name: "Dresses", slug: "dresses" },
-        { name: "Outerwear", slug: "outerwear" },
-        { name: "Bottoms", slug: "bottoms" },
-        { name: "Activewear", slug: "activewear" },
-        { name: "Accessories", slug: "accessories" },
+  const normalizedCategories: CategoryFilterItem[] = (() => {
+    if (!categoryProp || categoryProp.length === 0) {
+      return [
+        {
+          name: "Women",
+          slug: "women",
+          children: [
+            { name: "Dresses", slug: "dresses" },
+            { name: "Tops", slug: "women-tops" },
+            { name: "Bottoms", slug: "women-bottoms" },
+            { name: "Outerwear", slug: "women-outerwear" }
+          ]
+        },
+        {
+          name: "Men",
+          slug: "men",
+          children: [
+            { name: "Tops", slug: "tops" },
+            { name: "Bottoms", slug: "bottoms" },
+            { name: "Outerwear", slug: "outerwear" },
+            { name: "Activewear", slug: "activewear" },
+            { name: "Essentials", slug: "essentials" }
+          ]
+        },
+        {
+          name: "Accessories",
+          slug: "accessories",
+          children: [
+            { name: "Luxury", slug: "accessories-luxury-1790697878314" }
+          ]
+        }
       ];
+    }
+
+    const topLevel: CategoryFilterItem[] = [];
+    const childMap = new Map<string, CategoryFilterItem[]>();
+
+    for (const c of categoryProp) {
+      if (c.parentId) {
+        const list = childMap.get(c.parentId) || [];
+        list.push(c);
+        childMap.set(c.parentId, list);
+      }
+    }
+
+    for (const c of categoryProp) {
+      if (!c.parentId) {
+        const existingChildren = c.children || [];
+        const mappedChildren = c.id ? (childMap.get(c.id) || []) : [];
+        const mergedChildren = [...existingChildren];
+        for (const mc of mappedChildren) {
+          if (!mergedChildren.some((ec) => ec.slug === mc.slug)) {
+            mergedChildren.push(mc);
+          }
+        }
+        topLevel.push({ ...c, children: mergedChildren });
+      }
+    }
+
+    return topLevel;
+  })();
 
   return (
     <aside className="space-y-7">
@@ -130,22 +186,64 @@ export function ShopFilters({
       {/* Categories */}
       <div className="space-y-2">
         <h2 className="text-xs font-bold uppercase tracking-wider text-foreground">Categories</h2>
-        <div className="space-y-0.5 text-xs">
-          {categories.map((cat) => {
-            const isActive = active.category === cat.slug || (!active.category && cat.slug === "");
+        <div className="space-y-1 text-xs">
+          {/* All Option */}
+          <button
+            type="button"
+            onClick={() => nav({ category: "" })}
+            className={`w-full flex items-center justify-between rounded-md px-3 py-2 text-left transition-colors ${
+              !active.category
+                ? "bg-foreground text-background font-bold"
+                : "text-muted-foreground hover:bg-muted/60 hover:text-foreground font-medium"
+            }`}
+          >
+            <span>All</span>
+          </button>
+
+          {/* Hierarchical Top-Level & Subcategories */}
+          {normalizedCategories.map((cat) => {
+            const isParentActive = active.category === cat.slug;
+            const hasChildren = cat.children && cat.children.length > 0;
+            const hasActiveChild = hasChildren && cat.children!.some((ch) => active.category === ch.slug);
+
             return (
-              <button
-                key={cat.slug}
-                type="button"
-                onClick={() => nav({ category: cat.slug })}
-                className={`w-full flex items-center justify-between rounded-md px-3 py-2 text-left transition-colors ${
-                  isActive
-                    ? "bg-foreground text-background font-bold"
-                    : "text-muted-foreground hover:bg-muted/60 hover:text-foreground"
-                }`}
-              >
-                <span>{cat.name}</span>
-              </button>
+              <div key={cat.slug} className="space-y-0.5">
+                <button
+                  type="button"
+                  onClick={() => nav({ category: cat.slug })}
+                  className={`w-full flex items-center justify-between rounded-md px-3 py-2 text-left transition-colors ${
+                    isParentActive
+                      ? "bg-foreground text-background font-bold"
+                      : hasActiveChild
+                      ? "text-foreground font-semibold bg-muted/40"
+                      : "text-muted-foreground hover:bg-muted/60 hover:text-foreground font-medium"
+                  }`}
+                >
+                  <span>{cat.name}</span>
+                </button>
+
+                {hasChildren && (
+                  <div className="ml-3 pl-2.5 border-l border-border/60 space-y-0.5 my-1">
+                    {cat.children!.map((sub) => {
+                      const isSubActive = active.category === sub.slug;
+                      return (
+                        <button
+                          key={sub.slug}
+                          type="button"
+                          onClick={() => nav({ category: sub.slug })}
+                          className={`w-full flex items-center justify-between rounded-md px-2.5 py-1.5 text-left text-[11px] transition-colors ${
+                            isSubActive
+                              ? "bg-foreground text-background font-bold"
+                              : "text-muted-foreground hover:bg-muted/60 hover:text-foreground"
+                          }`}
+                        >
+                          <span>{sub.name}</span>
+                        </button>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
             );
           })}
         </div>
