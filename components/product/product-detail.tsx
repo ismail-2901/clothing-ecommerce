@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useMemo, useState, useRef, useCallback } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import {
@@ -78,6 +78,18 @@ export function ProductDetail({
   const [quantity, setQuantity] = useState(1);
   const [activeTab, setActiveTab] = useState<"description" | "size" | "material" | "shipping" | "reviews">("description");
   const [showSizeGuide, setShowSizeGuide] = useState(false);
+  const [imgZoom, setImgZoom] = useState<{ x: number; y: number } | null>(null);
+  const mainImgRef = useRef<HTMLDivElement>(null);
+
+  const handleMainImgMouseMove = useCallback((e: React.MouseEvent<HTMLDivElement>) => {
+    const rect = mainImgRef.current?.getBoundingClientRect();
+    if (!rect) return;
+    const x = ((e.clientX - rect.left) / rect.width) * 100;
+    const y = ((e.clientY - rect.top) / rect.height) * 100;
+    setImgZoom({ x, y });
+  }, []);
+
+  const handleMainImgMouseLeave = useCallback(() => setImgZoom(null), []);
 
   // Colors & Sizes
   const colors = useMemo(() => {
@@ -189,7 +201,12 @@ export function ProductDetail({
             </div>
 
             {/* Main Large Image Box — sm+ */}
-            <div className="relative aspect-[3/4] flex-1 overflow-hidden rounded-2xl bg-muted border border-border/80 group">
+            <div
+              ref={mainImgRef}
+              className="relative aspect-[3/4] flex-1 overflow-hidden rounded-2xl bg-muted border border-border/80 group cursor-crosshair"
+              onMouseMove={handleMainImgMouseMove}
+              onMouseLeave={handleMainImgMouseLeave}
+            >
               <Image
                 src={galleryImages[activeImageIndex]?.src || "/elaris-women.jpg"}
                 alt={product.name}
@@ -198,6 +215,25 @@ export function ProductDetail({
                 className="object-cover transition-transform duration-500 group-hover:scale-105"
                 sizes="(min-width: 1024px) 45vw, 100vw"
               />
+
+              {/* PC Hover Zoom Lens */}
+              {imgZoom && (
+                <div
+                  className="pointer-events-none absolute rounded-full border-2 border-white/80 shadow-2xl overflow-hidden"
+                  style={{
+                    width: 180,
+                    height: 180,
+                    left: `calc(${imgZoom.x}% - 90px)`,
+                    top: `calc(${imgZoom.y}% - 90px)`,
+                    backgroundImage: `url(${galleryImages[activeImageIndex]?.src || "/elaris-women.jpg"})`,
+                    backgroundSize: "400% 400%",
+                    backgroundPosition: `${imgZoom.x}% ${imgZoom.y}%`,
+                    backgroundRepeat: "no-repeat",
+                    zIndex: 30,
+                    boxShadow: "0 8px 40px rgba(0,0,0,0.3), 0 0 0 3px rgba(255,255,255,0.6)",
+                  }}
+                />
+              )}
 
               {/* Expand button */}
               <button

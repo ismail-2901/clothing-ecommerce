@@ -148,9 +148,9 @@ export function CartPageContent() {
                       }
                       className="mt-1 h-4 w-4 shrink-0 rounded border-border text-foreground accent-foreground cursor-pointer"
                     />
-                    <div className="relative h-24 w-20 shrink-0 overflow-hidden rounded-md bg-muted">
+                    <div className="relative h-32 w-28 shrink-0 overflow-hidden rounded-lg bg-muted">
                       {item.image ? (
-                        <Image src={item.image} alt={item.name} fill className="object-cover" sizes="80px" />
+                        <Image src={item.image} alt={item.name} fill className="object-cover" sizes="112px" />
                       ) : (
                         <div className="h-full w-full bg-zinc-100" />
                       )}
