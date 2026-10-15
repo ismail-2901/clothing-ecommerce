@@ -2,10 +2,13 @@
 
 import { Suspense, useState } from "react";
 import Link from "next/link";
-import { usePathname, useRouter, useSearchParams } from "next/navigation";
+import { usePathname, useSearchParams } from "next/navigation";
 import { Search, UserRound, Heart, ShoppingBag, Menu, X } from "lucide-react";
+
 import { useCart } from "@/components/cart/cart-provider";
 import { useWishlist } from "@/components/wishlist/wishlist-provider";
+import { SearchAutocomplete } from "@/components/layout/search-autocomplete";
+
 
 const navItems = [
   ["Shop", "/shop"],
@@ -93,15 +96,6 @@ export function SiteHeader() {
 
   const { items: wishlistItems } = useWishlist();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
-  const [searchQuery, setSearchQuery] = useState("");
-  const router = useRouter();
-
-  const handleSearch = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (searchQuery.trim()) {
-      router.push(`/search?q=${encodeURIComponent(searchQuery.trim())}`);
-    }
-  };
 
   return (
     <header className="sticky top-0 z-40 border-b border-border/80 bg-background/95 backdrop-blur-md">
@@ -144,20 +138,12 @@ export function SiteHeader() {
 
         {/* Right Actions */}
         <div className="flex items-center gap-2 sm:gap-3">
-          {/* Search Pill Input */}
-          <form onSubmit={handleSearch} className="relative hidden lg:block w-64 xl:w-72">
-            <Search
-              size={15}
-              className="absolute left-3.5 top-1/2 -translate-y-1/2 text-muted-foreground pointer-events-none"
-            />
-            <input
-              type="text"
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              placeholder="Search for products..."
-              className="h-9 w-full rounded-full border border-border/90 bg-muted/30 pl-9 pr-4 text-xs placeholder:text-muted-foreground focus:border-foreground focus:bg-background focus:outline-none transition-all"
-            />
-          </form>
+          {/* Search with autocomplete — desktop */}
+          <SearchAutocomplete
+            placeholder="Search for products..."
+            className="relative hidden lg:block w-64 xl:w-72"
+          />
+
 
           {/* Search trigger for mobile */}
           <Link
@@ -212,19 +198,8 @@ export function SiteHeader() {
       {/* Mobile navigation drawer */}
       {mobileMenuOpen && (
         <div className="border-t border-border bg-background p-4 md:hidden">
-          <form onSubmit={handleSearch} className="relative mb-4">
-            <Search
-              size={16}
-              className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground"
-            />
-            <input
-              type="text"
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              placeholder="Search for products..."
-              className="h-10 w-full rounded-full border border-border bg-muted/40 pl-9 pr-4 text-sm focus:outline-none focus:border-foreground"
-            />
-          </form>
+          <SearchAutocomplete placeholder="Search for products..." className="relative mb-4" />
+
           <Suspense
             fallback={
               <nav className="flex flex-col gap-2">
