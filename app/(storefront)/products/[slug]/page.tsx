@@ -1,8 +1,21 @@
 import { notFound } from "next/navigation";
 import type { Metadata } from "next";
 import { ProductDetail } from "@/components/product/product-detail";
-import { getProductBySlug, getProductReviews, getRelatedProducts } from "@/features/catalog/data";
+import { getProductBySlug, getProductReviews, getRelatedProducts, getFilteredProducts } from "@/features/catalog/data";
 
+// F2: ISR — regenerate every 2 minutes in the background.
+// Admin mutations clear Redis immediately; Next.js Data Cache clears on this TTL.
+export const revalidate = 120;
+
+// Pre-render the 20 most recent products at build/deploy time
+export async function generateStaticParams() {
+  try {
+    const { products } = await getFilteredProducts({}, { page: 1, perPage: 20 });
+    return products.map((p) => ({ slug: p.slug }));
+  } catch {
+    return [];
+  }
+}
 
 type ProductPageProps = {
   params: Promise<{ slug: string }>;

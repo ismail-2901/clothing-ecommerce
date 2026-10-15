@@ -12,6 +12,9 @@ export const metadata: Metadata = {
   }
 };
 
+export const revalidate = 60; // F2: ISR \u2014 regenerate every 60 seconds
+
+
 export default async function HomePage() {
   // P5: fetch only the 8 featured products needed — avoids loading entire catalog
   const { products: featuredProducts } = await getFilteredProducts({}, { page: 1, perPage: 8 });
