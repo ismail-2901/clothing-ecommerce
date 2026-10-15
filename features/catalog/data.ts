@@ -432,3 +432,40 @@ async function _buildHighlights() {
 export async function invalidateCatalogCache() {
   await cacheDelPattern("catalog:*");
 }
+
+/**
+ * E2: Fetch related products from the same category, excluding the current product.
+ * Used for "Complete the Look" / "You May Also Like" on PDP.
+ * Wrapped with React cache() so it can be called from both the page and generateMetadata
+ * without an extra DB round-trip within the same SSR render.
+ */
+export const getRelatedProducts = cache(async function getRelatedProductsImpl(
+  categorySlug: string,
+  excludeProductId: string,
+  limit = 4
+): Promise<CatalogProduct[]> {
+  const cacheKey = `catalog:related:${categorySlug}:${excludeProductId}:${limit}`;
+  const cached = await cacheGet<CatalogProduct[]>(cacheKey);
+  if (cached) return cached;
+
+  try {
+    const dbProducts = await prisma.product.findMany({
+      where: {
+        deletedAt: null,
+        status: "PUBLISHED",
+        id: { not: excludeProductId },
+        category: { slug: categorySlug }
+      },
+      include: productInclude,
+      orderBy: { createdAt: "desc" },
+      take: limit
+    });
+
+    const products = dbProducts.map(mapDbProductToCatalogProduct);
+    await cacheSet(cacheKey, products, 120);
+    return products;
+  } catch (err) {
+    console.error("[catalog:related]", err);
+    return [];
+  }
+});

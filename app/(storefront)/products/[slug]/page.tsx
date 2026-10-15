@@ -1,7 +1,8 @@
 import { notFound } from "next/navigation";
 import type { Metadata } from "next";
 import { ProductDetail } from "@/components/product/product-detail";
-import { getProductBySlug, getProductReviews } from "@/features/catalog/data";
+import { getProductBySlug, getProductReviews, getRelatedProducts } from "@/features/catalog/data";
+
 
 type ProductPageProps = {
   params: Promise<{ slug: string }>;
@@ -61,7 +62,11 @@ export default async function ProductPage({ params }: ProductPageProps) {
     notFound();
   }
 
-  const reviewSummary = await getProductReviews(product.id);
+  const [reviewSummary, relatedProducts] = await Promise.all([
+    getProductReviews(product.id),
+    getRelatedProducts(product.categorySlug, product.id, 4)
+  ]);
+
   const minPrice = Math.min(...product.variants.map((v) => v.price));
   const inStock = product.variants.some((v) => v.stock > 0);
   const url = `${APP_URL}/products/${slug}`;
@@ -102,7 +107,8 @@ export default async function ProductPage({ params }: ProductPageProps) {
         type="application/ld+json"
         dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
       />
-      <ProductDetail product={product} reviewSummary={reviewSummary} />
+      <ProductDetail product={product} reviewSummary={reviewSummary} relatedProducts={relatedProducts} />
+
     </>
   );
 }

@@ -25,9 +25,12 @@ import {
 } from "lucide-react";
 import { useCart } from "@/components/cart/cart-provider";
 import { useWishlist } from "@/components/wishlist/wishlist-provider";
-import type { CatalogProduct, CatalogVariant, ProductReviewSummary } from "@/features/catalog/data";
+import type { CatalogProduct, ProductReviewSummary } from "@/features/catalog/data";
+
+import { ProductCard } from "@/components/product/product-card";
 import { formatMoney } from "@/lib/utils/money";
 import { storePolicies } from "@/config/store";
+
 
 const SIZE_SORT_ORDER = ["XS", "S", "M", "L", "XL", "XXL"];
 
@@ -44,20 +47,19 @@ const colorHexMap: Record<string, string> = {
   charcoal: "#2F3E46"
 };
 
-const recommendations = [
-  { id: "r1", name: "Basic Hoodie", price: 2190, original: 2800, discount: "21% OFF", image: "/elaris-men.jpg", slug: "basic-hoodie" },
-  { id: "r2", name: "Essential Sweatshirt", price: 1990, original: 2500, discount: "20% OFF", image: "/elaris-women.jpg", slug: "essential-sweatshirt" },
-  { id: "r3", name: "Oversized T-Shirt", price: 1690, original: 2200, discount: "23% OFF", image: "/elaris-men.jpg", slug: "oversized-t-shirt" },
-  { id: "r4", name: "Zip Hoodie", price: 2890, original: 3500, discount: "17% OFF", image: "/elaris-women.jpg", slug: "zip-hoodie" },
-];
+
+
 
 export function ProductDetail({
   product,
-  reviewSummary
+  reviewSummary,
+  relatedProducts = []
 }: {
   product: CatalogProduct;
   reviewSummary?: ProductReviewSummary;
+  relatedProducts?: CatalogProduct[];
 }) {
+
   const { addItem } = useCart();
   const { toggleItem, isSaved } = useWishlist();
 
@@ -830,50 +832,26 @@ export function ProductDetail({
         </div>
       </section>
 
-      {/* You May Also Like Section */}
-      <section className="border-t border-border/80 pt-10 space-y-6">
-        <div className="flex items-center justify-between">
-          <h2 className="text-xl font-bold tracking-tight text-foreground">You May Also Like</h2>
-          <Link href="/shop" className="text-xs font-semibold text-muted-foreground hover:text-foreground">
-            View All →
-          </Link>
-        </div>
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-          {recommendations.map((item) => (
+      {/* Complete the Look / You May Also Like */}
+      {relatedProducts.length > 0 && (
+        <section className="border-t border-border/80 pt-10 space-y-6">
+          <div className="flex items-center justify-between">
+            <h2 className="text-xl font-bold tracking-tight text-foreground">Complete the Look</h2>
             <Link
-              key={item.id}
-              href={`/products/${item.slug}`}
-              className="group block rounded-lg border border-border/80 bg-background p-3 hover:shadow-md transition-all"
+              href={`/shop?category=${product.categorySlug}`}
+              className="text-xs font-semibold text-muted-foreground hover:text-foreground"
             >
-              <div className="relative aspect-[3/4] overflow-hidden rounded-md bg-muted">
-                <Image
-                  src={item.image}
-                  alt={item.name}
-                  fill
-                  className="object-cover transition-transform duration-300 group-hover:scale-105"
-                  sizes="(min-width: 768px) 25vw, 50vw"
-                />
-              </div>
-              <div className="mt-3 space-y-1">
-                <h3 className="text-xs font-bold text-foreground truncate">{item.name}</h3>
-                <div className="flex items-center gap-2 text-xs">
-                  <span className="font-extrabold">{formatMoney(item.price)}</span>
-                  {item.original && (
-                    <span className="text-muted-foreground line-through text-[11px]">
-                      {formatMoney(item.original)}
-                    </span>
-                  )}
-                  {item.discount && (
-                    <span className="rounded bg-black px-1 text-[9px] font-bold text-white">
-                      {item.discount}
-                    </span>
-                  )}
-                </div>
-              </div>
+              View All →
             </Link>
-          ))}
-        </div>
-      </section>
+          </div>
+          {/* Horizontally scrollable on mobile, grid on sm+ */}
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+            {relatedProducts.map((rel) => (
+              <ProductCard key={rel.id} product={rel} />
+            ))}
+          </div>
+        </section>
+      )}
     </div>
   );
 }
