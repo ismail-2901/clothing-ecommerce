@@ -21,8 +21,8 @@ test.describe("Checkout flow — End-to-End User Actions", () => {
       await sizeButtons.first().click();
     }
 
-    // 5. Click "Add to Cart" button (real user action)
-    const addToCartBtn = page.getByRole("button", { name: /add to cart/i }).first();
+    // 5. Click "Add to Bag" / "Add to Cart" button (real user action)
+    const addToCartBtn = page.getByRole("button", { name: /add to (cart|bag)/i }).first();
     await expect(addToCartBtn).toBeVisible();
     await addToCartBtn.click();
 
@@ -114,7 +114,7 @@ test.describe("Checkout flow — End-to-End User Actions", () => {
       await sizeButtons.first().click();
     }
 
-    const addToCartBtn = page.getByRole("button", { name: /add to cart/i }).first();
+    const addToCartBtn = page.getByRole("button", { name: /add to (cart|bag)/i }).first();
     await addToCartBtn.click();
 
     await page.goto("/checkout");

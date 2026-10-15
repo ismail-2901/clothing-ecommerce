@@ -243,6 +243,9 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
     return result;
   });
 
+  // Priority-4: Invalidate catalog cache so storefront reflects product updates immediately
+  await invalidateCatalogCache();
+
   return NextResponse.json({ productId: updated.id });
 }
 
