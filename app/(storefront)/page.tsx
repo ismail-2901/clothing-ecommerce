@@ -4,7 +4,9 @@ import Link from "next/link";
 import { ArrowRight, Sparkles } from "lucide-react";
 import { HeroSlider } from "@/components/home/hero-slider";
 import { getFilteredProducts } from "@/features/catalog/data";
+import { getCachedHeroSlides } from "@/lib/cache/db-cache";
 import { ProductCard } from "@/components/product/product-card";
+
 
 export const metadata: Metadata = {
   alternates: {
@@ -16,8 +18,11 @@ export const revalidate = 60; // F2: ISR \u2014 regenerate every 60 seconds
 
 
 export default async function HomePage() {
-  // P5: fetch only the 8 featured products needed — avoids loading entire catalog
-  const { products: featuredProducts } = await getFilteredProducts({}, { page: 1, perPage: 8 });
+  // F3: Fetch hero slides from DB (falls back to hardcoded defaults if empty)
+  const [{ products: featuredProducts }, heroSlides] = await Promise.all([
+    getFilteredProducts({}, { page: 1, perPage: 8 }),
+    getCachedHeroSlides()
+  ]);
 
 
   const categoryGrid = [
@@ -54,7 +59,8 @@ export default async function HomePage() {
   return (
     <div>
       {/* ── Hero ── */}
-      <HeroSlider />
+      <HeroSlider slides={heroSlides.length > 0 ? heroSlides : undefined} />
+
 
       {/* ── Shop By Category ── */}
       <section className="elaris-cat-section">

@@ -9,6 +9,7 @@ export type Permission =
   | "inventory:manage"
   | "order:manage"
   | "offer:manage"
+  | "content:manage"
   | "customer:read"
   | "customer:manage"
   | "risk:review"
@@ -16,6 +17,7 @@ export type Permission =
   | "role:manage"
   | "audit:read"
   | "system:configure";
+
 
 const rolePermissions: Record<RoleName, Permission[]> = {
   CUSTOMER: ["profile:manage_own", "cart:manage_own", "order:create", "order:read_own"],
@@ -25,12 +27,14 @@ const rolePermissions: Record<RoleName, Permission[]> = {
     "inventory:manage",
     "order:manage",
     "offer:manage",
+    "content:manage",
     "customer:read",
     "customer:manage",
     "risk:review",
     // BUG-11 fix: ADMIN needs audit:read to access audit log pages in the admin UI.
     "audit:read"
   ],
+
   SUPER_ADMIN: [
     "profile:manage_own",
     "cart:manage_own",
@@ -40,6 +44,7 @@ const rolePermissions: Record<RoleName, Permission[]> = {
     "inventory:manage",
     "order:manage",
     "offer:manage",
+    "content:manage",
     "customer:read",
     "customer:manage",
     "risk:review",
@@ -48,6 +53,7 @@ const rolePermissions: Record<RoleName, Permission[]> = {
     "audit:read",
     "system:configure"
   ]
+
 };
 
 export function hasPermission(role: RoleName, permission: Permission) {

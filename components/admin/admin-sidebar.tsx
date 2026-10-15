@@ -11,6 +11,7 @@ import {
   ClipboardList,
   FileText,
   Gauge,
+  Image as ImageIcon,
   LayoutGrid,
   Megaphone,
   PackageSearch,
@@ -26,6 +27,7 @@ import {
   Menu,
   X
 } from "lucide-react";
+
 import { AdminNotificationNavBadge } from "@/components/admin/admin-notification-bell";
 import { AdminLogoutButton } from "@/components/admin/admin-logout-button";
 
@@ -55,12 +57,20 @@ export const navGroups = [
     ]
   },
   {
+    label: "CONTENT",
+    items: [
+      { label: "Pages & Lookbooks", icon: FileText, href: "/admin/content" },
+      { label: "Hero Slides", icon: ImageIcon, href: "/admin/content/hero-slides" }
+    ]
+  },
+  {
     label: "INTELLIGENCE",
     items: [
       { label: "Risk Center", icon: ShieldAlert, href: "/admin/risk" },
       { label: "Analytics", icon: ChartNoAxesCombined, href: "/admin/analytics" }
     ]
   },
+
   {
     label: "SYSTEM",
     items: [

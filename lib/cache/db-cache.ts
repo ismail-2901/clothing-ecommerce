@@ -67,3 +67,41 @@ export const getCachedActiveCoupons = unstable_cache(
   ["coupons-active"],
   { revalidate: 300, tags: ["coupons"] }
 );
+
+/**
+ * Hero slides -- cached for 60 seconds, tag "hero-slides".
+ * Invalidate with: revalidateTag("hero-slides", "max")
+ * Falls back to [] so the storefront can use hardcoded defaults.
+ */
+export type HeroSlideData = {
+  id: string;
+  num: string;
+  kicker: string;
+  headline: [string, string];
+  subline: string;
+  ctaText: string;
+  ctaHref: string;
+  image: string;
+  alt: string;
+  badgeDiscount: string;
+  badgeNote: string;
+  isActive: boolean;
+};
+
+export const getCachedHeroSlides = unstable_cache(
+  async (): Promise<HeroSlideData[]> => {
+    try {
+      const row = await prisma.homepageSection.findUnique({
+        where: { key: "hero-slides" }
+      });
+      if (!row || !row.isActive) return [];
+      const slides = row.content as unknown[];
+      return (slides as HeroSlideData[]).filter((s) => s.isActive !== false);
+    } catch (err) {
+      console.error("[db-cache:getCachedHeroSlides]", err);
+      return [];
+    }
+  },
+  ["hero-slides"],
+  { revalidate: 60, tags: ["hero-slides"] }
+);

@@ -4,22 +4,12 @@ import { useState, useEffect, useCallback } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { ArrowRight, Gift } from "lucide-react";
+import type { HeroSlideData } from "@/lib/cache/db-cache";
 
-type Slide = {
-  id: string;
-  num: string;
-  kicker: string;
-  headline: [string, string];
-  subline: string;
-  ctaText: string;
-  ctaHref: string;
-  image: string;
-  alt: string;
-  badgeDiscount: string;
-  badgeNote: string;
-};
+type Slide = HeroSlideData;
 
-const slides: Slide[] = [
+// Hardcoded fallback slides — used when no DB data exists (fresh install)
+const DEFAULT_SLIDES: Slide[] = [
   {
     id: "slide-1",
     num: "01",
@@ -31,7 +21,8 @@ const slides: Slide[] = [
     image: "/elaris-hero.jpg",
     alt: "Man in Elaris black sweatshirt and cap",
     badgeDiscount: "30%",
-    badgeNote: "ON SELECTED ITEMS"
+    badgeNote: "ON SELECTED ITEMS",
+    isActive: true
   },
   {
     id: "slide-2",
@@ -44,7 +35,8 @@ const slides: Slide[] = [
     image: "/elaris-women.jpg",
     alt: "Woman in Elaris modern knitwear",
     badgeDiscount: "25%",
-    badgeNote: "SPRING DROP"
+    badgeNote: "SPRING DROP",
+    isActive: true
   },
   {
     id: "slide-3",
@@ -57,29 +49,38 @@ const slides: Slide[] = [
     image: "/elaris-men.jpg",
     alt: "Man in Elaris urban streetwear",
     badgeDiscount: "20%",
-    badgeNote: "LIMITED DROP"
+    badgeNote: "LIMITED DROP",
+    isActive: true
   }
 ];
 
-export function HeroSlider() {
+export function HeroSlider({ slides: propSlides }: { slides?: Slide[] }) {
+  // Use DB slides when provided; fall back to hardcoded defaults
+  const slides = (propSlides && propSlides.length > 0) ? propSlides : DEFAULT_SLIDES;
+
   const [current, setCurrent] = useState(0);
 
   const prevSlide = useCallback(() => {
     setCurrent((c) => (c === 0 ? slides.length - 1 : c - 1));
-  }, []);
+  }, [slides.length]);
 
   const nextSlide = useCallback(() => {
     setCurrent((c) => (c === slides.length - 1 ? 0 : c + 1));
-  }, []);
+  }, [slides.length]);
+
+  // Reset current index if slides array changes length (e.g. admin removed a slide)
+  useEffect(() => {
+    setCurrent((c) => (c >= slides.length ? 0 : c));
+  }, [slides.length]);
 
   useEffect(() => {
     const timer = setInterval(() => {
       setCurrent((c) => (c === slides.length - 1 ? 0 : c + 1));
     }, 7000);
     return () => clearInterval(timer);
-  }, []);
+  }, [slides.length]);
 
-  const active = slides[current];
+  const active = slides[Math.min(current, slides.length - 1)];
 
   return (
     <section className="elaris-hero" aria-label="Hero slider">
