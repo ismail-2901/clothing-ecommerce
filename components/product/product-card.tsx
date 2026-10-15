@@ -2,7 +2,8 @@
 
 import Image from "next/image";
 import Link from "next/link";
-import { useState, useCallback, useEffect, useRef } from "react";
+import { useRouter } from "next/navigation";
+import { useState, useCallback, useEffect, useRef, useMemo } from "react";
 import { Plus, Check, ShoppingBag } from "lucide-react";
 import type { CatalogProduct } from "@/features/catalog/data";
 import { formatMoney } from "@/lib/utils/money";
@@ -26,12 +27,16 @@ const colorMap: Record<string, string> = {
 const SIZE_ORDER = ["XS", "S", "M", "L", "XL", "XXL"];
 
 export function ProductCard({ product, priority = false }: { product: CatalogProduct; priority?: boolean }) {
+  const router = useRouter();
   const { addItem } = useCart();
   const variant = product.variants[0];
   const price = variant?.price ?? 0;
   const comparePrice = variant?.compareAtPrice;
   const discountPct = comparePrice && comparePrice > price ? Math.round(((comparePrice - price) / comparePrice) * 100) : null;
-  const colors = [...new Set(product.variants.map((item) => item.color.toLowerCase()))];
+  const colors = useMemo(
+    () => [...new Set(product.variants.map((item) => item.color.toLowerCase()))],
+    [product.variants]
+  );
 
   const isSale = Boolean(discountPct && discountPct > 0);
   const isNew = product.name.toLowerCase().includes("blazer") || product.name.toLowerCase().includes("sweater") || product.name.toLowerCase().includes("dress");
@@ -282,7 +287,7 @@ export function ProductCard({ product, priority = false }: { product: CatalogPro
                   handleQuickAdd(sizes[0]);
                 } else if (sizes.length > 1) {
                   // On mobile, navigate to PDP for size selection
-                  window.location.href = `/products/${product.slug}`;
+                  router.push(`/products/${product.slug}`);
                 }
               }}
               className="sm:hidden flex h-7 w-7 items-center justify-center rounded-full border border-border bg-background text-foreground hover:bg-foreground hover:text-background transition-colors"

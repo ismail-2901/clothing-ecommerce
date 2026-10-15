@@ -171,8 +171,7 @@ function mapDbProductToCatalogProduct(p: DbProduct): CatalogProduct {
  * Build the shared Prisma where clause from a CatalogFilter.
  * Pure function used for both findMany and count queries.
  */
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-function buildWhereClause(filter: CatalogFilter): any {
+function buildWhereClause(filter: CatalogFilter): Record<string, unknown> {
   const where: Record<string, unknown> = {
     deletedAt: null,
     status: "PUBLISHED"

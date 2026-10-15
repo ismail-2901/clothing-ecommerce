@@ -47,7 +47,7 @@ export const faqItems = [
     category: "Payment",
     question: "What payment methods do you accept?",
     answer:
-      "We accept Cash on Delivery (COD), bKash, Nagad, SSLCommerz, and card payments. Payment methods are configured server-side and verified before order confirmation."
+      "We accept Cash on Delivery (COD) across Bangladesh. Digital payments via bKash and card (SSLCommerz) are currently being enabled. All payment methods and amounts are verified server-side."
   },
   {
     category: "Products",
