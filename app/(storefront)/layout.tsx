@@ -1,6 +1,7 @@
 import { cache } from "react";
 import { FloatingAssistant } from "@/components/ai/floating-assistant";
 import { CartProvider } from "@/components/cart/cart-provider";
+import { CartDrawer } from "@/components/cart/cart-drawer";
 import { Footer } from "@/components/layout/footer";
 import { SiteHeader } from "@/components/layout/site-header";
 import { WishlistProvider } from "@/components/wishlist/wishlist-provider";
@@ -32,7 +33,10 @@ export default async function StorefrontLayout({
         <main>{children}</main>
         <Footer />
         <FloatingAssistant />
+        {/* Cart drawer — always mounted, slides in on openDrawer() */}
+        <CartDrawer />
       </WishlistProvider>
     </CartProvider>
   );
 }
+

@@ -30,7 +30,12 @@ type CartContextValue = {
   removeItem: (idOrSku: string) => Promise<void> | void;
   clearCart: () => Promise<void>;
   refreshCart: () => Promise<void>;
+  // Cart drawer
+  isDrawerOpen: boolean;
+  openDrawer: () => void;
+  closeDrawer: () => void;
 };
+
 
 const CartContext = createContext<CartContextValue | undefined>(undefined);
 
@@ -80,6 +85,11 @@ function readStoredCart(): CartItem[] {
 
 export function CartProvider({ children }: { children: ReactNode }) {
   const [items, setItems] = useState<CartItem[]>(readStoredCart);
+  const [isDrawerOpen, setIsDrawerOpen] = useState(false);
+
+  const openDrawer = useCallback(() => setIsDrawerOpen(true), []);
+  const closeDrawer = useCallback(() => setIsDrawerOpen(false), []);
+
 
   const refreshCart = useCallback(async () => {
     try {
@@ -112,6 +122,8 @@ export function CartProvider({ children }: { children: ReactNode }) {
       // Optimistic update
       const normalized = normalizeCartItem(item);
       setItems((current) => addCartItem(current, normalized));
+      // Open the cart drawer immediately after adding
+      setIsDrawerOpen(true);
 
       // Server DB synchronization
       if (item.variantId) {
@@ -141,6 +153,7 @@ export function CartProvider({ children }: { children: ReactNode }) {
     },
     [refreshCart]
   );
+
 
   const updateQuantity = useCallback(
     async (idOrSku: string, quantity: number) => {
@@ -263,10 +276,14 @@ export function CartProvider({ children }: { children: ReactNode }) {
       updateQuantity,
       removeItem,
       clearCart,
-      refreshCart
+      refreshCart,
+      isDrawerOpen,
+      openDrawer,
+      closeDrawer
     }),
-    [addItem, clearCart, itemCount, items, refreshCart, removeItem, summary, updateQuantity]
+    [addItem, clearCart, closeDrawer, isDrawerOpen, itemCount, items, openDrawer, refreshCart, removeItem, summary, updateQuantity]
   );
+
 
   return <CartContext.Provider value={value}>{children}</CartContext.Provider>;
 }

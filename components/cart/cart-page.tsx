@@ -118,6 +118,32 @@ export function CartPageContent() {
         </div>
       </div>
 
+      {/* D4: Free delivery progress bar */}
+      {(() => {
+        const threshold = storePolicies.shipping.freeThreshold * 100;
+        const pct = Math.min(100, Math.round((summary.subtotal / threshold) * 100));
+        const remaining = threshold - summary.subtotal;
+        return (
+          <div className="rounded-xl border border-border/60 bg-muted/20 px-4 py-3 space-y-2">
+            {summary.subtotal >= threshold ? (
+              <p className="text-xs font-semibold text-emerald-600">
+                🎉 You&apos;ve unlocked free delivery!
+              </p>
+            ) : (
+              <p className="text-xs text-muted-foreground">
+                Add <span className="font-bold text-foreground">{formatMoney(remaining)}</span> more to get free delivery
+              </p>
+            )}
+            <div className="h-1.5 w-full rounded-full bg-muted overflow-hidden">
+              <div
+                className="h-full rounded-full bg-foreground transition-all duration-500"
+                style={{ width: `${pct}%` }}
+              />
+            </div>
+          </div>
+        );
+      })()}
+
       {/* Main Cart Grid */}
       <div className="grid gap-8 lg:grid-cols-[1.5fr_0.9fr] items-start">
         {/* Cart Items Table */}

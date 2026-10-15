@@ -89,7 +89,8 @@ function MobileNavLinks({ onSelect }: { onSelect: () => void }) {
 }
 
 export function SiteHeader() {
-  const { itemCount } = useCart();
+  const { itemCount, openDrawer } = useCart();
+
   const { items: wishlistItems } = useWishlist();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
@@ -191,9 +192,10 @@ export function SiteHeader() {
           </Link>
 
           {/* Cart */}
-          <Link
-            href="/cart"
+          <button
+            type="button"
             aria-label={`Cart (${itemCount})`}
+            onClick={openDrawer}
             className="relative flex h-9 w-9 items-center justify-center rounded-full text-foreground/80 hover:bg-muted hover:text-foreground transition-colors"
           >
             <ShoppingBag size={19} />
@@ -202,7 +204,8 @@ export function SiteHeader() {
                 {itemCount}
               </span>
             )}
-          </Link>
+          </button>
+
         </div>
       </div>
 

@@ -313,8 +313,8 @@ export function ProductDetail({
           </div>
         </div>
 
-        {/* Right: Buy Box & Product Info */}
-        <div className="space-y-6">
+        {/* Right: Buy Box & Product Info — sticky on desktop */}
+        <div className="space-y-6 pb-24 lg:pb-0 lg:sticky lg:top-20 lg:self-start">
           <div className="space-y-2">
             <div className="flex items-center justify-between">
               <span className="rounded-full bg-black px-3 py-0.5 text-[10px] font-bold uppercase tracking-wider text-white">
@@ -446,13 +446,24 @@ export function ProductDetail({
             <div className="flex flex-wrap gap-2">
               {sizes.map((s) => {
                 const isSelected = selectedSize.toLowerCase() === s.toLowerCase();
+                // Find the variant matching this size + selected colour to get stock
+                const sizeVariant = product.variants.find(
+                  (v) => v.size.toLowerCase() === s.toLowerCase() &&
+                         v.color.toLowerCase() === selectedColor.toLowerCase()
+                ) ?? product.variants.find((v) => v.size.toLowerCase() === s.toLowerCase());
+                const stock = (sizeVariant as { stock?: number })?.stock ?? null;
+                const outOfStock = stock !== null && stock === 0;
                 return (
                   <button
                     key={s}
                     type="button"
+                    disabled={outOfStock}
                     onClick={() => setSelectedSize(s)}
-                    className={`flex h-10 min-w-12 items-center justify-center rounded-md border text-xs font-bold uppercase transition-all ${
-                      isSelected
+                    title={outOfStock ? "Out of stock" : undefined}
+                    className={`relative flex h-10 min-w-12 items-center justify-center rounded-md border text-xs font-bold uppercase transition-all ${
+                      outOfStock
+                        ? "border-border/40 bg-muted/40 text-muted-foreground/50 line-through cursor-not-allowed"
+                        : isSelected
                         ? "border-foreground bg-foreground text-background shadow-sm"
                         : "border-border bg-background text-foreground hover:border-foreground"
                     }`}
@@ -462,6 +473,22 @@ export function ProductDetail({
                 );
               })}
             </div>
+            {/* Low stock warning for selected size */}
+            {(() => {
+              const selVariant = product.variants.find(
+                (v) => v.size.toLowerCase() === selectedSize.toLowerCase() &&
+                       v.color.toLowerCase() === selectedColor.toLowerCase()
+              ) ?? product.variants.find((v) => v.size.toLowerCase() === selectedSize.toLowerCase());
+              const stock = (selVariant as { stock?: number })?.stock ?? null;
+              if (stock !== null && stock > 0 && stock <= 5) {
+                return (
+                  <p className="text-xs font-semibold text-amber-600">
+                    Only {stock} left in this size
+                  </p>
+                );
+              }
+              return null;
+            })()}
           </div>
 
           {/* Quantity & CTA Buttons */}
@@ -561,6 +588,21 @@ export function ProductDetail({
             </div>
           </div>
         </div>
+      </div>
+
+      {/* C1: Sticky mobile Add-to-Bag bar — hidden on lg+ */}
+      <div className="fixed bottom-0 left-0 right-0 z-40 flex h-16 items-center gap-3 border-t border-border bg-background px-4 shadow-lg lg:hidden">
+        <div className="flex flex-col leading-tight">
+          <span className="text-[11px] text-muted-foreground">{product.name.length > 18 ? product.name.slice(0, 18) + "…" : product.name}</span>
+          <span className="text-base font-black">{formatMoney(price)}</span>
+        </div>
+        <button
+          type="button"
+          onClick={handleAddToCart}
+          className="flex h-11 flex-1 items-center justify-center gap-2 rounded-md bg-foreground text-xs font-bold uppercase tracking-widest text-background hover:bg-foreground/90 transition-colors"
+        >
+          <ShoppingBag size={15} /> Add to Bag
+        </button>
       </div>
 
       {/* Tabbed Product Details Section */}

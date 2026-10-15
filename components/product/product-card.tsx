@@ -2,8 +2,8 @@
 
 import Image from "next/image";
 import Link from "next/link";
-import { useState, useRef, useCallback } from "react";
 import type { CatalogProduct } from "@/features/catalog/data";
+
 import { formatMoney } from "@/lib/utils/money";
 import { WishlistButton } from "@/components/wishlist/wishlist-button";
 
@@ -31,61 +31,41 @@ export function ProductCard({ product, priority = false }: { product: CatalogPro
   const isSale = Boolean(discountPct && discountPct > 0);
   const isNew = product.name.toLowerCase().includes("blazer") || product.name.toLowerCase().includes("sweater") || product.name.toLowerCase().includes("dress");
 
-  const [zoom, setZoom] = useState<{ x: number; y: number } | null>(null);
-  const imgBoxRef = useRef<HTMLDivElement>(null);
-
-  const handleMouseMove = useCallback((e: React.MouseEvent<HTMLDivElement>) => {
-    const rect = imgBoxRef.current?.getBoundingClientRect();
-    if (!rect) return;
-    const x = ((e.clientX - rect.left) / rect.width) * 100;
-    const y = ((e.clientY - rect.top) / rect.height) * 100;
-    setZoom({ x, y });
-  }, []);
-
-  const handleMouseLeave = useCallback(() => setZoom(null), []);
 
   const imageSrc = product.images[0]?.src || "/elaris-women.jpg";
   const imageAlt = product.images[0]?.alt || product.name;
+  const secondarySrc = product.images[1]?.src ?? null;
 
   return (
     <article className="group flex flex-col justify-between">
       <div>
         {/* aspect-[2/3] on mobile for taller, more visible product image */}
-        <div
-          ref={imgBoxRef}
-          className="relative aspect-[2/3] sm:aspect-[3/4] overflow-hidden rounded-xl bg-muted/40 border border-border/60 cursor-crosshair"
-          onMouseMove={handleMouseMove}
-          onMouseLeave={handleMouseLeave}
-        >
+        <div className="relative aspect-[2/3] sm:aspect-[3/4] overflow-hidden rounded-xl bg-muted/40 border border-border/60">
           <Link href={`/products/${product.slug}`} className="block h-full w-full">
+            {/* Primary image */}
             <Image
               src={imageSrc}
               alt={imageAlt}
               fill
-              className="object-cover transition-transform duration-500 group-hover:scale-105"
+              className={`object-cover transition-all duration-500 ${
+                secondarySrc
+                  ? "group-hover:opacity-0 group-hover:scale-105"
+                  : "group-hover:scale-105"
+              }`}
               sizes="(min-width: 1024px) 25vw, (min-width: 640px) 50vw, 100vw"
               priority={priority}
             />
+            {/* Secondary image — crossfade in on hover */}
+            {secondarySrc && (
+              <Image
+                src={secondarySrc}
+                alt={imageAlt}
+                fill
+                className="object-cover opacity-0 transition-all duration-500 group-hover:opacity-100 group-hover:scale-105"
+                sizes="(min-width: 1024px) 25vw, (min-width: 640px) 50vw, 100vw"
+              />
+            )}
           </Link>
-
-          {/* PC Zoom Lens */}
-          {zoom && (
-            <div
-              className="pointer-events-none absolute hidden sm:block rounded-full border-2 border-white/80 shadow-2xl overflow-hidden"
-              style={{
-                width: 140,
-                height: 140,
-                left: `calc(${zoom.x}% - 70px)`,
-                top: `calc(${zoom.y}% - 70px)`,
-                backgroundImage: `url(${imageSrc})`,
-                backgroundSize: "350% 350%",
-                backgroundPosition: `${zoom.x}% ${zoom.y}%`,
-                backgroundRepeat: "no-repeat",
-                zIndex: 20,
-                boxShadow: "0 8px 32px rgba(0,0,0,0.28), 0 0 0 3px rgba(255,255,255,0.5)",
-              }}
-            />
-          )}
 
           {/* Badges */}
           <div className="absolute left-3 top-3 flex flex-col gap-1.5 pointer-events-none">
@@ -114,6 +94,7 @@ export function ProductCard({ product, priority = false }: { product: CatalogPro
             </div>
           </div>
         </div>
+
 
         {/* Product Info */}
         <div className="mt-3 space-y-1">

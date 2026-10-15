@@ -1,11 +1,37 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import Image from "next/image";
+import { X } from "lucide-react";
 import { ShopCatalogView } from "@/components/shop/shop-catalog-view";
 import { ShopFilters } from "@/components/shop/shop-filters";
 import { ShopFilterDrawer } from "@/components/shop/shop-filter-drawer";
 import { getFilteredProducts } from "@/features/catalog/data";
 import { getCachedCategories } from "@/lib/cache/db-cache";
+
+
+function buildFilterUrl(params: { category: string; size: string; color: string; priceRange: string; q: string; sort: string }) {
+  const sp = new URLSearchParams();
+  if (params.category) sp.set("category", params.category);
+  if (params.size) sp.set("size", params.size);
+  if (params.color) sp.set("color", params.color);
+  if (params.priceRange) sp.set("priceRange", params.priceRange);
+  if (params.q) sp.set("q", params.q);
+  if (params.sort) sp.set("sort", params.sort);
+  const qs = sp.toString();
+  return `/shop${qs ? `?${qs}` : ""}`;
+}
+
+function FilterPill({ label, removeHref }: { label: string; removeHref: string }) {
+  return (
+    <Link
+      href={removeHref}
+      className="inline-flex items-center gap-1 rounded-full border border-border bg-muted px-2.5 py-1 text-[11px] font-semibold text-foreground hover:bg-foreground hover:text-background transition-colors"
+    >
+      {label}
+      <X size={11} strokeWidth={2.5} />
+    </Link>
+  );
+}
 
 export const metadata: Metadata = {
   title: "Shop All",
@@ -171,6 +197,34 @@ export default async function ShopPage({ searchParams }: ShopPageProps) {
 
         {/* Product Grid Area */}
         <section className="space-y-6">
+          {/* D2: Active filter pills */}
+          {(activeCategory || activeSize || activeColor || activePriceRange || activeQ) && (
+            <div className="flex flex-wrap items-center gap-2 pt-1">
+              <span className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground">Active:</span>
+              {activeCategory && (
+                <FilterPill label={`Category: ${activeCategory}`} removeHref={buildFilterUrl({ category: "", size: activeSize, color: activeColor, priceRange: activePriceRange, q: activeQ, sort })} />
+              )}
+              {activeSize && (
+                <FilterPill label={`Size: ${activeSize}`} removeHref={buildFilterUrl({ category: activeCategory, size: "", color: activeColor, priceRange: activePriceRange, q: activeQ, sort })} />
+              )}
+              {activeColor && (
+                <FilterPill label={`Color: ${activeColor}`} removeHref={buildFilterUrl({ category: activeCategory, size: activeSize, color: "", priceRange: activePriceRange, q: activeQ, sort })} />
+              )}
+              {activePriceRange && (
+                <FilterPill label={`Price: ${activePriceRange}`} removeHref={buildFilterUrl({ category: activeCategory, size: activeSize, color: activeColor, priceRange: "", q: activeQ, sort })} />
+              )}
+              {activeQ && (
+                <FilterPill label={`"${activeQ}"`} removeHref={buildFilterUrl({ category: activeCategory, size: activeSize, color: activeColor, priceRange: activePriceRange, q: "", sort })} />
+              )}
+              <Link
+                href="/shop"
+                className="text-[11px] font-semibold text-muted-foreground underline underline-offset-2 hover:text-foreground transition-colors"
+              >
+                Clear all
+              </Link>
+            </div>
+          )}
+
           <ShopCatalogView
             products={sortedProducts}
             totalCount={totalCount}
