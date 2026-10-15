@@ -2,10 +2,12 @@
 
 import Image from "next/image";
 import Link from "next/link";
+import { useState, useCallback, useEffect, useRef } from "react";
+import { Plus, Check, ShoppingBag } from "lucide-react";
 import type { CatalogProduct } from "@/features/catalog/data";
-
 import { formatMoney } from "@/lib/utils/money";
 import { WishlistButton } from "@/components/wishlist/wishlist-button";
+import { useCart } from "@/components/cart/cart-provider";
 
 const colorMap: Record<string, string> = {
   black: "#111111",
@@ -21,7 +23,10 @@ const colorMap: Record<string, string> = {
   green: "#A3C1AD"
 };
 
+const SIZE_ORDER = ["XS", "S", "M", "L", "XL", "XXL"];
+
 export function ProductCard({ product, priority = false }: { product: CatalogProduct; priority?: boolean }) {
+  const { addItem } = useCart();
   const variant = product.variants[0];
   const price = variant?.price ?? 0;
   const comparePrice = variant?.compareAtPrice;
@@ -31,15 +36,81 @@ export function ProductCard({ product, priority = false }: { product: CatalogPro
   const isSale = Boolean(discountPct && discountPct > 0);
   const isNew = product.name.toLowerCase().includes("blazer") || product.name.toLowerCase().includes("sweater") || product.name.toLowerCase().includes("dress");
 
-
   const imageSrc = product.images[0]?.src || "/elaris-women.jpg";
   const imageAlt = product.images[0]?.alt || product.name;
   const secondarySrc = product.images[1]?.src ?? null;
 
+  // Quick-add state
+  const [showSizePanel, setShowSizePanel] = useState(false);
+  const [addedSize, setAddedSize] = useState<string | null>(null);
+  const panelRef = useRef<HTMLDivElement>(null);
+
+  // Derive unique sorted sizes for the quick-add panel
+  const sizes = [...new Set(product.variants.map((v) => v.size).filter(Boolean))].sort(
+    (a, b) => {
+      const ai = SIZE_ORDER.indexOf(a.toUpperCase());
+      const bi = SIZE_ORDER.indexOf(b.toUpperCase());
+      if (ai === -1 && bi === -1) return a.localeCompare(b);
+      if (ai === -1) return 1;
+      if (bi === -1) return -1;
+      return ai - bi;
+    }
+  );
+
+  // Close panel when clicking outside
+  useEffect(() => {
+    if (!showSizePanel) return;
+    const handler = (e: MouseEvent) => {
+      if (panelRef.current && !panelRef.current.contains(e.target as Node)) {
+        setShowSizePanel(false);
+      }
+    };
+    document.addEventListener("mousedown", handler);
+    return () => document.removeEventListener("mousedown", handler);
+  }, [showSizePanel]);
+
+  // Close panel on Escape
+  useEffect(() => {
+    if (!showSizePanel) return;
+    const handler = (e: KeyboardEvent) => {
+      if (e.key === "Escape") setShowSizePanel(false);
+    };
+    document.addEventListener("keydown", handler);
+    return () => document.removeEventListener("keydown", handler);
+  }, [showSizePanel]);
+
+  const handleQuickAdd = useCallback(
+    (size: string) => {
+      // Find best matching variant: same size, prefer first colour available
+      const matched =
+        product.variants.find((v) => v.size.toLowerCase() === size.toLowerCase()) ??
+        product.variants[0];
+
+      addItem({
+        sku: matched?.sku || `${product.id}_${size}`,
+        variantId: matched?.id,
+        productId: product.id,
+        name: product.name,
+        size,
+        color: matched?.color || colors[0] || "",
+        price: matched?.price ?? price,
+        quantity: 1,
+        image: imageSrc
+      });
+
+      setAddedSize(size);
+      setShowSizePanel(false);
+
+      // Reset checkmark after 2 s
+      setTimeout(() => setAddedSize(null), 2000);
+    },
+    [addItem, colors, imageSrc, price, product]
+  );
+
   return (
     <article className="group flex flex-col justify-between">
       <div>
-        {/* aspect-[2/3] on mobile for taller, more visible product image */}
+        {/* Image box */}
         <div className="relative aspect-[2/3] sm:aspect-[3/4] overflow-hidden rounded-xl bg-muted/40 border border-border/60">
           <Link href={`/products/${product.slug}`} className="block h-full w-full">
             {/* Primary image */}
@@ -81,7 +152,7 @@ export function ProductCard({ product, priority = false }: { product: CatalogPro
             )}
           </div>
 
-          {/* Wishlist Button */}
+          {/* Wishlist Button — top-right */}
           <div className="absolute right-3 top-3">
             <div className="flex h-8 w-8 items-center justify-center rounded-full bg-white/90 backdrop-blur-sm shadow-sm hover:scale-110 transition-transform">
               <WishlistButton
@@ -93,8 +164,78 @@ export function ProductCard({ product, priority = false }: { product: CatalogPro
               />
             </div>
           </div>
-        </div>
 
+          {/* Quick-add button — bottom-center, fades in on desktop hover */}
+          <div
+            ref={panelRef}
+            className="absolute bottom-0 left-0 right-0 hidden sm:block"
+          >
+            {/* Size selector panel — slides up when open */}
+            {showSizePanel && (
+              <div
+                role="dialog"
+                aria-label="Select a size to add to bag"
+                className="absolute bottom-0 left-0 right-0 rounded-t-xl border-t border-border bg-background/98 backdrop-blur-md px-3 pt-3 pb-4 shadow-xl"
+              >
+                <p className="mb-2 text-center text-[10px] font-bold uppercase tracking-widest text-muted-foreground">
+                  Select Size
+                </p>
+                <div className="flex flex-wrap justify-center gap-1.5">
+                  {sizes.map((s) => {
+                    const sVariant = product.variants.find((v) => v.size.toLowerCase() === s.toLowerCase());
+                    const outOfStock = (sVariant as { stock?: number })?.stock === 0;
+                    return (
+                      <button
+                        key={s}
+                        type="button"
+                        disabled={outOfStock}
+                        onClick={() => handleQuickAdd(s)}
+                        className={`flex h-8 min-w-9 items-center justify-center rounded-md border text-[11px] font-bold uppercase transition-all ${
+                          outOfStock
+                            ? "border-border/30 text-muted-foreground/40 line-through cursor-not-allowed"
+                            : "border-border bg-background hover:border-foreground hover:bg-foreground hover:text-background"
+                        }`}
+                      >
+                        {s}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+
+            {/* The + / ✓ toggle button */}
+            {!showSizePanel && (
+              <button
+                type="button"
+                aria-label={addedSize ? "Added to bag" : "Quick add to bag"}
+                onClick={() => {
+                  if (sizes.length === 1) {
+                    // Only one size — add directly, no panel needed
+                    handleQuickAdd(sizes[0]);
+                  } else {
+                    setShowSizePanel(true);
+                  }
+                }}
+                className={`w-full flex items-center justify-center gap-1.5 py-2.5 text-[11px] font-bold uppercase tracking-widest transition-all duration-200 opacity-0 group-hover:opacity-100 ${
+                  addedSize
+                    ? "bg-emerald-600 text-white"
+                    : "bg-foreground/95 text-background hover:bg-foreground"
+                }`}
+              >
+                {addedSize ? (
+                  <>
+                    <Check size={13} strokeWidth={3} /> Added
+                  </>
+                ) : (
+                  <>
+                    <Plus size={13} strokeWidth={2.5} /> Quick Add
+                  </>
+                )}
+              </button>
+            )}
+          </div>
+        </div>
 
         {/* Product Info */}
         <div className="mt-3 space-y-1">
@@ -120,16 +261,34 @@ export function ProductCard({ product, priority = false }: { product: CatalogPro
             ) : null}
           </div>
 
-          {/* Color swatches */}
-          <div className="flex items-center gap-1.5 pt-1">
-            {colors.slice(0, 4).map((c) => (
-              <span
-                key={c}
-                className="h-3 w-3 rounded-full border border-black/20 shadow-inner"
-                style={{ backgroundColor: colorMap[c] || "#111111" }}
-                title={c}
-              />
-            ))}
+          {/* Color swatches + quick-add icon on mobile */}
+          <div className="flex items-center justify-between pt-1">
+            <div className="flex items-center gap-1.5">
+              {colors.slice(0, 4).map((c) => (
+                <span
+                  key={c}
+                  className="h-3 w-3 rounded-full border border-black/20 shadow-inner"
+                  style={{ backgroundColor: colorMap[c] || "#111111" }}
+                  title={c}
+                />
+              ))}
+            </div>
+            {/* Mobile quick-add — always visible tap target */}
+            <button
+              type="button"
+              aria-label="Add to bag"
+              onClick={() => {
+                if (sizes.length === 1) {
+                  handleQuickAdd(sizes[0]);
+                } else if (sizes.length > 1) {
+                  // On mobile, navigate to PDP for size selection
+                  window.location.href = `/products/${product.slug}`;
+                }
+              }}
+              className="sm:hidden flex h-7 w-7 items-center justify-center rounded-full border border-border bg-background text-foreground hover:bg-foreground hover:text-background transition-colors"
+            >
+              <ShoppingBag size={13} />
+            </button>
           </div>
         </div>
       </div>
