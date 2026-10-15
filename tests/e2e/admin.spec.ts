@@ -72,7 +72,7 @@ test.describe("Admin & Auth flows — End-to-End User Actions", () => {
 
     // 3. Open dashboard
     await page.goto("/admin");
-    await expect(page.locator("text=/Dashboard|Overview|Products|Orders/i").first()).toBeVisible();
+    await expect(page.locator("text=/Dashboard|Overview|Products|Orders/i").filter({ visible: true }).first()).toBeVisible();
 
     // 4. Products navigation
     const productsNav = page.locator("a[href*='/admin/products']").first();

@@ -222,13 +222,16 @@ function buildProductCards(
   matches: ProductMatches
 ): Array<{ id: string; name: string; slug: string; price: string; image: string; available: boolean }> {
   return matches.map(({ product }) => {
-    const cheapestVariant = product.variants.reduce((a, b) => (a.price < b.price ? a : b));
+    const cheapestVariant =
+      product.variants.length > 0
+        ? product.variants.reduce((a, b) => (a.price < b.price ? a : b))
+        : null;
     const inStock = product.variants.some((v) => v.stock > 0);
     return {
       id: product.id,
       name: product.name,
       slug: product.slug,
-      price: formatMoney(cheapestVariant.price),
+      price: cheapestVariant ? formatMoney(cheapestVariant.price) : "৳0",
       image: product.images[0]?.src ?? "",
       available: inStock
     };
