@@ -13,10 +13,26 @@ import {
   Eye,
   ArrowRight
 } from "lucide-react";
+import type { Prisma } from "@prisma/client";
 import { formatMoney } from "@/lib/utils/money";
 import { prisma } from "@/db/prisma";
 import Link from "next/link";
 import { AdminDashboardSalesChart } from "@/components/admin/admin-dashboard-sales-chart";
+
+// Derived Prisma types — match the exact include shapes used in the query below.
+type LowStockVariant = Prisma.ProductVariantGetPayload<{
+  include: { product: { select: { name: true; slug: true } } };
+}>;
+type RecentOrder = Prisma.OrderGetPayload<{
+  include: {
+    user: { select: { name: true; email: true } };
+    items: { select: { name: true; quantity: true } };
+    payments: { select: { provider: true } };
+  };
+}>;
+type CategoryWithCount = Prisma.CategoryGetPayload<{
+  include: { _count: { select: { products: true } } };
+}>;
 
 export default async function AdminDashboardPage() {
   let orderStats = { _sum: { grandTotal: 0 }, _count: { id: 0 } };
@@ -25,9 +41,10 @@ export default async function AdminDashboardPage() {
   let packedTodayCount = 0;
   let failedDeliveryCount = 0;
   let riskCount = 0;
-  let lowStockVariants: any[] = [];
-  let recentOrders: any[] = [];
-  let categories: any[] = [];
+  let lowStockVariants: LowStockVariant[] = [];
+  let recentOrders: RecentOrder[] = [];
+  let categories: CategoryWithCount[] = [];
+
 
   try {
     const results = await Promise.all([
@@ -63,15 +80,16 @@ export default async function AdminDashboardPage() {
       })
     ]);
 
-    orderStats = (results[0] as any) ?? orderStats;
+    orderStats = (results[0] as typeof orderStats) ?? orderStats;
     customerCount = results[1] ?? 0;
     pendingConfirmationCount = results[2] ?? 0;
     packedTodayCount = results[3] ?? 0;
     failedDeliveryCount = results[4] ?? 0;
     riskCount = results[5] ?? 0;
-    lowStockVariants = (results[6] as any[]) ?? [];
-    recentOrders = (results[7] as any[]) ?? [];
-    categories = (results[8] as any[]) ?? [];
+    lowStockVariants = (results[6] as LowStockVariant[]) ?? [];
+    recentOrders = (results[7] as RecentOrder[]) ?? [];
+    categories = (results[8] as CategoryWithCount[]) ?? [];
+
   } catch (err) {
     console.error("[AdminDashboardPage] Database fallback activated:", err);
   }

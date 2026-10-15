@@ -55,7 +55,9 @@ export type CatalogFilter = {
   q?: string;
   minPrice?: number;
   maxPrice?: number;
+  sort?: "price_asc" | "price_desc" | "newest";
 };
+
 
 // Priority-3: pagination is now done in SQL, not JS
 export type PaginatedCatalogResult = {
@@ -260,17 +262,25 @@ export async function getFilteredProducts(
   try {
     const where = buildWhereClause(filter);
 
+    // Build orderBy from sort param — default to newest first
+    type OrderBy = { createdAt?: "asc" | "desc"; basePrice?: "asc" | "desc" };
+    const orderBy: OrderBy =
+      filter.sort === "price_asc" ? { basePrice: "asc" }
+      : filter.sort === "price_desc" ? { basePrice: "desc" }
+      : { createdAt: "desc" }; // newest (default)
+
     // Priority-3: Run count and page query in parallel -- single DB round-trip pair
     const [dbProducts, total] = await Promise.all([
       prisma.product.findMany({
         where,
         include: productInclude,
-        orderBy: { createdAt: "desc" },
+        orderBy,
         skip: (page - 1) * perPage,
         take: perPage
       }),
       prisma.product.count({ where })
     ]);
+
 
     let products = dbProducts.map(mapDbProductToCatalogProduct);
 

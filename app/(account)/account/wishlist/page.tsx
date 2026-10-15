@@ -85,7 +85,7 @@ export default async function AccountWishlistPage() {
             <Link href="/account/orders" className="flex items-center gap-3 rounded-lg px-3 py-2.5 hover:bg-muted hover:text-foreground transition-colors">
               <Package size={16} /> My Orders
             </Link>
-            <Link href="/account" className="flex items-center gap-3 rounded-lg px-3 py-2.5 hover:bg-muted hover:text-foreground transition-colors">
+            <Link href="/account/addresses" className="flex items-center gap-3 rounded-lg px-3 py-2.5 hover:bg-muted hover:text-foreground transition-colors">
               <MapPin size={16} /> Addresses
             </Link>
             <Link href="/account/wishlist" className="flex items-center justify-between rounded-lg bg-muted px-3 py-2.5 text-foreground font-bold transition-colors">
@@ -96,16 +96,17 @@ export default async function AccountWishlistPage() {
                 {items.length}
               </span>
             </Link>
-            <Link href="/account" className="flex items-center gap-3 rounded-lg px-3 py-2.5 hover:bg-muted hover:text-foreground transition-colors">
+            <Link href="/account/notifications" className="flex items-center gap-3 rounded-lg px-3 py-2.5 hover:bg-muted hover:text-foreground transition-colors">
               <Bell size={16} /> Notifications
             </Link>
-            <Link href="/account" className="flex items-center gap-3 rounded-lg px-3 py-2.5 hover:bg-muted hover:text-foreground transition-colors">
+            <Link href="/account/security" className="flex items-center gap-3 rounded-lg px-3 py-2.5 hover:bg-muted hover:text-foreground transition-colors">
               <Settings size={16} /> Account Settings
             </Link>
             <Link href="/contact" className="flex items-center gap-3 rounded-lg px-3 py-2.5 hover:bg-muted hover:text-foreground transition-colors">
               <HelpCircle size={16} /> Help &amp; Support
             </Link>
           </div>
+
 
           {/* Promo card */}
           <div className="relative overflow-hidden rounded-xl border border-border bg-stone-100 p-5 space-y-3">

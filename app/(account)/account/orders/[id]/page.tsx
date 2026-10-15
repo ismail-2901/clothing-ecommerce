@@ -1,7 +1,9 @@
 export const dynamic = "force-dynamic";
 import { notFound, redirect } from "next/navigation";
 import Link from "next/link";
+import Image from "next/image";
 import { ChevronLeft, Package, MapPin, CreditCard, CheckCircle2, Circle } from "lucide-react";
+
 import { Badge } from "@/components/ui/badge";
 import { formatMoney } from "@/lib/utils/money";
 import { getServerSession } from "@/lib/auth/server";
@@ -167,11 +169,16 @@ export default async function AccountOrderDetailPage({ params }: PageProps) {
                 const itemSize = snapshot?.size || item.size;
                 return (
                   <div key={item.id} className="flex gap-4 p-5">
-                    <img
-                      src={itemImg}
-                      alt={itemName}
-                      className="h-20 w-16 rounded-md object-cover"
-                    />
+                    <div className="relative h-20 w-16 shrink-0 overflow-hidden rounded-md">
+                      <Image
+                        src={itemImg}
+                        alt={itemName}
+                        fill
+                        className="object-cover"
+                        sizes="64px"
+                        unoptimized={itemImg.startsWith("/")}
+                      />
+                    </div>
                     <div className="flex-1">
                       <p className="font-medium">{itemName}</p>
                       <p className="mt-0.5 text-sm text-muted-foreground">

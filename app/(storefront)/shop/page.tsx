@@ -54,21 +54,18 @@ export default async function ShopPage({ searchParams }: ShopPageProps) {
         size: activeSize || undefined,
         q: activeQ || undefined,
         minPrice,
-        maxPrice
+        maxPrice,
+        sort: (sort === "price_asc" || sort === "price_desc" || sort === "newest") ? sort : undefined
       },
       { page, perPage: pageSize }
     ),
     getCachedCategories()
   ]);
 
-  // Client-side sort within the fetched page (preserves existing UX)
-  const sortedProducts = [...paginatedProducts];
-  if (sort === "price_asc") {
-    sortedProducts.sort((a, b) => (a.variants[0]?.price ?? 0) - (b.variants[0]?.price ?? 0));
-  } else if (sort === "price_desc") {
-    sortedProducts.sort((a, b) => (b.variants[0]?.price ?? 0) - (a.variants[0]?.price ?? 0));
-  }
-  // newest: already sorted by createdAt desc from DB
+  // Sort is now applied at the DB level via Prisma orderBy.
+  // No client-side sort needed.
+  const sortedProducts = paginatedProducts;
+
 
   const totalPages  = Math.max(1, Math.ceil(totalCount / pageSize));
   const currentPage = Math.min(page, totalPages);

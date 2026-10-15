@@ -1,4 +1,5 @@
 import { Search } from "lucide-react";
+import Link from "next/link";
 import { ProductCard } from "@/components/product/product-card";
 import { getFilteredProducts } from "@/features/catalog/data";
 import type { Metadata } from "next";
@@ -16,14 +17,28 @@ function readParam(v: string | string[] | undefined) {
   return Array.isArray(v) ? v[0] : v;
 }
 
+const PAGE_SIZE = 20;
+
 export default async function SearchPage({ searchParams }: SearchPageProps) {
   const params = await searchParams;
   const q = readParam(params.q)?.trim() ?? "";
+  const page = Math.max(1, parseInt(readParam(params.page) ?? "1", 10) || 1);
 
-  const { products } = q
-    ? await getFilteredProducts({ q }, { page: 1, perPage: 20 })
-    : { products: [] as import("@/features/catalog/data").CatalogProduct[] };
+  const { products, total } = q
+    ? await getFilteredProducts({ q }, { page, perPage: PAGE_SIZE })
+    : { products: [] as import("@/features/catalog/data").CatalogProduct[], total: 0 };
 
+  const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
+  const currentPage = Math.min(page, totalPages);
+  const startIndex = (currentPage - 1) * PAGE_SIZE;
+
+  const buildUrl = (targetPage: number) => {
+    const sp = new URLSearchParams();
+    if (q) sp.set("q", q);
+    if (targetPage > 1) sp.set("page", String(targetPage));
+    const qs = sp.toString();
+    return `/search${qs ? `?${qs}` : ""}`;
+  };
 
   return (
     <div className="container-shell py-10">
@@ -57,9 +72,9 @@ export default async function SearchPage({ searchParams }: SearchPageProps) {
 
       {q && (
         <p className="mt-4 text-sm text-muted-foreground">
-          {products.length === 0
+          {total === 0
             ? "No products found."
-            : `${products.length} ${products.length === 1 ? "product" : "products"} found`}
+            : `${total} ${total === 1 ? "product" : "products"} found`}
         </p>
       )}
 
@@ -68,6 +83,54 @@ export default async function SearchPage({ searchParams }: SearchPageProps) {
           {products.map((product) => (
             <ProductCard key={product.id} product={product} />
           ))}
+        </div>
+      )}
+
+      {/* Pagination */}
+      {q && totalPages > 1 && (
+        <div className="border-t border-border/80 pt-8 mt-8 flex flex-col sm:flex-row items-center justify-between gap-4">
+          <div className="flex items-center gap-1.5 text-xs">
+            {currentPage > 1 ? (
+              <Link
+                href={buildUrl(currentPage - 1)}
+                className="flex h-8 w-8 items-center justify-center rounded-md border border-border hover:bg-muted text-foreground transition-colors"
+                aria-label="Previous page"
+              >
+                ←
+              </Link>
+            ) : (
+              <span className="flex h-8 w-8 items-center justify-center rounded-md border border-border/40 text-muted-foreground/40 cursor-not-allowed" aria-disabled="true">←</span>
+            )}
+
+            {Array.from({ length: totalPages }, (_, i) => i + 1).map((p) => (
+              <Link
+                key={p}
+                href={buildUrl(p)}
+                className={`flex h-8 w-8 items-center justify-center rounded-md text-xs font-bold transition-colors ${
+                  p === currentPage
+                    ? "bg-foreground text-background"
+                    : "border border-border hover:bg-muted text-foreground"
+                }`}
+              >
+                {p}
+              </Link>
+            ))}
+
+            {currentPage < totalPages ? (
+              <Link
+                href={buildUrl(currentPage + 1)}
+                className="flex h-8 w-8 items-center justify-center rounded-md border border-border hover:bg-muted text-foreground transition-colors"
+                aria-label="Next page"
+              >
+                →
+              </Link>
+            ) : (
+              <span className="flex h-8 w-8 items-center justify-center rounded-md border border-border/40 text-muted-foreground/40 cursor-not-allowed" aria-disabled="true">→</span>
+            )}
+          </div>
+          <p className="text-xs text-muted-foreground">
+            Showing {startIndex + 1}–{Math.min(startIndex + PAGE_SIZE, total)} of {total} results
+          </p>
         </div>
       )}
 
@@ -104,3 +167,4 @@ export default async function SearchPage({ searchParams }: SearchPageProps) {
     </div>
   );
 }
+

@@ -1,7 +1,9 @@
 export const dynamic = "force-dynamic";
 import { notFound, redirect } from "next/navigation";
 import Link from "next/link";
+import Image from "next/image";
 import { ChevronLeft, Package, MapPin, User, ShieldAlert, AlertTriangle } from "lucide-react";
+
 import { Badge } from "@/components/ui/badge";
 import { formatMoney } from "@/lib/utils/money";
 import { getServerUser } from "@/lib/auth/server";
@@ -117,7 +119,16 @@ export default async function AdminOrderDetailPage({ params }: PageProps) {
                 const itemSku = snapshot?.sku || item.variant?.sku || item.sku;
                 return (
                   <div key={item.id} className="flex gap-4 p-5">
-                    <img src={itemImg} alt={itemName} className="h-16 w-12 rounded object-cover" />
+                    <div className="relative h-16 w-12 shrink-0 overflow-hidden rounded">
+                      <Image
+                        src={itemImg}
+                        alt={itemName}
+                        fill
+                        className="object-cover"
+                        sizes="48px"
+                        unoptimized={itemImg.startsWith("/")}
+                      />
+                    </div>
                     <div className="flex-1">
                       <p className="font-medium text-sm">{itemName}</p>
                       <p className="text-xs text-muted-foreground mt-0.5">{itemColor} · {itemSize} · SKU: {itemSku}</p>

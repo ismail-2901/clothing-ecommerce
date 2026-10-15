@@ -3,11 +3,13 @@ export const dynamic = "force-dynamic";
 import type { Metadata } from "next";
 import Link from "next/link";
 import Image from "next/image";
+import type { Prisma } from "@prisma/client";
 import { getServerUser } from "@/lib/auth/server";
 import { AdminLockScreen } from "@/components/admin/admin-lock-screen";
 import { AdminNotificationBell } from "@/components/admin/admin-notification-bell";
 import { AdminDesktopSidebar, AdminMobileNav } from "@/components/admin/admin-sidebar";
 import { AdminHeaderSearch } from "@/components/admin/admin-header-search";
+
 
 export const metadata: Metadata = {
   title: "Admin Dashboard – Elaris",
@@ -17,20 +19,24 @@ export const metadata: Metadata = {
   }
 };
 
+// Derive the exact shape getServerUser() returns so we get full type safety.
+type ServerUser = NonNullable<Awaited<ReturnType<typeof getServerUser>>>;
+
 export default async function AdminLayout({
   children
 }: Readonly<{ children: React.ReactNode }>) {
-  let user: any = null;
+  let user: ServerUser | null = null;
   let isBetterAuthAdmin = false;
 
   try {
     user = await getServerUser();
     isBetterAuthAdmin =
       user?.roles?.some(
-        (ur: any) => ur.role.name === "ADMIN" || ur.role.name === "SUPER_ADMIN"
+        (ur: Prisma.UserRoleGetPayload<{ include: { role: true } }>) =>
+          ur.role.name === "ADMIN" || ur.role.name === "SUPER_ADMIN"
       ) ?? false;
-  } catch (err: any) {
-    if (err?.digest === "DYNAMIC_SERVER_USAGE") throw err;
+  } catch (err: unknown) {
+    if ((err as { digest?: string })?.digest === "DYNAMIC_SERVER_USAGE") throw err;
     console.error("[AdminLayout] Error fetching server user:", err);
   }
 
@@ -51,6 +57,7 @@ export default async function AdminLayout({
     .join("")
     .slice(0, 2)
     .toUpperCase() || "AD";
+
 
   return (
     <div className="min-h-screen bg-stone-50/50 text-foreground flex flex-col lg:flex-row overflow-x-hidden">

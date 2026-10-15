@@ -19,7 +19,17 @@ import { Button } from "@/components/ui/button";
 import { AdminPasswordChangeForm } from "@/components/admin/admin-password-change-form";
 
 export default function AdminSettingsPage() {
+  // All useState declarations must precede useEffect calls that reference their setters.
   const [activeTab, setActiveTab] = useState<"general" | "localization" | "payments" | "shipping" | "security">("general");
+  const [storeName, setStoreName] = useState("ELARIS");
+  const [tagline, setTagline] = useState("More Than Clothing. Wear Your Story.");
+  const [supportEmail, setSupportEmail] = useState("support@elaris.com");
+  const [supportPhone, setSupportPhone] = useState("+880 1712-345678");
+  const [address, setAddress] = useState("House 12, Road 4, Gulshan-2, Dhaka-1212, Bangladesh");
+  const [freeShippingMin, setFreeShippingMin] = useState(3000);
+  const [insideDhakaFee, setInsideDhakaFee] = useState(80);
+  const [outsideDhakaFee, setOutsideDhakaFee] = useState(150);
+  const [saved, setSaved] = useState(false);
 
   useEffect(() => {
     if (typeof window !== "undefined") {
@@ -67,15 +77,6 @@ export default function AdminSettingsPage() {
       })
       .catch(console.error);
   }, []);
-  const [storeName, setStoreName] = useState("ELARIS");
-  const [tagline, setTagline] = useState("More Than Clothing. Wear Your Story.");
-  const [supportEmail, setSupportEmail] = useState("support@elaris.com");
-  const [supportPhone, setSupportPhone] = useState("+880 1712-345678");
-  const [address, setAddress] = useState("House 12, Road 4, Gulshan-2, Dhaka-1212, Bangladesh");
-  const [freeShippingMin, setFreeShippingMin] = useState(3000);
-  const [insideDhakaFee, setInsideDhakaFee] = useState(80);
-  const [outsideDhakaFee, setOutsideDhakaFee] = useState(150);
-  const [saved, setSaved] = useState(false);
 
   const handleSave = () => {
     setSaved(true);
