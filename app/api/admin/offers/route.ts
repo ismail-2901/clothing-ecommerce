@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { prisma } from "@/db/prisma";
 import { requireAdminSession } from "@/lib/auth/server";
+import { revalidateTag } from "next/cache";
+
 
 const createOfferSchema = z.object({
   code: z.string().min(2).max(30).regex(/^[A-Z0-9_-]+$/i),
@@ -65,5 +67,10 @@ export async function POST(request: NextRequest) {
     }
   });
 
+  // Revalidate storefront promo banner cache
+  revalidateTag("coupons", "max");
+
+
   return NextResponse.json({ coupon }, { status: 201 });
 }
+

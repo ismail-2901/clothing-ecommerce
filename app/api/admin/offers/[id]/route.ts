@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { prisma } from "@/db/prisma";
 import { requireAdminSession } from "@/lib/auth/server";
+import { revalidateTag } from "next/cache";
+
 
 type RouteParams = { params: Promise<{ id: string }> };
 
@@ -53,8 +55,13 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
     },
   });
 
+  // Revalidate storefront promo banner cache
+  revalidateTag("coupons", "max");
+
+
   return NextResponse.json({ coupon: updated });
 }
+
 
 export async function DELETE(request: NextRequest, { params }: RouteParams) {
   const auth = await requireAdminSession("offer:manage");
@@ -72,5 +79,10 @@ export async function DELETE(request: NextRequest, { params }: RouteParams) {
     data: { deletedAt: new Date(), status: "ARCHIVED" },
   });
 
+  // Revalidate storefront promo banner cache
+  revalidateTag("coupons", "max");
+
+
   return new NextResponse(null, { status: 204 });
 }
+

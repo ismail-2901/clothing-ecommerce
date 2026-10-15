@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { prisma } from "@/db/prisma";
 import { requireAdminSession } from "@/lib/auth/server";
+import { invalidateCatalogCache } from "@/features/catalog/data";
+
 
 type RouteParams = { params: Promise<{ id: string }> };
 
@@ -65,8 +67,12 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
     });
   }
 
+  // Invalidate catalog cache — category name/slug changes affect /shop filter queries
+  await invalidateCatalogCache();
+
   return NextResponse.json({ category: updated });
 }
+
 
 export async function DELETE(request: NextRequest, { params }: RouteParams) {
   const auth = await requireAdminSession("product:manage");
@@ -112,5 +118,9 @@ export async function DELETE(request: NextRequest, { params }: RouteParams) {
     });
   }
 
+  // Invalidate catalog cache — removed category must not appear on storefront
+  await invalidateCatalogCache();
+
   return new NextResponse(null, { status: 204 });
 }
+

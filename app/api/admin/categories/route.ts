@@ -3,6 +3,8 @@ import { z } from "zod";
 import { prisma } from "@/db/prisma";
 import { requireAdminSession } from "@/lib/auth/server";
 import { revalidateTag } from "next/cache";
+import { invalidateCatalogCache } from "@/features/catalog/data";
+
 
 const createCategorySchema = z.object({
   name: z.string().min(1).max(100),
@@ -79,9 +81,11 @@ export async function POST(request: NextRequest) {
     });
   }
 
-  // Priority-4: Invalidate ISR categories cache (Next.js 16 requires profile arg)
+  // Invalidate ISR categories tag + Redis catalog cache (affects /shop category filters)
   revalidateTag("categories", "max");
 
+  await invalidateCatalogCache();
 
   return NextResponse.json({ category }, { status: 201 });
 }
+
