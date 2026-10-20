@@ -39,7 +39,13 @@ export function ProductCard({ product, priority = false }: { product: CatalogPro
   );
 
   const isSale = Boolean(discountPct && discountPct > 0);
-  const isNew = product.name.toLowerCase().includes("blazer") || product.name.toLowerCase().includes("sweater") || product.name.toLowerCase().includes("dress");
+  const isNew = Boolean(
+    product.tags?.some((t) => t.toLowerCase().includes("new")) ||
+    product.collection?.toLowerCase().includes("new") ||
+    product.name.toLowerCase().includes("blazer") ||
+    product.name.toLowerCase().includes("sweater") ||
+    product.name.toLowerCase().includes("dress")
+  );
 
   const imageSrc = product.images[0]?.src || "/elaris-women.jpg";
   const imageAlt = product.images[0]?.alt || product.name;
@@ -260,7 +266,7 @@ export function ProductCard({ product, priority = false }: { product: CatalogPro
               </span>
             )}
             {discountPct && discountPct > 0 ? (
-              <span className="rounded bg-black px-1.5 py-0.2 text-[9px] font-bold text-white">
+              <span className="rounded bg-black px-1.5 py-0.5 text-[9px] font-bold text-white">
                 {discountPct}% OFF
               </span>
             ) : null}
@@ -272,9 +278,10 @@ export function ProductCard({ product, priority = false }: { product: CatalogPro
               {colors.slice(0, 4).map((c) => (
                 <span
                   key={c}
+                  role="img"
                   className="h-3 w-3 rounded-full border border-black/20 shadow-inner"
                   style={{ backgroundColor: colorMap[c] || "#111111" }}
-                  title={c}
+                  aria-label={c}
                 />
               ))}
             </div>

@@ -2,6 +2,7 @@
 
 import * as Sentry from "@sentry/nextjs";
 import { useEffect } from "react";
+import Link from "next/link";
 
 interface GlobalErrorProps {
   error: Error & { digest?: string };
@@ -128,7 +129,7 @@ export default function GlobalError({ error, reset }: GlobalErrorProps) {
             >
               Try again
             </button>
-            <a
+            <Link
               href="/"
               style={{
                 backgroundColor: "transparent",
@@ -144,7 +145,7 @@ export default function GlobalError({ error, reset }: GlobalErrorProps) {
               }}
             >
               Back to Home
-            </a>
+            </Link>
           </div>
         </div>
       </body>

@@ -3,7 +3,7 @@ import { prisma } from "@/db/prisma";
 
 export const dynamic = "force-dynamic";
 
-const LATEST_COMMITTED_MIGRATION = "20260922220000_seed_standard_categories";
+const LATEST_COMMITTED_MIGRATION = "20261008000000_med_schema_hardening";
 
 export async function GET() {
   const startTime = Date.now();

@@ -63,7 +63,15 @@ return { count, ttl }
 
 class RedisRateLimiter implements RateLimiter {
   async consume(key: string, limit: number, windowMs: number): Promise<RateLimitResult> {
-    if (!redis) return inMemoryFallback.consume(key, limit, windowMs);
+    if (!redis) {
+      if (process.env.NODE_ENV === "production") {
+        console.warn(
+          `[rate-limit] WARNING: Shared Redis unavailable for key '${key}'. ` +
+          "Operating in process-local fallback; multi-instance rate limiting is inactive."
+        );
+      }
+      return inMemoryFallback.consume(key, limit, windowMs);
+    }
 
     try {
       const result = await redis.eval(

@@ -1,9 +1,10 @@
 import { test } from "@playwright/test";
 
+const base = process.env.LIVE_TARGET_URL || "";
 const targets = [
-  { name: "Homepage", url: "https://elaris-store.vercel.app/" },
-  { name: "Shop Catalog", url: "https://elaris-store.vercel.app/shop" },
-  { name: "PDP (Black Linen Shirt)", url: "https://elaris-store.vercel.app/products/black-linen-shirt" }
+  { name: "Homepage", url: `${base}/` },
+  { name: "Shop Catalog", url: `${base}/shop` },
+  { name: "PDP (Black Linen Shirt)", url: `${base}/products/black-linen-shirt` }
 ];
 
 test.describe("Live Production Core Web Vitals", () => {

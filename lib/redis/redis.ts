@@ -1,4 +1,4 @@
-﻿import Redis from "ioredis";
+import Redis from "ioredis";
 
 const globalForRedis = globalThis as unknown as {
   redisClient?: Redis | null;
@@ -7,7 +7,13 @@ const globalForRedis = globalThis as unknown as {
 function createRedisClient(): Redis | null {
   const url = process.env.REDIS_URL;
   if (!url) {
-    if (process.env.NODE_ENV !== "production") {
+    if (process.env.NODE_ENV === "production") {
+      console.warn(
+        "[redis] CRITICAL: REDIS_URL is not configured in production. " +
+        "Distributed rate limiting and cross-instance order idempotency are running in degraded single-instance fallback mode. " +
+        "Multi-instance deployments require a shared Redis instance."
+      );
+    } else {
       console.warn("[redis] REDIS_URL not set — caching & distributed rate-limit disabled.");
     }
     return null;

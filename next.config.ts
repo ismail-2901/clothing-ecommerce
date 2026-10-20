@@ -3,6 +3,9 @@ import { withSentryConfig } from "@sentry/nextjs/config";
 
 const nextConfig: NextConfig = {
   output: process.env.VERCEL ? undefined : "standalone", // standalone for Docker, native for Vercel
+  experimental: {
+    cpus: 1,
+  },
   images: {
     // Priority-6: common image sizes to minimise layout shift
     remotePatterns: [

@@ -111,6 +111,7 @@ function CheckoutSuccessContent() {
         })
         .catch(() => undefined);
     }
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- clearCart and order excluded intentionally: both would cause infinite re-runs
   }, [queryOrderId, queryName, queryTotal]);
 
   const activeOrderId = order?.orderNumber || queryOrderId;
@@ -246,8 +247,9 @@ function CheckoutSuccessContent() {
             <div>
               <p className="text-muted-foreground">Payment Method</p>
               <p className="mt-1 font-semibold text-foreground">
-                {order?.paymentMethod === "COD" ? "Cash on Delivery" : (order?.paymentMethod || "Cash on Delivery")}
+                {order?.paymentMethod === "COD" ? "Cash on Delivery (Pay on Arrival)" : (order?.paymentMethod || "Cash on Delivery")}
               </p>
+              <p className="mt-0.5 text-[10px] text-amber-700 font-medium">Please keep cash ready for the courier.</p>
             </div>
 
             <div>

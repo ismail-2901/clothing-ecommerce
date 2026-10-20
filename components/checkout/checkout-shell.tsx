@@ -478,39 +478,39 @@ export function CheckoutShell() {
                   id: "COD",
                   name: "Cash on Delivery",
                   desc: "Pay in cash when your order arrives. Standard nationwide delivery across Bangladesh.",
-                  badge: "Active / Most Popular",
+                  badge: "Active",
                   icon: Banknote,
                   disabled: false
                 },
                 {
                   id: "BKASH",
                   name: "bKash",
-                  desc: "Instant payment using your bKash mobile wallet (Under Maintenance).",
-                  badge: "Maintenance",
+                  desc: "Instant payment via bKash mobile wallet (Gateway onboarding in progress).",
+                  badge: "Coming Soon",
                   icon: Wallet,
                   disabled: true
                 },
                 {
                   id: "NAGAD",
                   name: "Nagad",
-                  desc: "Fast checkout using your Nagad account (Under Maintenance).",
-                  badge: "Maintenance",
+                  desc: "Fast checkout using Nagad account (Gateway onboarding in progress).",
+                  badge: "Coming Soon",
                   icon: Wallet,
                   disabled: true
                 },
                 {
                   id: "SSLCOMMERZ",
                   name: "SSLCommerz Gateway",
-                  desc: "All BD cards, internet banking, and mobile financial services (Under Maintenance).",
-                  badge: "Maintenance",
+                  desc: "All BD cards, internet banking & MFS (Gateway onboarding in progress).",
+                  badge: "Coming Soon",
                   icon: ShieldCheck,
                   disabled: true
                 },
                 {
                   id: "CARD",
                   name: "Credit / Debit Card",
-                  desc: "Direct card payment via Visa, MasterCard, or American Express (Under Maintenance).",
-                  badge: "Maintenance",
+                  desc: "Visa, MasterCard, or American Express (Gateway onboarding in progress).",
+                  badge: "Coming Soon",
                   icon: CreditCard,
                   disabled: true
                 }
@@ -665,6 +665,16 @@ export function CheckoutShell() {
                     🌱 You saved {formatMoney(effectiveDiscount)} on this order!
                   </div>
                 )}
+                <div className="mt-3 flex items-start gap-2.5 rounded-lg border border-amber-200 bg-amber-50/80 p-3 text-amber-900">
+                  <Banknote size={16} className="shrink-0 text-amber-700 mt-0.5" />
+                  <div className="space-y-0.5 text-xs">
+                    <p className="font-bold">Payment on Delivery (COD)</p>
+                    <p className="text-[11px] text-amber-800 leading-snug">
+                      No advance payment required. You will pay{" "}
+                      <span className="font-bold">{formatMoney(effectiveGrandTotal)}</span> in cash to the delivery courier when your package arrives.
+                    </p>
+                  </div>
+                </div>
               </div>
 
               {/* Coupon Form */}

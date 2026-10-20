@@ -98,7 +98,7 @@ export function SiteHeader() {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
   return (
-    <header className="sticky top-0 z-40 border-b border-border/80 bg-background/95 backdrop-blur-md">
+    <header className="sticky top-0 z-40 border-b border-border/80 bg-background/95 backdrop-blur-md" role="banner" aria-label="Site navigation">
       <div className="container-shell flex h-[64px] items-center justify-between gap-4">
         {/* Mobile menu button */}
         <div className="flex items-center gap-3 md:hidden">

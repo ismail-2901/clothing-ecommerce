@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState, useRef, useCallback } from "react";
+import { useMemo, useState, useRef, useCallback, useEffect } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import {
@@ -21,7 +21,9 @@ import {
   Feather,
   Gem,
   Shirt,
-  Sparkles
+  Sparkles,
+  X,
+  Check
 } from "lucide-react";
 import { useCart } from "@/components/cart/cart-provider";
 import { useWishlist } from "@/components/wishlist/wishlist-provider";
@@ -80,6 +82,25 @@ export function ProductDetail({
   const [quantity, setQuantity] = useState(1);
   const [activeTab, setActiveTab] = useState<"description" | "size" | "material" | "shipping" | "reviews">("description");
   const [showSizeGuide, setShowSizeGuide] = useState(false);
+  const [isLightboxOpen, setIsLightboxOpen] = useState(false);
+  const [sizeGuideUnit, setSizeGuideUnit] = useState<"in" | "cm">("in");
+
+  useEffect(() => {
+    if (showSizeGuide || isLightboxOpen) {
+      document.body.style.overflow = "hidden";
+      const handleKeyDown = (e: KeyboardEvent) => {
+        if (e.key === "Escape") {
+          setShowSizeGuide(false);
+          setIsLightboxOpen(false);
+        }
+      };
+      window.addEventListener("keydown", handleKeyDown);
+      return () => {
+        document.body.style.overflow = "";
+        window.removeEventListener("keydown", handleKeyDown);
+      };
+    }
+  }, [showSizeGuide, isLightboxOpen]);
   const [imgZoom, setImgZoom] = useState<{ x: number; y: number } | null>(null);
   const mainImgRef = useRef<HTMLDivElement>(null);
 
@@ -147,14 +168,15 @@ export function ProductDetail({
   };
 
   const isProductSaved = isSaved(product.id);
+  const [copied, setCopied] = useState(false);
 
   return (
-    <div className="container-shell py-8 space-y-14">
+    <div className="container-shell py-8 pb-24 space-y-14 lg:pb-8">
       {/* Breadcrumb */}
       <nav className="flex items-center gap-2 text-xs text-muted-foreground">
         <Link href="/" className="hover:text-foreground">Home</Link>
         <span>/</span>
-        <Link href="/shop?category=women" className="hover:text-foreground">Women</Link>
+        <Link href={`/shop?category=${(product.category || "women").toLowerCase()}`} className="hover:text-foreground" style={{textTransform: "capitalize"}}>{product.category || "Women"}</Link>
         <span>/</span>
         <Link href="/shop" className="hover:text-foreground">{product.category || "Tops"}</Link>
         <span>/</span>
@@ -164,152 +186,102 @@ export function ProductDetail({
       {/* PDP Main Showcase (Left: Vertical Thumbnails + Main Image | Right: Product Buy Box) */}
       <div className="grid gap-10 lg:grid-cols-[1.3fr_1fr] items-start">
         {/* Left: Gallery */}
-        <div className="flex flex-col gap-4">
-          {/* Thumbnail strip — horizontal scroll on mobile, vertical on sm+ */}
-          <div className="flex sm:hidden gap-2 overflow-x-auto overscroll-x-contain pb-1 scrollbar-none">
+        <div className="flex flex-col-reverse sm:flex-row gap-4">
+          {/* Thumbnail Rail: Horizontal at bottom on mobile, vertical column on left on sm+ */}
+          <div className="flex sm:flex-col gap-2.5 overflow-x-auto sm:overflow-y-auto max-h-none sm:max-h-[560px] pb-1 sm:pb-0 scrollbar-none">
             {galleryImages.map((img, idx) => (
               <button
                 key={idx}
                 type="button"
                 onClick={() => setActiveImageIndex(idx)}
-                className={`relative h-16 w-14 shrink-0 overflow-hidden rounded-lg border-2 transition-all ${
+                aria-label={`Select image ${idx + 1}`}
+                className={`relative h-16 w-14 sm:h-24 sm:w-20 shrink-0 overflow-hidden rounded-lg border-2 transition-all ${
                   idx === activeImageIndex
                     ? "border-foreground shadow-sm"
                     : "border-border/70 opacity-70 hover:opacity-100"
                 }`}
               >
-                <Image src={img.src} alt={img.alt || product.name} fill className="object-cover" sizes="56px" />
+                <Image
+                  src={img.src}
+                  alt={img.alt || product.name}
+                  fill
+                  className="object-cover"
+                  sizes="(min-width: 640px) 80px, 56px"
+                  loading="lazy"
+                />
               </button>
             ))}
           </div>
 
-          <div className="hidden sm:flex flex-row gap-4">
-            {/* Vertical Thumbnail Column for sm+ */}
-            <div className="flex flex-col gap-2.5 overflow-y-auto max-h-[560px] scrollbar-none">
-              {galleryImages.map((img, idx) => (
-                <button
-                  key={idx}
-                  type="button"
-                  onClick={() => setActiveImageIndex(idx)}
-                  className={`relative h-24 w-20 shrink-0 overflow-hidden rounded-lg border-2 transition-all ${
-                    idx === activeImageIndex
-                      ? "border-foreground shadow-sm"
-                      : "border-border/70 opacity-70 hover:opacity-100"
-                  }`}
-                >
-                  <Image src={img.src} alt={img.alt || product.name} fill className="object-cover" sizes="80px" />
-                </button>
-              ))}
-            </div>
-
-            {/* Main Large Image Box — sm+ */}
-            <div
-              ref={mainImgRef}
-              className="relative aspect-[3/4] flex-1 overflow-hidden rounded-2xl bg-muted border border-border/80 group cursor-crosshair"
-              onMouseMove={handleMainImgMouseMove}
-              onMouseLeave={handleMainImgMouseLeave}
-            >
-              <Image
-                src={galleryImages[activeImageIndex]?.src || "/elaris-women.jpg"}
-                alt={product.name}
-                fill
-                priority
-                className="object-cover transition-transform duration-500 group-hover:scale-105"
-                sizes="(min-width: 1024px) 45vw, 100vw"
-              />
-
-              {/* PC Hover Zoom Lens */}
-              {imgZoom && (
-                <div
-                  className="pointer-events-none absolute rounded-full border-2 border-white/80 shadow-2xl overflow-hidden"
-                  style={{
-                    width: 180,
-                    height: 180,
-                    left: `calc(${imgZoom.x}% - 90px)`,
-                    top: `calc(${imgZoom.y}% - 90px)`,
-                    backgroundImage: `url(${galleryImages[activeImageIndex]?.src || "/elaris-women.jpg"})`,
-                    backgroundSize: "400% 400%",
-                    backgroundPosition: `${imgZoom.x}% ${imgZoom.y}%`,
-                    backgroundRepeat: "no-repeat",
-                    zIndex: 30,
-                    boxShadow: "0 8px 40px rgba(0,0,0,0.3), 0 0 0 3px rgba(255,255,255,0.6)",
-                  }}
-                />
-              )}
-
-              {/* Expand button */}
-              <button
-                type="button"
-                className="absolute top-4 right-4 flex h-9 w-9 items-center justify-center rounded-full bg-white/90 text-foreground shadow-md hover:bg-white transition-colors"
-                aria-label="Expand image"
-              >
-                <Maximize2 size={16} />
-              </button>
-
-              {/* Prev / Next carousel controls */}
-              <button
-                type="button"
-                onClick={() =>
-                  setActiveImageIndex((prev) => (prev > 0 ? prev - 1 : galleryImages.length - 1))
-                }
-                className="absolute left-4 top-1/2 -translate-y-1/2 flex h-9 w-9 items-center justify-center rounded-full bg-white/90 text-foreground shadow-md hover:bg-white transition-colors"
-                aria-label="Previous image"
-              >
-                <ChevronLeft size={18} />
-              </button>
-              <button
-                type="button"
-                onClick={() =>
-                  setActiveImageIndex((prev) => (prev < galleryImages.length - 1 ? prev + 1 : 0))
-                }
-                className="absolute right-4 top-1/2 -translate-y-1/2 flex h-9 w-9 items-center justify-center rounded-full bg-white/90 text-foreground shadow-md hover:bg-white transition-colors"
-                aria-label="Next image"
-              >
-                <ChevronRight size={18} />
-              </button>
-
-              {/* Image counter indicator */}
-              <div className="absolute bottom-4 left-4 rounded-md bg-black/70 px-2.5 py-1 text-[11px] font-bold text-white backdrop-blur-sm">
-                {activeImageIndex + 1}/{galleryImages.length}
-              </div>
-            </div>
-          </div>
-
-          {/* Mobile main image — shown below sm */}
-          <div className="relative aspect-[3/4] overflow-hidden rounded-2xl bg-muted border border-border/80 sm:hidden">
+          {/* Unified Main Product Showcase Box (Single responsive element for all viewports) */}
+          <div
+            ref={mainImgRef}
+            className="relative aspect-[3/4] flex-1 overflow-hidden rounded-2xl bg-muted border border-border/80 group cursor-crosshair"
+            onMouseMove={handleMainImgMouseMove}
+            onMouseLeave={handleMainImgMouseLeave}
+          >
             <Image
               src={galleryImages[activeImageIndex]?.src || "/elaris-women.jpg"}
               alt={product.name}
               fill
               priority
-              className="object-cover"
-              sizes="100vw"
+              className="object-cover transition-transform duration-500 group-hover:scale-105"
+              sizes="(min-width: 1024px) 45vw, (min-width: 640px) 60vw, 100vw"
             />
 
-            {/* Prev / Next carousel controls — mobile */}
+            {/* PC Hover Zoom Lens */}
+            {imgZoom && (
+              <div
+                className="pointer-events-none hidden sm:block absolute rounded-full border-2 border-white/80 shadow-2xl overflow-hidden"
+                style={{
+                  width: 180,
+                  height: 180,
+                  left: `calc(${imgZoom.x}% - 90px)`,
+                  top: `calc(${imgZoom.y}% - 90px)`,
+                  backgroundImage: `url(${galleryImages[activeImageIndex]?.src || "/elaris-women.jpg"})`,
+                  backgroundSize: "400% 400%",
+                  backgroundPosition: `${imgZoom.x}% ${imgZoom.y}%`,
+                  backgroundRepeat: "no-repeat",
+                  zIndex: 30,
+                  boxShadow: "0 8px 40px rgba(0,0,0,0.3), 0 0 0 3px rgba(255,255,255,0.6)",
+                }}
+              />
+            )}
+
+            {/* Expand / Lightbox button */}
+            <button
+              type="button"
+              onClick={() => setIsLightboxOpen(true)}
+              className="absolute top-3.5 right-3.5 sm:top-4 sm:right-4 flex h-8 w-8 sm:h-9 sm:w-9 items-center justify-center rounded-full bg-white/90 text-foreground shadow-md hover:bg-white transition-colors"
+              aria-label="Expand image"
+            >
+              <Maximize2 size={16} />
+            </button>
+
+            {/* Prev / Next carousel controls */}
             <button
               type="button"
               onClick={() =>
                 setActiveImageIndex((prev) => (prev > 0 ? prev - 1 : galleryImages.length - 1))
               }
-              className="absolute left-3 top-1/2 -translate-y-1/2 flex h-8 w-8 items-center justify-center rounded-full bg-white/90 text-foreground shadow-md"
+              className="absolute left-3 sm:left-4 top-1/2 -translate-y-1/2 flex h-8 w-8 sm:h-9 sm:w-9 items-center justify-center rounded-full bg-white/90 text-foreground shadow-md hover:bg-white transition-colors"
               aria-label="Previous image"
             >
-              <ChevronLeft size={16} />
+              <ChevronLeft size={18} />
             </button>
             <button
               type="button"
               onClick={() =>
                 setActiveImageIndex((prev) => (prev < galleryImages.length - 1 ? prev + 1 : 0))
               }
-              className="absolute right-3 top-1/2 -translate-y-1/2 flex h-8 w-8 items-center justify-center rounded-full bg-white/90 text-foreground shadow-md"
+              className="absolute right-3 sm:right-4 top-1/2 -translate-y-1/2 flex h-8 w-8 sm:h-9 sm:w-9 items-center justify-center rounded-full bg-white/90 text-foreground shadow-md hover:bg-white transition-colors"
               aria-label="Next image"
             >
-              <ChevronRight size={16} />
+              <ChevronRight size={18} />
             </button>
 
-            {/* Image counter */}
-            <div className="absolute bottom-3 left-3 rounded-md bg-black/70 px-2 py-0.5 text-[10px] font-bold text-white">
+            {/* Image counter indicator */}
+            <div className="absolute bottom-3 left-3 sm:bottom-4 sm:left-4 rounded-md bg-black/70 px-2.5 py-1 text-[10px] sm:text-[11px] font-bold text-white backdrop-blur-sm">
               {activeImageIndex + 1}/{galleryImages.length}
             </div>
           </div>
@@ -548,12 +520,14 @@ export function ProductDetail({
               <button
                 type="button"
                 onClick={() => {
-                  navigator.clipboard?.writeText(window.location.href);
-                  alert("Link copied to clipboard!");
+                  navigator.clipboard?.writeText(window.location.href).then(() => {
+                    setCopied(true);
+                    setTimeout(() => setCopied(false), 2000);
+                  });
                 }}
                 className="flex items-center gap-1.5 hover:text-foreground transition-colors"
               >
-                <Share2 size={14} /> Share Product
+                <Share2 size={14} /> {copied ? "Copied!" : "Share Product"}
               </button>
             </div>
           </div>
@@ -672,15 +646,15 @@ export function ProductDetail({
           {activeTab === "description" && (
             <div className="space-y-4">
               <p>
-                Made from high-quality cotton blend fabric, this {product.name.toLowerCase()} offers a relaxed fit with a minimalist design. Perfect for casual wear, layering, or everyday comfort.
+                {product.description ||
+                  `Made from high-quality cotton blend fabric, this ${product.name.toLowerCase()} offers a relaxed fit with a minimalist design. Perfect for casual wear, layering, or everyday comfort.`}
               </p>
               <ul className="list-disc pl-5 space-y-1 text-foreground/80">
-                <li>Premium cotton blend</li>
-                <li>Relaxed oversized fit</li>
-                <li>Soft and breathable fabric</li>
-                <li>Minimal ELARIS logo embroidery</li>
-                <li>Kangaroo pocket &amp; drawstring hood</li>
-                <li>Ribbed cuffs and hem</li>
+                <li>Premium tailored construction</li>
+                <li>Designed for versatile daily wear</li>
+                <li>Breathable, shape-retaining weave</li>
+                <li>Subtle ELARIS signature detailing</li>
+                <li>Preshrunk fabric with reinforced seams</li>
               </ul>
             </div>
           )}
@@ -851,6 +825,166 @@ export function ProductDetail({
             ))}
           </div>
         </section>
+      )}
+
+      {/* ── Size Guide Modal ── */}
+      {showSizeGuide && (
+        <div
+          role="dialog"
+          aria-modal="true"
+          aria-label="Size Guide"
+          className="fixed inset-0 z-50 flex items-center justify-center p-4"
+        >
+          {/* Backdrop */}
+          <div
+            className="fixed inset-0 bg-black/60 backdrop-blur-sm transition-opacity"
+            onClick={() => setShowSizeGuide(false)}
+          />
+
+          {/* Modal Card */}
+          <div className="relative w-full max-w-xl rounded-2xl border border-border bg-background p-6 shadow-2xl z-10 space-y-5 max-h-[90vh] overflow-y-auto">
+            <div className="flex items-center justify-between border-b border-border/80 pb-4">
+              <div className="flex items-center gap-2">
+                <Ruler size={18} className="text-foreground" />
+                <h3 className="text-base font-bold text-foreground">Size &amp; Fit Guide</h3>
+              </div>
+              <button
+                type="button"
+                onClick={() => setShowSizeGuide(false)}
+                className="rounded-full p-1.5 text-muted-foreground hover:bg-muted hover:text-foreground transition-colors"
+                aria-label="Close size guide"
+              >
+                <X size={18} />
+              </button>
+            </div>
+
+            {/* Unit Switcher */}
+            <div className="flex items-center justify-between">
+              <p className="text-xs text-muted-foreground">
+                All measurements refer to garment dimensions.
+              </p>
+              <div className="inline-flex rounded-lg border border-border p-0.5 bg-muted/40 text-xs font-semibold">
+                <button
+                  type="button"
+                  onClick={() => setSizeGuideUnit("in")}
+                  className={`px-3 py-1 rounded-md transition-colors ${
+                    sizeGuideUnit === "in"
+                      ? "bg-foreground text-background shadow-xs"
+                      : "text-muted-foreground hover:text-foreground"
+                  }`}
+                >
+                  Inches
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setSizeGuideUnit("cm")}
+                  className={`px-3 py-1 rounded-md transition-colors ${
+                    sizeGuideUnit === "cm"
+                      ? "bg-foreground text-background shadow-xs"
+                      : "text-muted-foreground hover:text-foreground"
+                  }`}
+                >
+                  CM
+                </button>
+              </div>
+            </div>
+
+            {/* Measurement Table */}
+            <div className="overflow-x-auto rounded-lg border border-border">
+              <table className="w-full text-left text-xs">
+                <thead className="bg-muted/50 font-bold uppercase tracking-wider text-[10px] text-muted-foreground border-b border-border">
+                  <tr>
+                    <th className="px-3 py-2.5">Size</th>
+                    <th className="px-3 py-2.5">Chest</th>
+                    <th className="px-3 py-2.5">Waist</th>
+                    <th className="px-3 py-2.5">Hip</th>
+                    <th className="px-3 py-2.5">Length</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-border/60 font-medium">
+                  {[
+                    { size: "XS", chestIn: "34-36", chestCm: "86-91", waistIn: "28-30", waistCm: "71-76", hipIn: "34-36", hipCm: "86-91", lenIn: "27", lenCm: "68" },
+                    { size: "S", chestIn: "36-38", chestCm: "91-96", waistIn: "30-32", waistCm: "76-81", hipIn: "36-38", hipCm: "91-96", lenIn: "28", lenCm: "71" },
+                    { size: "M", chestIn: "38-40", chestCm: "96-101", waistIn: "32-34", waistCm: "81-86", hipIn: "38-40", hipCm: "96-101", lenIn: "29", lenCm: "74" },
+                    { size: "L", chestIn: "40-42", chestCm: "101-106", waistIn: "34-36", waistCm: "86-91", hipIn: "40-42", hipCm: "101-106", lenIn: "30", lenCm: "76" },
+                    { size: "XL", chestIn: "42-44", chestCm: "106-111", waistIn: "36-38", waistCm: "91-96", hipIn: "42-44", hipCm: "106-111", lenIn: "31", lenCm: "79" },
+                    { size: "XXL", chestIn: "44-46", chestCm: "111-116", waistIn: "38-40", waistCm: "96-101", hipIn: "44-46", hipCm: "111-116", lenIn: "32", lenCm: "81" },
+                  ].map((row) => (
+                    <tr
+                      key={row.size}
+                      className={selectedSize.toUpperCase() === row.size ? "bg-muted/40 font-bold" : "hover:bg-muted/20"}
+                    >
+                      <td className="px-3 py-2.5 font-bold">{row.size}</td>
+                      <td className="px-3 py-2.5">{sizeGuideUnit === "in" ? row.chestIn : row.chestCm}</td>
+                      <td className="px-3 py-2.5">{sizeGuideUnit === "in" ? row.waistIn : row.waistCm}</td>
+                      <td className="px-3 py-2.5">{sizeGuideUnit === "in" ? row.hipIn : row.hipCm}</td>
+                      <td className="px-3 py-2.5">{sizeGuideUnit === "in" ? row.lenIn : row.lenCm}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+
+            {/* How to Measure Tip */}
+            <div className="rounded-xl bg-muted/40 p-4 text-[11px] leading-relaxed text-muted-foreground space-y-1 border border-border/60">
+              <p className="font-bold text-foreground">How to Measure:</p>
+              <p>• <strong>Chest:</strong> Measure around the fullest part of your chest, keeping tape horizontal.</p>
+              <p>• <strong>Waist:</strong> Measure around the narrowest part of your natural waistline.</p>
+              <p>• <strong>Hips:</strong> Measure around the fullest part of your hips with feet together.</p>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── High-Res Image Lightbox Modal ── */}
+      {isLightboxOpen && (
+        <div
+          role="dialog"
+          aria-modal="true"
+          aria-label="Image Zoom View"
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/90 backdrop-blur-md p-4"
+        >
+          <button
+            type="button"
+            onClick={() => setIsLightboxOpen(false)}
+            className="absolute top-5 right-5 z-20 flex h-10 w-10 items-center justify-center rounded-full bg-white/20 text-white hover:bg-white/40 transition-colors"
+            aria-label="Close zoom view"
+          >
+            <X size={20} />
+          </button>
+
+          <button
+            type="button"
+            onClick={() => setActiveImageIndex((prev) => (prev > 0 ? prev - 1 : galleryImages.length - 1))}
+            className="absolute left-4 top-1/2 -translate-y-1/2 z-20 flex h-11 w-11 items-center justify-center rounded-full bg-white/20 text-white hover:bg-white/40 transition-colors"
+            aria-label="Previous image"
+          >
+            <ChevronLeft size={22} />
+          </button>
+
+          <button
+            type="button"
+            onClick={() => setActiveImageIndex((prev) => (prev < galleryImages.length - 1 ? prev + 1 : 0))}
+            className="absolute right-4 top-1/2 -translate-y-1/2 z-20 flex h-11 w-11 items-center justify-center rounded-full bg-white/20 text-white hover:bg-white/40 transition-colors"
+            aria-label="Next image"
+          >
+            <ChevronRight size={22} />
+          </button>
+
+          <div className="relative h-[85vh] w-[85vw] max-w-4xl max-h-[900px]">
+            <Image
+              src={galleryImages[activeImageIndex]?.src || "/elaris-women.jpg"}
+              alt={product.name}
+              fill
+              className="object-contain"
+              sizes="90vw"
+            />
+          </div>
+
+          <div className="absolute bottom-6 left-1/2 -translate-x-1/2 rounded-full bg-black/70 px-4 py-1.5 text-xs font-bold text-white">
+            {activeImageIndex + 1} / {galleryImages.length}
+          </div>
+        </div>
       )}
     </div>
   );

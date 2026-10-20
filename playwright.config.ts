@@ -7,12 +7,12 @@ export default defineConfig({
   retries: process.env.CI ? 2 : 0,
   reporter: process.env.CI ? "github" : "list",
   use: {
-    baseURL: "http://127.0.0.1:3000",
+    baseURL: "http://127.0.0.1:3001",
     trace: "on-first-retry"
   },
   webServer: {
-    command: "npm run start",
-    url: "http://127.0.0.1:3000",
+    command: "node -e \"process.env.PORT='3001'; require('dotenv').config(); require('./.next/standalone/server.js');\"",
+    url: "http://127.0.0.1:3001",
     reuseExistingServer: !process.env.CI,
     timeout: 120_000
   },

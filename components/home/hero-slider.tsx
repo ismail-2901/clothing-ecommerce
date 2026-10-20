@@ -59,6 +59,15 @@ export function HeroSlider({ slides: propSlides }: { slides?: Slide[] }) {
   const slides = (propSlides && propSlides.length > 0) ? propSlides : DEFAULT_SLIDES;
 
   const [current, setCurrent] = useState(0);
+  const [reducedMotion, setReducedMotion] = useState(false);
+
+  useEffect(() => {
+    const mq = window.matchMedia("(prefers-reduced-motion: reduce)");
+    setReducedMotion(mq.matches);
+    const handler = (e: MediaQueryListEvent) => setReducedMotion(e.matches);
+    mq.addEventListener("change", handler);
+    return () => mq.removeEventListener("change", handler);
+  }, []);
 
   const prevSlide = useCallback(() => {
     setCurrent((c) => (c === 0 ? slides.length - 1 : c - 1));
@@ -74,11 +83,12 @@ export function HeroSlider({ slides: propSlides }: { slides?: Slide[] }) {
   }, [slides.length]);
 
   useEffect(() => {
+    if (reducedMotion) return;
     const timer = setInterval(() => {
       setCurrent((c) => (c === slides.length - 1 ? 0 : c + 1));
     }, 7000);
     return () => clearInterval(timer);
-  }, [slides.length]);
+  }, [slides.length, reducedMotion]);
 
   const active = slides[Math.min(current, slides.length - 1)];
 
@@ -143,7 +153,6 @@ export function HeroSlider({ slides: propSlides }: { slides?: Slide[] }) {
         {/* Center column: hero image fills full height */}
         <div className="elaris-hero-img-col">
           <Image
-            key={active.image}
             src={active.image}
             alt={active.alt}
             fill

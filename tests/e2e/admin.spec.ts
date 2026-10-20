@@ -3,7 +3,7 @@ import { test, expect } from "@playwright/test";
 test.describe("Admin & Auth flows — End-to-End User Actions", () => {
   test("admin login page renders inputs and rejects invalid credentials", async ({ page }) => {
     await page.goto("/login");
-    await expect(page.getByRole("heading", { level: 1 }).or(page.locator("h1"))).toBeVisible();
+    await expect(page.locator("h1").first()).toBeVisible();
 
     const emailInput = page.locator('input[type="email"]').first();
     const passwordInput = page.locator('input[type="password"]').first();

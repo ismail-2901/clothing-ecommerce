@@ -35,10 +35,11 @@ const createOrderSchema = z.object({
   }),
   // shippingFee is NOT accepted from the client — derived server-side from city
   couponCode: z.string().max(50).optional(),
-  // CRIT-06: NAGAD and CARD are not yet integrated — removed from accepted values.
-  // The checkout UI already marks them disabled; this ensures the API rejects any
-  // direct attempt to submit an order with those providers.
-  paymentProvider: z.enum(["COD", "SSLCOMMERZ", "BKASH"]),
+  // Task 4: COD is the only active payment method. Online payment gateways (bKash, SSLCommerz)
+  // are pending merchant contract finalization and are strictly rejected by the server.
+  paymentProvider: z.enum(["COD"], {
+    message: "Cash on Delivery (COD) is currently the only available payment method. Online payments are coming soon."
+  }),
   // Inline cart: used when no server-side Cart record exists (localStorage-based storefront)
   cartItems: z.array(
     z.object({
@@ -71,12 +72,18 @@ const IDEMPOTENCY_PREFIX = "order:idem:";
 const IDEMPOTENCY_TTL_SECONDS = 600; // 10 minutes
 
 async function idempotencyGet(key: string): Promise<{ body: unknown; status: number } | null> {
-  if (!redis) return null;
+  if (!redis) {
+    if (process.env.NODE_ENV === "production") {
+      console.warn(`[orders:idempotency] WARNING: Shared Redis unavailable for key '${key}'. Cross-instance idempotency degraded to in-process memory.`);
+    }
+    return null;
+  }
   try {
     const raw = await redis.get(`${IDEMPOTENCY_PREFIX}${key}`);
     if (!raw) return null;
     return JSON.parse(raw) as { body: unknown; status: number };
-  } catch {
+  } catch (err) {
+    console.warn(`[orders:idempotency] Redis error during idempotencyGet: ${(err as Error).message}`);
     return null;
   }
 }
@@ -96,7 +103,8 @@ async function idempotencySet(
       IDEMPOTENCY_TTL_SECONDS,
       "NX"
     );
-  } catch {
+  } catch (err) {
+    console.warn(`[orders:idempotency] Redis error during idempotencySet: ${(err as Error).message}`);
     // Best-effort — never block order creation
   }
 }

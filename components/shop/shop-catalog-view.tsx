@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useRouter } from "next/navigation";
 import { LayoutGrid, List } from "lucide-react";
 import { ProductCard } from "@/components/product/product-card";
 import type { CatalogProduct } from "@/features/catalog/data";
@@ -15,6 +16,7 @@ export function ShopCatalogView({
   sortValue: string;
 }) {
   const [view, setView] = useState<"grid" | "list">("grid");
+  const router = useRouter();
 
   return (
     <div className="space-y-6">
@@ -32,8 +34,8 @@ export function ShopCatalogView({
               onChange={(e) => {
                 const url = new URL(window.location.href);
                 url.searchParams.set("sort", e.target.value);
-                url.searchParams.set("page", "1");
-                window.location.href = url.toString();
+                url.searchParams.delete("page");
+                router.push(url.pathname + (url.search ? url.search : ""));
               }}
             >
               <option value="">Featured</option>

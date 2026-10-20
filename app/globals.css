@@ -281,15 +281,12 @@
   position: relative;
   overflow: hidden;
   background: #e8e8e8;
-  /* On mobile: show with fixed aspect ratio */
-  aspect-ratio: 3 / 4;
-  order: -1; /* image above text on mobile */
 }
 
-@media (min-width: 768px) {
+@media (max-width: 767px) {
   .elaris-hero-img-col {
-    aspect-ratio: auto; /* let the grid row height determine it */
-    order: 0;
+    aspect-ratio: 3 / 4;
+    order: -1;
   }
 }
 
@@ -430,4 +427,16 @@
   background: transparent;
   color: #0a0a0a;
   flex-shrink: 0;
+}
+
+/* Respect reduced motion preference for all transitions and animations */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
 }

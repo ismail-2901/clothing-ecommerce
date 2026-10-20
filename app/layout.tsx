@@ -7,7 +7,7 @@ import { storeConfig } from "@/config/store";
 // removes FOUT, and avoids the external DNS lookup on every cold load.
 const inter = Inter({
   subsets: ["latin"],
-  weight: ["400", "500", "600", "700"],
+  weight: ["400", "500", "600", "700", "800", "900"],
   display: "swap",
   variable: "--font-inter"
 });

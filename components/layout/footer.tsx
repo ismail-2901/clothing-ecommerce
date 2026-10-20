@@ -7,12 +7,31 @@ import { storeConfig } from "@/config/store";
 export function Footer() {
   const [email, setEmail] = useState("");
   const [subscribed, setSubscribed] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [errorMsg, setErrorMsg] = useState("");
 
-  const handleSubscribe = (e: React.FormEvent) => {
+  const handleSubscribe = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (email.trim()) {
+    if (!email.trim()) return;
+    setLoading(true);
+    setErrorMsg("");
+
+    try {
+      const res = await fetch("/api/newsletter", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email: email.trim() }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        throw new Error(data.error || "Subscription failed. Please try again.");
+      }
       setSubscribed(true);
       setEmail("");
+    } catch (err: any) {
+      setErrorMsg(err.message || "Failed to subscribe. Please try again.");
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -35,7 +54,7 @@ export function Footer() {
               <Link href="/shop" className="hover:text-foreground transition-colors">Shop</Link>
               <Link href="/shop?category=women" className="hover:text-foreground transition-colors">Women</Link>
               <Link href="/shop?category=men" className="hover:text-foreground transition-colors">Men</Link>
-              <Link href="/shop" className="hover:text-foreground transition-colors">Collections</Link>
+              <Link href="/collections" className="hover:text-foreground transition-colors">Collections</Link>
               <Link href="/offers" className="hover:text-foreground transition-colors">Offers</Link>
               <Link href="/about" className="hover:text-foreground transition-colors">About</Link>
               <Link href="/contact" className="hover:text-foreground transition-colors">Contact</Link>
@@ -63,14 +82,19 @@ export function Footer() {
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
                     placeholder="Enter your email"
-                    className="h-9 min-w-0 flex-1 rounded-md border border-border bg-background px-3 text-xs placeholder:text-muted-foreground focus:border-foreground focus:outline-none"
+                    disabled={loading}
+                    className="h-9 min-w-0 flex-1 rounded-md border border-border bg-background px-3 text-xs placeholder:text-muted-foreground focus:border-foreground focus:outline-none disabled:opacity-50"
                   />
                   <button
                     type="submit"
-                    className="h-9 shrink-0 rounded-md bg-foreground px-5 text-xs font-bold uppercase tracking-wider text-background hover:bg-foreground/90 transition-colors whitespace-nowrap"
+                    disabled={loading}
+                    className="h-9 shrink-0 rounded-md bg-foreground px-5 text-xs font-bold uppercase tracking-wider text-background hover:bg-foreground/90 transition-colors whitespace-nowrap disabled:opacity-50"
                   >
-                    Subscribe
+                    {loading ? "Subscribing..." : "Subscribe"}
                   </button>
+                  {errorMsg && (
+                    <p className="w-full text-[11px] font-medium text-rose-600 mt-1">{errorMsg}</p>
+                  )}
                 </form>
               )}
 

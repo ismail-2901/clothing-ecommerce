@@ -36,6 +36,7 @@ export default function AdminSettingsPage() {
       const params = new URLSearchParams(window.location.search);
       const tab = params.get("tab");
       if (tab === "security" || tab === "general" || tab === "localization" || tab === "payments" || tab === "shipping") {
+        // eslint-disable-next-line react-hooks/set-state-in-effect -- sync tab selection from URL params
         setActiveTab(tab);
       }
     }
@@ -46,6 +47,7 @@ export default function AdminSettingsPage() {
       const cached = localStorage.getItem("elaris_store_settings");
       if (cached) {
         const parsed = JSON.parse(cached);
+        // eslint-disable-next-line react-hooks/set-state-in-effect -- restore cached settings from localStorage
         if (parsed.storeName !== undefined) setStoreName(parsed.storeName);
         if (parsed.tagline !== undefined) setTagline(parsed.tagline);
         if (parsed.supportEmail !== undefined) setSupportEmail(parsed.supportEmail);
