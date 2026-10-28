@@ -30,9 +30,12 @@ export function ProductCard({ product, priority = false }: { product: CatalogPro
   const variant = product.variants[0];
   const price = variant?.price ?? 0;
   const comparePrice = variant?.compareAtPrice;
-  const discountPct = comparePrice && comparePrice > price ? Math.round(((comparePrice - price) / comparePrice) * 100) : null;
+  const discountPct =
+    comparePrice && comparePrice > price
+      ? Math.round(((comparePrice - price) / comparePrice) * 100)
+      : null;
   const colors = useMemo(
-    () => [...new Set(product.variants.map((item) => item.color.toLowerCase()))],
+    () => [...new Set(product.variants.map((v) => v.color.toLowerCase()))],
     [product.variants]
   );
 
@@ -63,7 +66,7 @@ export function ProductCard({ product, priority = false }: { product: CatalogPro
       color: matched.color || colors[0] || "",
       price: matched.price ?? price,
       quantity: 1,
-      image: imageSrc
+      image: imageSrc,
     });
     setAdded(true);
     setTimeout(() => setAdded(false), 2000);
@@ -72,97 +75,99 @@ export function ProductCard({ product, priority = false }: { product: CatalogPro
   return (
     <article className="group flex flex-col justify-between">
       <div>
-        {/*
-          Outer wrapper: relative + no overflow-hidden
-          so the Quick Add button sits here, outside the clipping context.
-        */}
-        <div className="relative">
-          {/* Image box — overflow-hidden only here, Link lives inside */}
-          <div className="relative aspect-[2/3] sm:aspect-[3/4] overflow-hidden rounded-xl bg-muted/40 border border-border/60">
-            <Link href={`/products/${product.slug}`} className="block h-full w-full">
-              <Image
-                src={imageSrc}
-                alt={imageAlt}
-                fill
-                className={`object-cover transition-all duration-500 ${
-                  secondarySrc
-                    ? "group-hover:opacity-0 group-hover:scale-105"
-                    : "group-hover:scale-105"
-                }`}
-                sizes="(min-width: 1024px) 25vw, (min-width: 640px) 50vw, 100vw"
-                priority={priority}
-              />
-              {secondarySrc && (
-                <Image
-                  src={secondarySrc}
-                  alt={imageAlt}
-                  fill
-                  className="object-cover opacity-0 transition-all duration-500 group-hover:opacity-100 group-hover:scale-105"
-                  sizes="(min-width: 1024px) 25vw, (min-width: 640px) 50vw, 100vw"
-                />
-              )}
-            </Link>
+        {/* ─── Image area ─────────────────────────────────────────────
+            The image div handles click → PDP navigation via router.push.
+            No full-area <Link> wrapper means nothing intercepts the
+            Quick Add button's click events.
+        ─────────────────────────────────────────────────────────────── */}
+        <div
+          className="relative aspect-[2/3] sm:aspect-[3/4] overflow-hidden rounded-xl bg-muted/40 border border-border/60 cursor-pointer"
+          onClick={() => router.push(`/products/${product.slug}`)}
+        >
+          {/* Primary image */}
+          <Image
+            src={imageSrc}
+            alt={imageAlt}
+            fill
+            className={`object-cover transition-all duration-500 ${
+              secondarySrc
+                ? "group-hover:opacity-0 group-hover:scale-105"
+                : "group-hover:scale-105"
+            }`}
+            sizes="(min-width: 1024px) 25vw, (min-width: 640px) 50vw, 100vw"
+            priority={priority}
+          />
+          {secondarySrc && (
+            <Image
+              src={secondarySrc}
+              alt={imageAlt}
+              fill
+              className="object-cover opacity-0 transition-all duration-500 group-hover:opacity-100 group-hover:scale-105"
+              sizes="(min-width: 1024px) 25vw, (min-width: 640px) 50vw, 100vw"
+            />
+          )}
 
-            {/* Badges */}
-            <div className="absolute left-3 top-3 flex flex-col gap-1.5 pointer-events-none">
-              {isNew && !isSale && (
-                <span className="rounded-full bg-white/95 px-2.5 py-0.5 text-[10px] font-bold text-black shadow-sm">
-                  New
-                </span>
-              )}
-              {isSale && (
-                <span className="rounded-full bg-rose-600 px-2.5 py-0.5 text-[10px] font-bold text-white shadow-sm">
-                  Sale
-                </span>
-              )}
-            </div>
-
-            {/* Wishlist — top-right */}
-            <div className="absolute right-3 top-3 z-10">
-              <div className="flex h-8 w-8 items-center justify-center rounded-full bg-white/90 backdrop-blur-sm shadow-sm hover:scale-110 transition-transform">
-                <WishlistButton
-                  productId={product.id}
-                  name={product.name}
-                  slug={product.slug}
-                  price={price}
-                  image={product.images[0]?.src}
-                  iconOnly
-                />
-              </div>
-            </div>
+          {/* Badges */}
+          <div className="absolute left-3 top-3 flex flex-col gap-1.5 pointer-events-none">
+            {isNew && !isSale && (
+              <span className="rounded-full bg-white/95 px-2.5 py-0.5 text-[10px] font-bold text-black shadow-sm">
+                New
+              </span>
+            )}
+            {isSale && (
+              <span className="rounded-full bg-rose-600 px-2.5 py-0.5 text-[10px] font-bold text-white shadow-sm">
+                Sale
+              </span>
+            )}
           </div>
 
-          {/*
-            Quick Add button — sibling of image box, NOT inside overflow-hidden.
-            Absolutely positioned to sit at the bottom of the image via
-            the outer relative wrapper. No Link overlap, no overflow clipping.
-          */}
-          <button
-            type="button"
-            aria-label={added ? "Added to bag" : "Quick add to bag"}
-            onClick={handleQuickAdd}
-            className={`
-              absolute bottom-0 left-0 right-0
-              hidden sm:flex items-center justify-center gap-1.5
-              py-2.5 text-[11px] font-bold uppercase tracking-widest
-              rounded-b-xl
-              transition-all duration-200
-              opacity-0 group-hover:opacity-100
-              ${added
-                ? "bg-emerald-600 text-white"
-                : "bg-foreground/95 text-background hover:bg-foreground"
-              }
-            `}
+          {/* Wishlist — stop propagation so it doesn't trigger nav */}
+          <div
+            className="absolute right-3 top-3 z-10"
+            onClick={(e) => e.stopPropagation()}
           >
-            {added ? (
-              <>
-                <Check size={13} strokeWidth={3} /> Added
-              </>
-            ) : (
-              "Quick Add"
-            )}
-          </button>
+            <div className="flex h-8 w-8 items-center justify-center rounded-full bg-white/90 backdrop-blur-sm shadow-sm hover:scale-110 transition-transform">
+              <WishlistButton
+                productId={product.id}
+                name={product.name}
+                slug={product.slug}
+                price={price}
+                image={product.images[0]?.src}
+                iconOnly
+              />
+            </div>
+          </div>
         </div>
+
+        {/* ─── Quick Add button ────────────────────────────────────────
+            Rendered AFTER the image div, NOT inside it.
+            overflow-hidden on the image div does NOT affect this button.
+            No anchor element here → clicks go straight to onClick.
+        ─────────────────────────────────────────────────────────────── */}
+        <button
+          type="button"
+          aria-label={added ? "Added to bag" : "Quick add to bag"}
+          onClick={handleQuickAdd}
+          className={`
+            w-full hidden sm:flex items-center justify-center gap-1.5
+            py-2.5 text-[11px] font-bold uppercase tracking-widest
+            rounded-b-xl -mt-px
+            transition-all duration-200
+            opacity-0 group-hover:opacity-100
+            ${added
+              ? "bg-emerald-600 text-white"
+              : "bg-foreground/95 text-background hover:bg-foreground"
+            }
+          `}
+        >
+          {added ? (
+            <>
+              <Check size={13} strokeWidth={3} /> Added
+            </>
+          ) : (
+            "Quick Add"
+          )}
+        </button>
 
         {/* Product Info */}
         <div className="mt-3 space-y-1">
@@ -199,10 +204,10 @@ export function ProductCard({ product, priority = false }: { product: CatalogPro
                 />
               ))}
             </div>
-            {/* Mobile — navigate to PDP */}
+            {/* Mobile — tap bag icon → PDP */}
             <button
               type="button"
-              aria-label="Add to bag"
+              aria-label="View product"
               onClick={() => router.push(`/products/${product.slug}`)}
               className="sm:hidden flex h-7 w-7 items-center justify-center rounded-full border border-border bg-background text-foreground hover:bg-foreground hover:text-background transition-colors"
             >
