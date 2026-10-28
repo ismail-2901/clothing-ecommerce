@@ -3,12 +3,11 @@
 import Image from "next/image";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useState, useCallback, useMemo } from "react";
-import { Check, ShoppingBag } from "lucide-react";
+import { useMemo } from "react";
+import { ShoppingBag } from "lucide-react";
 import type { CatalogProduct } from "@/features/catalog/data";
 import { formatMoney } from "@/lib/utils/money";
 import { WishlistButton } from "@/components/wishlist/wishlist-button";
-import { useCart } from "@/components/cart/cart-provider";
 
 const colorMap: Record<string, string> = {
   black: "#111111",
@@ -26,7 +25,6 @@ const colorMap: Record<string, string> = {
 
 export function ProductCard({ product, priority = false }: { product: CatalogProduct; priority?: boolean }) {
   const router = useRouter();
-  const { addItem } = useCart();
   const variant = product.variants[0];
   const price = variant?.price ?? 0;
   const comparePrice = variant?.compareAtPrice;
@@ -52,39 +50,14 @@ export function ProductCard({ product, priority = false }: { product: CatalogPro
   const imageAlt = product.images[0]?.alt || product.name;
   const secondarySrc = product.images[1]?.src ?? null;
 
-  const [added, setAdded] = useState(false);
-
-  const handleQuickAdd = useCallback(() => {
-    const matched = product.variants[0];
-    if (!matched) return;
-    addItem({
-      sku: matched.sku || `${product.id}_default`,
-      variantId: matched.id,
-      productId: product.id,
-      name: product.name,
-      size: matched.size || "",
-      color: matched.color || colors[0] || "",
-      price: matched.price ?? price,
-      quantity: 1,
-      image: imageSrc,
-    });
-    setAdded(true);
-    setTimeout(() => setAdded(false), 2000);
-  }, [addItem, colors, imageSrc, price, product]);
-
   return (
     <article className="group flex flex-col justify-between">
       <div>
-        {/* ─── Image area ─────────────────────────────────────────────
-            The image div handles click → PDP navigation via router.push.
-            No full-area <Link> wrapper means nothing intercepts the
-            Quick Add button's click events.
-        ─────────────────────────────────────────────────────────────── */}
-        <div
-          className="relative aspect-[2/3] sm:aspect-[3/4] overflow-hidden rounded-xl bg-muted/40 border border-border/60 cursor-pointer"
-          onClick={() => router.push(`/products/${product.slug}`)}
+        {/* Image */}
+        <Link
+          href={`/products/${product.slug}`}
+          className="block relative aspect-[2/3] sm:aspect-[3/4] overflow-hidden rounded-xl bg-muted/40 border border-border/60"
         >
-          {/* Primary image */}
           <Image
             src={imageSrc}
             alt={imageAlt}
@@ -121,10 +94,10 @@ export function ProductCard({ product, priority = false }: { product: CatalogPro
             )}
           </div>
 
-          {/* Wishlist — stop propagation so it doesn't trigger nav */}
+          {/* Wishlist */}
           <div
             className="absolute right-3 top-3 z-10"
-            onClick={(e) => e.stopPropagation()}
+            onClick={(e) => e.preventDefault()}
           >
             <div className="flex h-8 w-8 items-center justify-center rounded-full bg-white/90 backdrop-blur-sm shadow-sm hover:scale-110 transition-transform">
               <WishlistButton
@@ -137,37 +110,7 @@ export function ProductCard({ product, priority = false }: { product: CatalogPro
               />
             </div>
           </div>
-        </div>
-
-        {/* ─── Quick Add button ────────────────────────────────────────
-            Rendered AFTER the image div, NOT inside it.
-            overflow-hidden on the image div does NOT affect this button.
-            No anchor element here → clicks go straight to onClick.
-        ─────────────────────────────────────────────────────────────── */}
-        <button
-          type="button"
-          aria-label={added ? "Added to bag" : "Quick add to bag"}
-          onClick={handleQuickAdd}
-          className={`
-            w-full hidden sm:flex items-center justify-center gap-1.5
-            py-2.5 text-[11px] font-bold uppercase tracking-widest
-            rounded-b-xl -mt-px
-            transition-all duration-200
-            opacity-0 group-hover:opacity-100
-            ${added
-              ? "bg-emerald-600 text-white"
-              : "bg-foreground/95 text-background hover:bg-foreground"
-            }
-          `}
-        >
-          {added ? (
-            <>
-              <Check size={13} strokeWidth={3} /> Added
-            </>
-          ) : (
-            "Quick Add"
-          )}
-        </button>
+        </Link>
 
         {/* Product Info */}
         <div className="mt-3 space-y-1">
@@ -204,7 +147,6 @@ export function ProductCard({ product, priority = false }: { product: CatalogPro
                 />
               ))}
             </div>
-            {/* Mobile — tap bag icon → PDP */}
             <button
               type="button"
               aria-label="View product"
