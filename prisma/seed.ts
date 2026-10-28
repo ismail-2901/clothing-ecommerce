@@ -172,6 +172,25 @@ async function main() {
     });
   }
 
+  const womenSubcategories = [
+    { name: "Saree", slug: "women-saree", position: 1 },
+    { name: "Single Ethnic", slug: "women-single-ethnic", position: 2 },
+    { name: "Women Shirt", slug: "women-shirt", position: 3 },
+    { name: "Tees & Tank", slug: "women-tees-tank", position: 4 },
+    { name: "Women Jacket", slug: "women-jacket", position: 5 },
+    { name: "Hoodie", slug: "women-hoodie", position: 6 },
+    { name: "Blazer", slug: "women-blazer", position: 7 },
+    { name: "Winter Collection", slug: "women-winter-collection", position: 8 },
+  ];
+
+  for (const sub of womenSubcategories) {
+    await prisma.category.upsert({
+      where: { slug: sub.slug },
+      update: { position: sub.position },
+      create: { name: sub.name, slug: sub.slug, position: sub.position, parentId: women.id },
+    });
+  }
+
   const collection = await prisma.collection.upsert({
     where: { slug: "current-collection" },
     update: {},
