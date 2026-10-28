@@ -3,16 +3,15 @@
 import { useState, type FormEvent } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { Lock, ArrowLeft, ShieldCheck, LogOut, Eye, EyeOff } from "lucide-react";
+import { Lock, ArrowLeft, ShieldCheck, Eye, EyeOff } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Spinner } from "@/components/ui/spinner";
 import { storeConfig } from "@/config/store";
-import { signIn, signOut, useSession } from "@/lib/auth/client";
+import { signIn } from "@/lib/auth/client";
 
 export function AdminLockScreen() {
   const router = useRouter();
-  const { data: session } = useSession();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
@@ -52,17 +51,6 @@ export function AdminLockScreen() {
     }
   }
 
-  async function handleSignOut() {
-    setLoading(true);
-    try {
-      await signOut();
-      await fetch("/api/admin/auth/logout", { method: "POST" }).catch(() => {});
-    } finally {
-      setLoading(false);
-      router.refresh();
-    }
-  }
-
   return (
     <div className="flex min-h-screen items-center justify-center bg-muted/40 px-4 py-12">
       <div className="w-full max-w-[420px] rounded-xl border border-border bg-background p-8 shadow-sm">
@@ -79,25 +67,7 @@ export function AdminLockScreen() {
           </p>
         </div>
 
-        {session?.user && (
-          <div className="mb-5 rounded-lg border border-amber-200 bg-amber-50 p-3 text-xs text-amber-900 dark:border-amber-900/50 dark:bg-amber-950/30 dark:text-amber-200">
-            <p className="font-medium">
-              Signed in as <span className="font-semibold">{session.user.email}</span>
-            </p>
-            <p className="mt-1 text-[11px] text-amber-700 dark:text-amber-300">
-              This account does not have administrator privileges. Please sign in with an administrator account.
-            </p>
-            <button
-              type="button"
-              onClick={handleSignOut}
-              disabled={loading}
-              className="mt-2 inline-flex items-center gap-1.5 font-medium underline hover:text-amber-950 dark:hover:text-amber-100"
-            >
-              <LogOut size={12} />
-              <span>Sign out of current account</span>
-            </button>
-          </div>
-        )}
+
 
         <form onSubmit={handleSubmit} className="grid gap-5">
           <Input
