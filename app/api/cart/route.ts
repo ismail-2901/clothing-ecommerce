@@ -172,6 +172,8 @@ export async function GET(request: NextRequest) {
 
   const response = NextResponse.json(serializeCart(cart));
   response.cookies.set(ANON_COOKIE, anonymousId, { maxAge: COOKIE_MAX_AGE, httpOnly: true, sameSite: "lax" });
+  // Private cache — user-specific, browser can reuse for 10s
+  response.headers.set("Cache-Control", "private, max-age=10, stale-while-revalidate=5");
   return response;
 }
 

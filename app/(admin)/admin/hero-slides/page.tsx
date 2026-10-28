@@ -10,3 +10,4 @@ export default async function AdminHeroSlidesPage() {
 
   return <AdminHeroSlidesManager initialSlides={slides} />;
 }
+

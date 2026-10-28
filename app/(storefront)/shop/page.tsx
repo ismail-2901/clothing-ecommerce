@@ -33,7 +33,7 @@ function FilterPill({ label, removeHref }: { label: string; removeHref: string }
   );
 }
 
-export const revalidate = 60; // F2: ISR \u2014 regenerate every 60 seconds
+export const revalidate = 300; // ISR — 5 min
 
 export const metadata: Metadata = {
   title: "Shop All",

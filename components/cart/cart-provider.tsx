@@ -105,9 +105,10 @@ export function CartProvider({ children }: { children: ReactNode }) {
     }
   }, []);
 
-  // Authoritative DB cart on mount
+  // Authoritative DB cart on mount — deferred 200ms so localStorage paints first
   useEffect(() => {
-    refreshCart();
+    const t = setTimeout(() => { refreshCart(); }, 200);
+    return () => clearTimeout(t);
   }, [refreshCart]);
 
   // Sync to localStorage as optimistic UI cache

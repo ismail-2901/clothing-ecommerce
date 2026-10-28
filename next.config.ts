@@ -2,10 +2,12 @@ import type { NextConfig } from "next";
 import { withSentryConfig } from "@sentry/nextjs/config";
 
 const nextConfig: NextConfig = {
-  output: process.env.VERCEL ? undefined : "standalone", // standalone for Docker, native for Vercel
+  output: process.env.VERCEL ? undefined : "standalone",
   experimental: {
-    cpus: 1,
+    optimizePackageImports: ["lucide-react", "@radix-ui/react-icons"],
   },
+  // Compress responses
+  compress: true,
   images: {
     // Priority-6: common image sizes to minimise layout shift
     remotePatterns: [
@@ -26,18 +28,28 @@ const nextConfig: NextConfig = {
     // Serve AVIF then WebP for supported browsers — significant payload reduction
     formats: ["image/avif", "image/webp"],
     // Remote images are immutable (CDN URLs don't change) — cache aggressively
-    minimumCacheTTL: 60 * 60 * 24 * 31 // 31 days
+    minimumCacheTTL: 60 * 60 * 24 * 365 // 1 year
   },
   // Priority-6: Aggressive HTTP cache headers for immutable static assets
   async headers() {
     return [
       {
-        // Public folder assets (images, fonts) -- 1 week
-        source: "/(.*\\.(?:png|jpg|jpeg|gif|webp|svg|ico|woff2?|ttf|otf|eot))",
+        // Public folder assets (images, fonts) -- 1 year immutable
+        source: "/(.*\\.(?:png|jpg|jpeg|gif|webp|avif|svg|ico|woff2?|ttf|otf|eot))",
         headers: [
           {
             key: "Cache-Control",
-            value: "public, max-age=604800, stale-while-revalidate=86400"
+            value: "public, max-age=31536000, immutable"
+          }
+        ]
+      },
+      {
+        // Next.js static chunks — immutable (content-hashed filenames)
+        source: "/_next/static/(.*)",
+        headers: [
+          {
+            key: "Cache-Control",
+            value: "public, max-age=31536000, immutable"
           }
         ]
       },

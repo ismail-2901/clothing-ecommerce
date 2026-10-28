@@ -14,7 +14,7 @@ export const metadata: Metadata = {
   }
 };
 
-export const revalidate = 60; // F2: ISR \u2014 regenerate every 60 seconds
+export const revalidate = 300; // ISR — regenerate every 5 minutes
 
 
 export default async function HomePage() {

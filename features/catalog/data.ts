@@ -228,7 +228,7 @@ export async function getAllProducts(): Promise<CatalogProduct[]> {
     });
 
     const products = dbProducts.map(mapDbProductToCatalogProduct);
-    await cacheSet(cacheKey, products, 60);
+    await cacheSet(cacheKey, products, 300); // 5 min cache
     return products;
   } catch (err) {
     console.error("[catalog:db]", err);
@@ -302,7 +302,7 @@ export async function getFilteredProducts(
     }
 
     const result: PaginatedCatalogResult = { products, total };
-    await cacheSet(cacheKey, result, 60);
+    await cacheSet(cacheKey, result, 300); // 5 min cache
     return result;
   } catch (err) {
     console.error("[catalog:getFilteredProducts]", err);
@@ -330,7 +330,7 @@ export const getProductBySlug = cache(async function getProductBySlugImpl(
     }
 
     const mapped = mapDbProductToCatalogProduct(product);
-    await cacheSet(cacheKey, mapped, 120);
+    await cacheSet(cacheKey, mapped, 600); // 10 min cache for PDP
     return mapped;
   } catch (err) {
     console.error("[catalog:getProductBySlug]", err);

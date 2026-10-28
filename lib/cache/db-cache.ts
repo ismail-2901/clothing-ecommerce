@@ -37,7 +37,7 @@ export const getCachedCategories = unstable_cache(
     }
   },
   ["categories"],
-  { revalidate: 300, tags: ["categories"] }
+  { revalidate: 3600, tags: ["categories"] } // 1 hour — categories rarely change
 );
 
 /**
@@ -65,11 +65,11 @@ export const getCachedActiveCoupons = unstable_cache(
     }
   },
   ["coupons-active"],
-  { revalidate: 300, tags: ["coupons"] }
+  { revalidate: 1800, tags: ["coupons"] } // 30 min
 );
 
 /**
- * Hero slides -- cached for 60 seconds, tag "hero-slides".
+ * Hero slides -- cached for 10 min, tag "hero-slides".
  * Invalidate with: revalidateTag("hero-slides", "max")
  * Falls back to [] so the storefront can use hardcoded defaults.
  */
@@ -103,5 +103,5 @@ export const getCachedHeroSlides = unstable_cache(
     }
   },
   ["hero-slides"],
-  { revalidate: 60, tags: ["hero-slides"] }
+  { revalidate: 600, tags: ["hero-slides"] } // 10 min
 );
