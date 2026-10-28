@@ -55,7 +55,7 @@ export function ProductCard({ product, priority = false }: { product: CatalogPro
   const [showSizePanel, setShowSizePanel] = useState(false);
   const [addedSize, setAddedSize] = useState<string | null>(null);
   const panelRef = useRef<HTMLDivElement>(null);
-
+  const articleRef = useRef<HTMLElement>(null);
   // Derive unique sorted sizes for the quick-add panel
   const sizes = [...new Set(product.variants.map((v) => v.size).filter(Boolean))].sort(
     (a, b) => {
@@ -68,11 +68,11 @@ export function ProductCard({ product, priority = false }: { product: CatalogPro
     }
   );
 
-  // Close panel when clicking outside
+  // Close panel when clicking outside the entire card
   useEffect(() => {
     if (!showSizePanel) return;
     const handler = (e: MouseEvent) => {
-      if (panelRef.current && !panelRef.current.contains(e.target as Node)) {
+      if (articleRef.current && !articleRef.current.contains(e.target as Node)) {
         setShowSizePanel(false);
       }
     };
@@ -119,7 +119,7 @@ export function ProductCard({ product, priority = false }: { product: CatalogPro
   );
 
   return (
-    <article className="group flex flex-col justify-between">
+    <article ref={articleRef} className="group flex flex-col justify-between relative">
       <div>
         {/* Image box */}
         <div className="relative aspect-[2/3] sm:aspect-[3/4] overflow-hidden rounded-xl bg-muted/40 border border-border/60">
@@ -179,43 +179,8 @@ export function ProductCard({ product, priority = false }: { product: CatalogPro
 
           {/* Quick-add button — bottom-center, fades in on desktop hover */}
           <div
-            ref={panelRef}
-            className="absolute bottom-0 left-0 right-0 hidden sm:block"
+            className="absolute bottom-0 left-0 right-0 hidden sm:block z-10"
           >
-            {/* Size selector panel — slides up when open */}
-            {showSizePanel && (
-              <div
-                role="dialog"
-                aria-label="Select a size to add to bag"
-                className="absolute bottom-0 left-0 right-0 rounded-t-xl border-t border-border bg-background/98 backdrop-blur-md px-3 pt-3 pb-4 shadow-xl"
-              >
-                <p className="mb-2 text-center text-[10px] font-bold uppercase tracking-widest text-muted-foreground">
-                  Select Size
-                </p>
-                <div className="flex flex-wrap justify-center gap-1.5">
-                  {sizes.map((s) => {
-                    const sVariant = product.variants.find((v) => v.size.toLowerCase() === s.toLowerCase());
-                    const outOfStock = (sVariant as { stock?: number })?.stock === 0;
-                    return (
-                      <button
-                        key={s}
-                        type="button"
-                        disabled={outOfStock}
-                        onClick={() => handleQuickAdd(s)}
-                        className={`flex h-8 min-w-9 items-center justify-center rounded-md border text-[11px] font-bold uppercase transition-all ${
-                          outOfStock
-                            ? "border-border/30 text-muted-foreground/40 line-through cursor-not-allowed"
-                            : "border-border bg-background hover:border-foreground hover:bg-foreground hover:text-background"
-                        }`}
-                      >
-                        {s}
-                      </button>
-                    );
-                  })}
-                </div>
-              </div>
-            )}
-
             {/* The + / ✓ toggle button */}
             {!showSizePanel && (
               <button
@@ -223,7 +188,6 @@ export function ProductCard({ product, priority = false }: { product: CatalogPro
                 aria-label={addedSize ? "Added to bag" : "Quick add to bag"}
                 onClick={() => {
                   if (sizes.length === 1) {
-                    // Only one size — add directly, no panel needed
                     handleQuickAdd(sizes[0]);
                   } else {
                     setShowSizePanel(true);
@@ -248,6 +212,41 @@ export function ProductCard({ product, priority = false }: { product: CatalogPro
             )}
           </div>
         </div>
+
+        {/* Size selector panel — outside overflow-hidden container so clicks register */}
+        {showSizePanel && (
+          <div
+            ref={panelRef}
+            role="dialog"
+            aria-label="Select a size to add to bag"
+            className="hidden sm:block absolute bottom-0 left-0 right-0 z-20 rounded-t-xl border-t border-border bg-background/98 backdrop-blur-md px-3 pt-3 pb-4 shadow-xl"
+          >
+            <p className="mb-2 text-center text-[10px] font-bold uppercase tracking-widest text-muted-foreground">
+              Select Size
+            </p>
+            <div className="flex flex-wrap justify-center gap-1.5">
+              {sizes.map((s) => {
+                const sVariant = product.variants.find((v) => v.size.toLowerCase() === s.toLowerCase());
+                const outOfStock = (sVariant as { stock?: number })?.stock === 0;
+                return (
+                  <button
+                    key={s}
+                    type="button"
+                    disabled={outOfStock}
+                    onClick={() => handleQuickAdd(s)}
+                    className={`flex h-8 min-w-9 items-center justify-center rounded-md border text-[11px] font-bold uppercase transition-all ${
+                      outOfStock
+                        ? "border-border/30 text-muted-foreground/40 line-through cursor-not-allowed"
+                        : "border-border bg-background hover:border-foreground hover:bg-foreground hover:text-background"
+                    }`}
+                  >
+                    {s}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+        )}
 
         {/* Product Info */}
         <div className="mt-3 space-y-1">
