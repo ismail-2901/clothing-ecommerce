@@ -9,9 +9,7 @@ import {
   Boxes,
   ChartNoAxesCombined,
   ClipboardList,
-  FileText,
   Gauge,
-  Image as ImageIcon,
   LayoutGrid,
   Megaphone,
   PackageSearch,
@@ -54,13 +52,6 @@ export const navGroups = [
       { label: "Customers", icon: Users, href: "/admin/customers" },
       { label: "Abandoned Carts", icon: ShoppingCart, href: "/admin/abandoned-checkouts" },
       { label: "Reviews", icon: Star, href: "/admin/reviews" }
-    ]
-  },
-  {
-    label: "CONTENT",
-    items: [
-      { label: "Pages & Lookbooks", icon: FileText, href: "/admin/content" },
-      { label: "Hero Slides", icon: ImageIcon, href: "/admin/content/hero-slides" }
     ]
   },
   {

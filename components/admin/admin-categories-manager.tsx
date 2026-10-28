@@ -137,11 +137,11 @@ export function AdminCategoriesManager({
               Categories &amp; Taxonomy
             </h1>
             <span className="rounded-full bg-zinc-100 dark:bg-zinc-800 px-2.5 py-0.5 text-[11px] font-semibold text-foreground">
-              {initialCategories.length} Collections
+              {initialCategories.length} Categories
             </span>
           </div>
           <p className="mt-1 text-xs sm:text-sm text-muted-foreground">
-            Structure your store catalog navigation, collection landing pages, and menu hierarchies
+            Structure your store catalog navigation and menu hierarchies
           </p>
         </div>
       </div>
@@ -166,7 +166,7 @@ export function AdminCategoriesManager({
           <p className="mt-1 text-[11px] text-muted-foreground">Catalog balance metric</p>
         </div>
         <div className="rounded-xl border border-border bg-background p-5 shadow-sm">
-          <p className="text-xs font-medium text-muted-foreground">Largest Collection</p>
+          <p className="text-xs font-medium text-muted-foreground">Largest Category</p>
           <p className="mt-2 text-lg font-bold text-foreground truncate">
             {initialCategories.reduce((max, c) => (c._count.products > (max?._count.products || 0) ? c : max), initialCategories[0])?.name || "None"}
           </p>
