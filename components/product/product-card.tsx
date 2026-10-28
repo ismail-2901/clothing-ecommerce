@@ -134,8 +134,12 @@ export function ProductCard({ product, priority = false }: { product: CatalogPro
           <button
             type="button"
             aria-label={added ? "Added to bag" : "Quick add to bag"}
-            onClick={handleQuickAdd}
-            className={`absolute bottom-0 left-0 right-0 hidden sm:flex items-center justify-center gap-1.5 py-2.5 text-[11px] font-bold uppercase tracking-widest transition-all duration-200 opacity-0 group-hover:opacity-100 ${
+            onClick={(e) => {
+              e.preventDefault();
+              e.stopPropagation();
+              handleQuickAdd();
+            }}
+            className={`absolute bottom-0 left-0 right-0 z-10 hidden sm:flex items-center justify-center gap-1.5 py-2.5 text-[11px] font-bold uppercase tracking-widest transition-all duration-200 opacity-0 group-hover:opacity-100 ${
               added
                 ? "bg-emerald-600 text-white"
                 : "bg-foreground/95 text-background hover:bg-foreground"
