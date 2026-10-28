@@ -7,7 +7,6 @@ const nextConfig: NextConfig = {
   reactStrictMode: true,
   experimental: {
     optimizePackageImports: ["lucide-react", "@radix-ui/react-icons", "date-fns"],
-    optimizeCss: true, // inline critical CSS, eliminate render-blocking
     webVitalsAttribution: ["CLS", "LCP", "FCP", "TTFB"],
   },
   // Compress responses with gzip/brotli
