@@ -150,6 +150,28 @@ async function main() {
   const men = await prisma.category.findUniqueOrThrow({ where: { slug: "men" } });
   const women = await prisma.category.findUniqueOrThrow({ where: { slug: "women" } });
 
+  const menSubcategories = [
+    { name: "Panjabi", slug: "men-panjabi", position: 1 },
+    { name: "Waistcoat", slug: "men-waistcoat", position: 2 },
+    { name: "Pajama", slug: "men-pajama", position: 3 },
+    { name: "Shirt", slug: "men-shirt", position: 4 },
+    { name: "Polo Shirt", slug: "men-polo-shirt", position: 5 },
+    { name: "T-Shirt", slug: "men-t-shirt", position: 6 },
+    { name: "Pants", slug: "men-pants", position: 7 },
+    { name: "Plus Size", slug: "men-plus-size", position: 8 },
+    { name: "Winter Wear", slug: "men-winter-wear", position: 9 },
+    { name: "Blazer & Suit", slug: "men-blazer-suit", position: 10 },
+    { name: "Men's Accessories", slug: "men-accessories", position: 11 },
+  ];
+
+  for (const sub of menSubcategories) {
+    await prisma.category.upsert({
+      where: { slug: sub.slug },
+      update: { position: sub.position },
+      create: { name: sub.name, slug: sub.slug, position: sub.position, parentId: men.id },
+    });
+  }
+
   const collection = await prisma.collection.upsert({
     where: { slug: "current-collection" },
     update: {},
