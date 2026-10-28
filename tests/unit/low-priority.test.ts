@@ -2,7 +2,6 @@ import { describe, it, expect } from "vitest";
 import { storeConfig } from "@/config/store";
 import { metadata as homeMetadata } from "@/app/(storefront)/page";
 import { metadata as shopMetadata } from "@/app/(storefront)/shop/page";
-import { metadata as collectionsMetadata } from "@/app/(storefront)/collections/page";
 import { metadata as aboutMetadata } from "@/app/(storefront)/about/page";
 import { metadata as contactMetadata } from "@/app/(storefront)/contact/layout";
 import { metadata as faqMetadata } from "@/app/(storefront)/faq/page";
@@ -42,7 +41,6 @@ describe("LOW-06: Canonical URLs on storefront pages", () => {
   it("declares accurate canonical alternates for all primary storefront pages", () => {
     expect(homeMetadata.alternates?.canonical).toBe("/");
     expect(shopMetadata.alternates?.canonical).toBe("/shop");
-    expect(collectionsMetadata.alternates?.canonical).toBe("/collections");
     expect(aboutMetadata.alternates?.canonical).toBe("/about");
     expect(contactMetadata.alternates?.canonical).toBe("/contact");
     expect(faqMetadata.alternates?.canonical).toBe("/faq");

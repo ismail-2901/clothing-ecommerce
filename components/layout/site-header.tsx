@@ -14,7 +14,6 @@ const navItems = [
   ["Shop", "/shop"],
   ["Women", "/shop?category=women"],
   ["Men", "/shop?category=men"],
-  ["Collections", "/collections"],
   ["Offers", "/offers"],
   ["About", "/about"]
 ] as const;
