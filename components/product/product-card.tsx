@@ -172,6 +172,7 @@ export function ProductCard({ product, priority = false }: { product: CatalogPro
                 slug={product.slug}
                 price={price}
                 image={product.images[0]?.src}
+                iconOnly
               />
             </div>
           </div>

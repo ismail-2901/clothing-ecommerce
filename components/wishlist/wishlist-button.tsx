@@ -10,7 +10,8 @@ export function WishlistButton({
   slug,
   price,
   image,
-  variant
+  variant,
+  iconOnly = false
 }: {
   productId: string;
   name: string;
@@ -18,9 +19,36 @@ export function WishlistButton({
   price: number;
   image?: string;
   variant?: "card" | "detail";
+  iconOnly?: boolean;
 }) {
   const { isSaved, toggleItem } = useWishlist();
   const saved = isSaved(productId);
+
+  if (iconOnly) {
+    return (
+      <button
+        type="button"
+        onClick={() =>
+          toggleItem({
+            productId,
+            slug,
+            name,
+            price,
+            image: image ?? ""
+          })
+        }
+        aria-label={saved ? `Remove ${name} from wishlist` : `Add ${name} to wishlist`}
+        className="flex items-center justify-center w-full h-full"
+      >
+        <Heart
+          aria-hidden="true"
+          size={16}
+          fill={saved ? "currentColor" : "none"}
+          className={saved ? "text-rose-500" : "text-foreground"}
+        />
+      </button>
+    );
+  }
 
   return (
     <Button
