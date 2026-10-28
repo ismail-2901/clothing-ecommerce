@@ -1,5 +1,4 @@
 import { cache } from "react";
-import dynamic from "next/dynamic";
 import { CartProvider } from "@/components/cart/cart-provider";
 import { CartDrawer } from "@/components/cart/cart-drawer";
 import { Footer } from "@/components/layout/footer";
@@ -7,12 +6,7 @@ import { SiteHeader } from "@/components/layout/site-header";
 import { WishlistProvider } from "@/components/wishlist/wishlist-provider";
 import { getServerSession } from "@/lib/auth/server";
 import { prisma } from "@/db/prisma";
-
-// Lazy-load FloatingAssistant — not needed on first paint, saves JS bundle
-const FloatingAssistant = dynamic(
-  () => import("@/components/ai/floating-assistant").then((m) => ({ default: m.FloatingAssistant })),
-  { ssr: false }
-);
+import { FloatingAssistantLazy } from "@/components/ai/floating-assistant-lazy";
 
 // M4: Wrapped with React cache() so multiple callers in the same SSR render
 // share one DB round-trip — wishlist is keyed on userId (unique index).
@@ -39,7 +33,7 @@ export default async function StorefrontLayout({
         <SiteHeader />
         <main>{children}</main>
         <Footer />
-        <FloatingAssistant />
+        <FloatingAssistantLazy />
         {/* Cart drawer — always mounted, slides in on openDrawer() */}
         <CartDrawer />
       </WishlistProvider>
