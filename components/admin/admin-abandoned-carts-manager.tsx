@@ -108,26 +108,26 @@ export function AdminAbandonedCartsManager({
         <div className="rounded-xl border border-border bg-background p-5 shadow-sm">
           <p className="text-xs font-medium text-muted-foreground">Recoverable Revenue</p>
           <p className="mt-2 text-2xl font-black text-foreground">
-            {formatMoney(totalValue > 0 ? totalValue : 74500)}
+            {formatMoney(totalValue)}
           </p>
           <p className="mt-1 text-[11px] text-muted-foreground">Potential checkout value</p>
         </div>
         <div className="rounded-xl border border-border bg-background p-5 shadow-sm">
           <p className="text-xs font-medium text-muted-foreground">Abandoned Sessions</p>
-          <p className="mt-2 text-2xl font-black text-foreground">{totalCount || 24}</p>
+          <p className="mt-2 text-2xl font-black text-foreground">{totalCount}</p>
           <p className="mt-1 text-[11px] text-muted-foreground">Unfinished order pipelines</p>
         </div>
         <div className="rounded-xl border border-border bg-background p-5 shadow-sm">
           <p className="text-xs font-medium text-muted-foreground">Avg Cart Value</p>
           <p className="mt-2 text-2xl font-black text-foreground">
-            {formatMoney(avgValue > 0 ? avgValue : 3200)}
+            {formatMoney(avgValue)}
           </p>
           <p className="mt-1 text-[11px] text-muted-foreground">Per abandoned session</p>
         </div>
         <div className="rounded-xl border border-border bg-background p-5 shadow-sm">
           <p className="text-xs font-medium text-muted-foreground">Payment Drop-Offs</p>
           <div className="mt-2 flex items-baseline gap-2">
-            <span className="text-2xl font-black text-rose-600">{paymentDropoffCount || 7}</span>
+            <span className="text-2xl font-black text-rose-600">{paymentDropoffCount}</span>
             <span className="text-xs font-semibold text-rose-700 bg-rose-50 px-1.5 py-0.5 rounded">
               High Intent
             </span>

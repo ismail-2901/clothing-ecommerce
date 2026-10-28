@@ -55,7 +55,7 @@ export function AdminReviewsManager({
   const pendingCount = initialReviews.filter((r) => !r.isVisible).length;
   const avgRating = totalReviews > 0
     ? (initialReviews.reduce((sum, r) => sum + r.rating, 0) / totalReviews).toFixed(1)
-    : "5.0";
+    : "0.0";
 
   // Rating breakdown counts
   const ratingCounts = [5, 4, 3, 2, 1].map((stars) => ({
@@ -164,13 +164,13 @@ export function AdminReviewsManager({
         </div>
         <div className="rounded-xl border border-border bg-background p-5 shadow-sm">
           <p className="text-xs font-medium text-muted-foreground">Total Reviews</p>
-          <p className="mt-2 text-2xl font-black text-foreground">{totalReviews || 142}</p>
+          <p className="mt-2 text-2xl font-black text-foreground">{totalReviews}</p>
           <p className="mt-1 text-[11px] text-muted-foreground">Lifetime shopper feedback</p>
         </div>
         <div className="rounded-xl border border-border bg-background p-5 shadow-sm">
           <p className="text-xs font-medium text-muted-foreground">Published &amp; Live</p>
           <div className="mt-2 flex items-baseline gap-2">
-            <span className="text-2xl font-black text-emerald-600">{publishedCount || 136}</span>
+            <span className="text-2xl font-black text-emerald-600">{publishedCount}</span>
             <span className="text-xs font-semibold text-emerald-700 bg-emerald-50 px-1.5 py-0.5 rounded">
               Active
             </span>
@@ -180,7 +180,7 @@ export function AdminReviewsManager({
         <div className="rounded-xl border border-border bg-background p-5 shadow-sm">
           <p className="text-xs font-medium text-muted-foreground">Pending Moderation</p>
           <div className="mt-2 flex items-baseline gap-2">
-            <span className="text-2xl font-black text-amber-600">{pendingCount || 6}</span>
+            <span className="text-2xl font-black text-amber-600">{pendingCount}</span>
             {pendingCount > 0 && (
               <span className="text-xs font-semibold text-amber-700 bg-amber-50 px-1.5 py-0.5 rounded">
                 Review Queue
