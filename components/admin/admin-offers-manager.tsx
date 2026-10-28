@@ -279,7 +279,7 @@ export function AdminOffersManager({
                     <tr key={c.id} className="hover:bg-muted/20 transition">
                       <td className="py-3.5 px-4 font-mono font-bold">
                         <div className="inline-flex items-center gap-1.5 rounded bg-zinc-100 dark:bg-zinc-800 px-2 py-1 border border-border">
-                          <span className="text-foreground tracking-wider">{c.code}</span>
+                          <span className="text-foreground dark:text-white tracking-wider">{c.code}</span>
                           <button
                             type="button"
                             onClick={() => handleCopy(c.code)}
