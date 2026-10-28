@@ -23,7 +23,8 @@ import {
   UserCheck,
   LogOut,
   Menu,
-  X
+  X,
+  ImagePlay
 } from "lucide-react";
 
 import { AdminNotificationNavBadge } from "@/components/admin/admin-notification-bell";
@@ -43,7 +44,8 @@ export const navGroups = [
       { label: "Products", icon: PackageSearch, href: "/admin/products" },
       { label: "Inventory", icon: Boxes, href: "/admin/inventory" },
       { label: "Categories", icon: LayoutGrid, href: "/admin/categories" },
-      { label: "Offers", icon: Megaphone, href: "/admin/offers" }
+      { label: "Offers", icon: Megaphone, href: "/admin/offers" },
+      { label: "Hero Slides", icon: ImagePlay, href: "/admin/hero-slides" }
     ]
   },
   {
