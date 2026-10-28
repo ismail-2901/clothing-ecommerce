@@ -3,8 +3,8 @@
 import Image from "next/image";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useState, useCallback, useEffect, useRef, useMemo } from "react";
-import { Plus, Check, ShoppingBag } from "lucide-react";
+import { useState, useCallback, useMemo } from "react";
+import { Check, ShoppingBag } from "lucide-react";
 import type { CatalogProduct } from "@/features/catalog/data";
 import { formatMoney } from "@/lib/utils/money";
 import { WishlistButton } from "@/components/wishlist/wishlist-button";
@@ -23,8 +23,6 @@ const colorMap: Record<string, string> = {
   blue: "#9BB7D4",
   green: "#A3C1AD"
 };
-
-const SIZE_ORDER = ["XS", "S", "M", "L", "XL", "XXL"];
 
 export function ProductCard({ product, priority = false }: { product: CatalogProduct; priority?: boolean }) {
   const router = useRouter();
@@ -51,75 +49,30 @@ export function ProductCard({ product, priority = false }: { product: CatalogPro
   const imageAlt = product.images[0]?.alt || product.name;
   const secondarySrc = product.images[1]?.src ?? null;
 
-  // Quick-add state
-  const [showSizePanel, setShowSizePanel] = useState(false);
-  const [addedSize, setAddedSize] = useState<string | null>(null);
-  const panelRef = useRef<HTMLDivElement>(null);
-  const articleRef = useRef<HTMLElement>(null);
-  // Derive unique sorted sizes for the quick-add panel
-  const sizes = [...new Set(product.variants.map((v) => v.size).filter(Boolean))].sort(
-    (a, b) => {
-      const ai = SIZE_ORDER.indexOf(a.toUpperCase());
-      const bi = SIZE_ORDER.indexOf(b.toUpperCase());
-      if (ai === -1 && bi === -1) return a.localeCompare(b);
-      if (ai === -1) return 1;
-      if (bi === -1) return -1;
-      return ai - bi;
-    }
-  );
+  const [added, setAdded] = useState(false);
 
-  // Close panel when clicking outside the entire card
-  useEffect(() => {
-    if (!showSizePanel) return;
-    const handler = (e: MouseEvent) => {
-      if (articleRef.current && !articleRef.current.contains(e.target as Node)) {
-        setShowSizePanel(false);
-      }
-    };
-    document.addEventListener("mousedown", handler);
-    return () => document.removeEventListener("mousedown", handler);
-  }, [showSizePanel]);
+  const handleQuickAdd = useCallback(() => {
+    const matched = product.variants[0];
+    if (!matched) return;
 
-  // Close panel on Escape
-  useEffect(() => {
-    if (!showSizePanel) return;
-    const handler = (e: KeyboardEvent) => {
-      if (e.key === "Escape") setShowSizePanel(false);
-    };
-    document.addEventListener("keydown", handler);
-    return () => document.removeEventListener("keydown", handler);
-  }, [showSizePanel]);
+    addItem({
+      sku: matched.sku || `${product.id}_default`,
+      variantId: matched.id,
+      productId: product.id,
+      name: product.name,
+      size: matched.size || "",
+      color: matched.color || colors[0] || "",
+      price: matched.price ?? price,
+      quantity: 1,
+      image: imageSrc
+    });
 
-  const handleQuickAdd = useCallback(
-    (size: string) => {
-      // Find best matching variant: same size, prefer first colour available
-      const matched =
-        product.variants.find((v) => v.size.toLowerCase() === size.toLowerCase()) ??
-        product.variants[0];
-
-      addItem({
-        sku: matched?.sku || `${product.id}_${size}`,
-        variantId: matched?.id,
-        productId: product.id,
-        name: product.name,
-        size,
-        color: matched?.color || colors[0] || "",
-        price: matched?.price ?? price,
-        quantity: 1,
-        image: imageSrc
-      });
-
-      setAddedSize(size);
-      setShowSizePanel(false);
-
-      // Reset checkmark after 2 s
-      setTimeout(() => setAddedSize(null), 2000);
-    },
-    [addItem, colors, imageSrc, price, product]
-  );
+    setAdded(true);
+    setTimeout(() => setAdded(false), 2000);
+  }, [addItem, colors, imageSrc, price, product]);
 
   return (
-    <article ref={articleRef} className="group flex flex-col justify-between relative">
+    <article className="group flex flex-col justify-between">
       <div>
         {/* Image box */}
         <div className="relative aspect-[2/3] sm:aspect-[3/4] overflow-hidden rounded-xl bg-muted/40 border border-border/60">
@@ -177,76 +130,26 @@ export function ProductCard({ product, priority = false }: { product: CatalogPro
             </div>
           </div>
 
-          {/* Quick-add button — bottom-center, fades in on desktop hover */}
-          <div
-            className="absolute bottom-0 left-0 right-0 hidden sm:block z-10"
+          {/* Quick Add — desktop hover, directly adds first variant to cart */}
+          <button
+            type="button"
+            aria-label={added ? "Added to bag" : "Quick add to bag"}
+            onClick={handleQuickAdd}
+            className={`absolute bottom-0 left-0 right-0 hidden sm:flex items-center justify-center gap-1.5 py-2.5 text-[11px] font-bold uppercase tracking-widest transition-all duration-200 opacity-0 group-hover:opacity-100 ${
+              added
+                ? "bg-emerald-600 text-white"
+                : "bg-foreground/95 text-background hover:bg-foreground"
+            }`}
           >
-            {/* The + / ✓ toggle button */}
-            {!showSizePanel && (
-              <button
-                type="button"
-                aria-label={addedSize ? "Added to bag" : "Quick add to bag"}
-                onClick={() => {
-                  if (sizes.length === 1) {
-                    handleQuickAdd(sizes[0]);
-                  } else {
-                    setShowSizePanel(true);
-                  }
-                }}
-                className={`w-full flex items-center justify-center gap-1.5 py-2.5 text-[11px] font-bold uppercase tracking-widest transition-all duration-200 opacity-0 group-hover:opacity-100 ${
-                  addedSize
-                    ? "bg-emerald-600 text-white"
-                    : "bg-foreground/95 text-background hover:bg-foreground"
-                }`}
-              >
-                {addedSize ? (
-                  <>
-                    <Check size={13} strokeWidth={3} /> Added
-                  </>
-                ) : (
-                  <>
-                    <Plus size={13} strokeWidth={2.5} /> Quick Add
-                  </>
-                )}
-              </button>
+            {added ? (
+              <>
+                <Check size={13} strokeWidth={3} /> Added
+              </>
+            ) : (
+              "Quick Add"
             )}
-          </div>
+          </button>
         </div>
-
-        {/* Size selector panel — outside overflow-hidden container so clicks register */}
-        {showSizePanel && (
-          <div
-            ref={panelRef}
-            role="dialog"
-            aria-label="Select a size to add to bag"
-            className="hidden sm:block absolute bottom-0 left-0 right-0 z-20 rounded-t-xl border-t border-border bg-background/98 backdrop-blur-md px-3 pt-3 pb-4 shadow-xl"
-          >
-            <p className="mb-2 text-center text-[10px] font-bold uppercase tracking-widest text-muted-foreground">
-              Select Size
-            </p>
-            <div className="flex flex-wrap justify-center gap-1.5">
-              {sizes.map((s) => {
-                const sVariant = product.variants.find((v) => v.size.toLowerCase() === s.toLowerCase());
-                const outOfStock = (sVariant as { stock?: number })?.stock === 0;
-                return (
-                  <button
-                    key={s}
-                    type="button"
-                    disabled={outOfStock}
-                    onClick={() => handleQuickAdd(s)}
-                    className={`flex h-8 min-w-9 items-center justify-center rounded-md border text-[11px] font-bold uppercase transition-all ${
-                      outOfStock
-                        ? "border-border/30 text-muted-foreground/40 line-through cursor-not-allowed"
-                        : "border-border bg-background hover:border-foreground hover:bg-foreground hover:text-background"
-                    }`}
-                  >
-                    {s}
-                  </button>
-                );
-              })}
-            </div>
-          </div>
-        )}
 
         {/* Product Info */}
         <div className="mt-3 space-y-1">
@@ -272,7 +175,7 @@ export function ProductCard({ product, priority = false }: { product: CatalogPro
             ) : null}
           </div>
 
-          {/* Color swatches + quick-add icon on mobile */}
+          {/* Color swatches + mobile add button */}
           <div className="flex items-center justify-between pt-1">
             <div className="flex items-center gap-1.5">
               {colors.slice(0, 4).map((c) => (
@@ -285,18 +188,11 @@ export function ProductCard({ product, priority = false }: { product: CatalogPro
                 />
               ))}
             </div>
-            {/* Mobile quick-add — always visible tap target */}
+            {/* Mobile — tap to navigate to PDP */}
             <button
               type="button"
               aria-label="Add to bag"
-              onClick={() => {
-                if (sizes.length === 1) {
-                  handleQuickAdd(sizes[0]);
-                } else if (sizes.length > 1) {
-                  // On mobile, navigate to PDP for size selection
-                  router.push(`/products/${product.slug}`);
-                }
-              }}
+              onClick={() => router.push(`/products/${product.slug}`)}
               className="sm:hidden flex h-7 w-7 items-center justify-center rounded-full border border-border bg-background text-foreground hover:bg-foreground hover:text-background transition-colors"
             >
               <ShoppingBag size={13} />
