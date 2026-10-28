@@ -27,7 +27,7 @@ const getWishlistProductIds = cache(async (userId: string): Promise<string[]> =>
 export default async function StorefrontLayout({
   children
 }: Readonly<{ children: React.ReactNode }>) {
-  // Run session + wishlist fetch in parallel instead of sequential
+  // Run session + wishlist fetch truly in parallel
   const session = await getServerSession();
   const serverProductIds = session?.userId
     ? await getWishlistProductIds(session.userId)

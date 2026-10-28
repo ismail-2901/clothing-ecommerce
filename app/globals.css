@@ -55,6 +55,8 @@
     color: var(--foreground);
     font-family: var(--font-sans);
     text-rendering: optimizeLegibility;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
     overflow-x: hidden;
   }
 
@@ -439,4 +441,19 @@
     transition-duration: 0.01ms !important;
     scroll-behavior: auto !important;
   }
+}
+
+/* ═══════════════════════════════════════════════
+   PERFORMANCE: below-fold sections skip layout/paint until visible
+═══════════════════════════════════════════════ */
+.elaris-cat-section,
+.elaris-perf-below-fold {
+  content-visibility: auto;
+  contain-intrinsic-size: 0 500px;
+}
+
+/* GPU-accelerated transitions for hover cards */
+.elaris-cat-card,
+.elaris-cat-img-wrap img {
+  will-change: transform;
 }

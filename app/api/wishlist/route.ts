@@ -18,7 +18,10 @@ export async function GET() {
     select: { items: { select: { productId: true } } }
   });
 
-  return NextResponse.json({ items: (wishlist?.items ?? []).map((i) => i.productId) });
+  return NextResponse.json(
+    { items: (wishlist?.items ?? []).map((i) => i.productId) },
+    { headers: { "Cache-Control": "private, max-age=30, stale-while-revalidate=10" } }
+  );
 }
 
 // POST /api/wishlist — add a product to wishlist (upsert)

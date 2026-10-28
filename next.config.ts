@@ -4,8 +4,11 @@ import { withSentryConfig } from "@sentry/nextjs/config";
 const nextConfig: NextConfig = {
   output: process.env.VERCEL ? undefined : "standalone",
   poweredByHeader: false, // Remove X-Powered-By header (security + bytes)
+  reactStrictMode: true,
   experimental: {
     optimizePackageImports: ["lucide-react", "@radix-ui/react-icons", "date-fns"],
+    optimizeCss: true, // inline critical CSS, eliminate render-blocking
+    webVitalsAttribution: ["CLS", "LCP", "FCP", "TTFB"],
   },
   // Compress responses with gzip/brotli
   compress: true,
