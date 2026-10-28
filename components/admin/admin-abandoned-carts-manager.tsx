@@ -128,9 +128,11 @@ export function AdminAbandonedCartsManager({
           <p className="text-xs font-medium text-muted-foreground">Payment Drop-Offs</p>
           <div className="mt-2 flex items-baseline gap-2">
             <span className="text-2xl font-black text-rose-600">{paymentDropoffCount}</span>
-            <span className="text-xs font-semibold text-rose-700 bg-rose-50 px-1.5 py-0.5 rounded">
-              High Intent
-            </span>
+            {paymentDropoffCount > 0 && (
+              <span className="text-xs font-semibold text-rose-700 bg-rose-50 px-1.5 py-0.5 rounded">
+                High Intent
+              </span>
+            )}
           </div>
           <p className="mt-1 text-[11px] text-muted-foreground">Left during bKash/Card step</p>
         </div>

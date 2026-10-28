@@ -158,7 +158,8 @@ export function HeroSlider({ slides: propSlides }: { slides?: Slide[] }) {
             fill
             className="object-cover object-top transition-opacity duration-500"
             priority
-            sizes="(min-width: 768px) 48vw, 100vw"
+            fetchPriority="high"
+            sizes="(min-width: 1280px) 50vw, (min-width: 768px) 48vw, 100vw"
           />
         </div>
 

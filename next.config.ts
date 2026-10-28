@@ -3,10 +3,11 @@ import { withSentryConfig } from "@sentry/nextjs/config";
 
 const nextConfig: NextConfig = {
   output: process.env.VERCEL ? undefined : "standalone",
+  poweredByHeader: false, // Remove X-Powered-By header (security + bytes)
   experimental: {
-    optimizePackageImports: ["lucide-react", "@radix-ui/react-icons"],
+    optimizePackageImports: ["lucide-react", "@radix-ui/react-icons", "date-fns"],
   },
-  // Compress responses
+  // Compress responses with gzip/brotli
   compress: true,
   images: {
     // Priority-6: common image sizes to minimise layout shift
@@ -30,37 +31,50 @@ const nextConfig: NextConfig = {
     // Remote images are immutable (CDN URLs don't change) — cache aggressively
     minimumCacheTTL: 60 * 60 * 24 * 365 // 1 year
   },
-  // Priority-6: Aggressive HTTP cache headers for immutable static assets
+  // Aggressive HTTP cache headers for immutable static assets
   async headers() {
     return [
+      {
+        // DNS prefetch + preconnect for every page — massive cold-start win
+        source: "/(.*)",
+        headers: [
+          { key: "X-DNS-Prefetch-Control", value: "on" },
+          {
+            key: "Link",
+            value: [
+              "<https://images.unsplash.com>; rel=preconnect",
+              "<https://res.cloudinary.com>; rel=preconnect",
+              "<https://ep-blue-bird-azcyggks-pooler.c-3.ap-southeast-1.aws.neon.tech>; rel=dns-prefetch",
+            ].join(", ")
+          }
+        ]
+      },
       {
         // Public folder assets (images, fonts) -- 1 year immutable
         source: "/(.*\\.(?:png|jpg|jpeg|gif|webp|avif|svg|ico|woff2?|ttf|otf|eot))",
         headers: [
-          {
-            key: "Cache-Control",
-            value: "public, max-age=31536000, immutable"
-          }
+          { key: "Cache-Control", value: "public, max-age=31536000, immutable" }
         ]
       },
       {
         // Next.js static chunks — immutable (content-hashed filenames)
         source: "/_next/static/(.*)",
         headers: [
-          {
-            key: "Cache-Control",
-            value: "public, max-age=31536000, immutable"
-          }
+          { key: "Cache-Control", value: "public, max-age=31536000, immutable" }
         ]
       },
       {
-        // API routes -- no-store by default; handlers can override
+        // Next.js optimized images — cache 1 year
+        source: "/_next/image(.*)",
+        headers: [
+          { key: "Cache-Control", value: "public, max-age=31536000, must-revalidate" }
+        ]
+      },
+      {
+        // API routes -- no-store; handlers override where needed
         source: "/api/:path*",
         headers: [
-          {
-            key: "Cache-Control",
-            value: "no-store"
-          }
+          { key: "Cache-Control", value: "no-store" }
         ]
       }
     ];

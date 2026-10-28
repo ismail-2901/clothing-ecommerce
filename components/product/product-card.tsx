@@ -69,12 +69,15 @@ export function ProductCard({ product, priority = false }: { product: CatalogPro
             }`}
             sizes="(min-width: 1024px) 25vw, (min-width: 640px) 50vw, 100vw"
             priority={priority}
+            placeholder="blur"
+            blurDataURL="data:image/jpeg;base64,/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDAAYEBQYFBAYGBQYHBwYIChAKCgkJChQODwwQFxQYGBcUFhYaHSUfGhsjHBYWICwgIyYnKSopGR8tMC0oMCUoKSj/wAARCAAIAAoDASIAAhEBAxEB/8QAFgABAQEAAAAAAAAAAAAAAAAABgUE/8QAIRAAAQMEAgMAAAAAAAAAAAAAAQIDBAAFERIhMVH/xAAUAQEAAAAAAAAAAAAAAAAAAAAA/8QAFBEBAAAAAAAAAAAAAAAAAAAAAP/aAAwDAQACEQMRAD8AmWa7Q2m1sNx2240OJbJKlDuWoAE89q1tJaNtKDMqbkvvEnBUtRJP61oooCVem0QcuH4NKKKAf//Z"
           />
           {secondarySrc && (
             <Image
               src={secondarySrc}
               alt={imageAlt}
               fill
+              loading="lazy"
               className="object-cover opacity-0 transition-all duration-500 group-hover:opacity-100 group-hover:scale-105"
               sizes="(min-width: 1024px) 25vw, (min-width: 640px) 50vw, 100vw"
             />

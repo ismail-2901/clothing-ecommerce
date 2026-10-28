@@ -156,9 +156,11 @@ export function AdminReviewsManager({
           <p className="text-xs font-medium text-muted-foreground">Average Rating</p>
           <div className="mt-2 flex items-baseline gap-2">
             <span className="text-2xl font-black text-foreground">{avgRating} ★</span>
-            <span className="text-xs font-semibold text-emerald-700 bg-emerald-50 px-1.5 py-0.5 rounded">
-              High Satisfaction
-            </span>
+            {totalReviews > 0 && parseFloat(avgRating) >= 4 && (
+              <span className="text-xs font-semibold text-emerald-700 bg-emerald-50 px-1.5 py-0.5 rounded">
+                High Satisfaction
+              </span>
+            )}
           </div>
           <p className="mt-1 text-[11px] text-muted-foreground">Across verified purchases</p>
         </div>
