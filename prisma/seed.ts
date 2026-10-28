@@ -181,6 +181,9 @@ async function main() {
     { name: "Hoodie", slug: "women-hoodie", position: 6 },
     { name: "Blazer", slug: "women-blazer", position: 7 },
     { name: "Winter Collection", slug: "women-winter-collection", position: 8 },
+    { name: "Tops", slug: "women-tops", position: 9 },
+    { name: "Baggy Jeans", slug: "women-baggy-jeans", position: 10 },
+    { name: "Cord Set", slug: "women-cord-set", position: 11 },
   ];
 
   for (const sub of womenSubcategories) {
