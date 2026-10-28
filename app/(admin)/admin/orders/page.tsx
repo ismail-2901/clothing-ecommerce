@@ -119,7 +119,7 @@ export default async function AdminOrdersPage({ searchParams }: PageProps) {
             <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-foreground">
               Orders Management
             </h1>
-            <span className="rounded-full bg-zinc-100 dark:bg-zinc-800 px-2.5 py-0.5 text-[11px] font-semibold text-foreground">
+            <span className="rounded-full bg-zinc-100 dark:bg-zinc-800 px-2.5 py-0.5 text-[11px] font-semibold text-foreground dark:text-white">
               {totalCount} Total
             </span>
           </div>
