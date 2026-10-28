@@ -76,24 +76,6 @@ export function LoginForm() {
             Password
           </label>
           <div className="flex items-center gap-3">
-            <button
-              type="button"
-              onClick={() => setShowPassword((prev) => !prev)}
-              className="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground transition-colors"
-              tabIndex={-1}
-            >
-              {showPassword ? (
-                <>
-                  <EyeOff size={13} />
-                  <span>Hide</span>
-                </>
-              ) : (
-                <>
-                  <Eye size={13} />
-                  <span>Show</span>
-                </>
-              )}
-            </button>
             <Link
               href="/forgot-password"
               className="text-xs text-muted-foreground hover:text-foreground underline underline-offset-4"
