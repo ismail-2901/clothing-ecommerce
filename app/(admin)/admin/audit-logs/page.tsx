@@ -1,17 +1,8 @@
 export const dynamic = "force-dynamic";
 
 import {
-  Clock,
-  FileText,
-  Shield,
-  ShoppingCart,
-  Truck,
   History,
   Download,
-  Search,
-  CheckCircle2,
-  AlertTriangle,
-  UserCheck
 } from "lucide-react";
 import { prisma } from "@/db/prisma";
 
@@ -25,6 +16,16 @@ export default async function AdminAuditLogsPage() {
   });
 
   const totalLogs = dbLogs.length;
+
+  const today = new Date();
+  const adminActionsToday = dbLogs.filter((log) => {
+    const logDate = new Date(log.createdAt);
+    return logDate.toDateString() === today.toDateString();
+  }).length;
+
+  const orderStateShifts = dbLogs.filter((log) =>
+    log.action?.includes("ORDER") || log.resource === "Order"
+  ).length;
 
   return (
     <div className="space-y-8">
@@ -55,20 +56,20 @@ export default async function AdminAuditLogsPage() {
       </div>
 
       {/* 4 KPI Cards */}
-      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+      <div className="grid gap-4 grid-cols-2 xl:grid-cols-4">
         <div className="rounded-xl border border-border bg-background p-5 shadow-sm">
           <p className="text-xs font-medium text-muted-foreground">Total Events Logged</p>
-          <p className="mt-2 text-2xl font-black text-foreground">{totalLogs || 128}</p>
+          <p className="mt-2 text-2xl font-black text-foreground">{totalLogs}</p>
           <p className="mt-1 text-[11px] text-muted-foreground">Recorded in database</p>
         </div>
         <div className="rounded-xl border border-border bg-background p-5 shadow-sm">
           <p className="text-xs font-medium text-muted-foreground">Staff Actions Today</p>
-          <p className="mt-2 text-2xl font-black text-emerald-600">24</p>
+          <p className="mt-2 text-2xl font-black text-emerald-600">{adminActionsToday}</p>
           <p className="mt-1 text-[11px] text-muted-foreground">Authorized operations</p>
         </div>
         <div className="rounded-xl border border-border bg-background p-5 shadow-sm">
           <p className="text-xs font-medium text-muted-foreground">Order State Shifts</p>
-          <p className="mt-2 text-2xl font-black text-foreground">86</p>
+          <p className="mt-2 text-2xl font-black text-foreground">{orderStateShifts}</p>
           <p className="mt-1 text-[11px] text-muted-foreground">Dispatched &amp; confirmed</p>
         </div>
         <div className="rounded-xl border border-border bg-background p-5 shadow-sm">
@@ -83,7 +84,7 @@ export default async function AdminAuditLogsPage() {
         </div>
       </div>
 
-      {/* Main Audit Logs Table */}
+      {/* Main Audit Logs */}
       {dbLogs.length === 0 ? (
         <div className="flex flex-col items-center justify-center rounded-xl border border-dashed border-border bg-background p-12 text-center shadow-sm">
           <History size={36} className="text-muted-foreground mb-3" />
@@ -94,7 +95,40 @@ export default async function AdminAuditLogsPage() {
         </div>
       ) : (
         <div className="overflow-hidden rounded-xl border border-border bg-background shadow-sm">
-          <div className="overflow-x-auto">
+          {/* Mobile: card list */}
+          <div className="sm:hidden divide-y divide-border/60">
+            {dbLogs.map((log) => {
+              const actorName = log.actor?.name || "System Admin";
+              const dateStr = new Date(log.createdAt).toLocaleString("en-US", {
+                month: "short", day: "numeric", hour: "2-digit", minute: "2-digit"
+              });
+              return (
+                <div key={log.id} className="p-4 space-y-2">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <div className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-muted font-bold text-[10px]">
+                        {actorName.charAt(0).toUpperCase()}
+                      </div>
+                      <span className="text-xs font-bold text-foreground">{actorName}</span>
+                    </div>
+                    <span className="inline-block rounded border border-emerald-200 bg-emerald-50 px-2 py-0.5 text-[10px] font-bold text-emerald-700">
+                      SUCCESS
+                    </span>
+                  </div>
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <span className="rounded bg-muted px-2 py-0.5 text-[10px] font-mono font-semibold">{log.action}</span>
+                    <span className="text-xs text-foreground font-medium">
+                      {log.resource} {log.resourceId ? `(${log.resourceId.slice(-6).toUpperCase()})` : ""}
+                    </span>
+                  </div>
+                  <p className="text-[10px] font-mono text-muted-foreground">{dateStr}</p>
+                </div>
+              );
+            })}
+          </div>
+
+          {/* Desktop: table */}
+          <div className="hidden sm:block overflow-x-auto">
             <table className="w-full min-w-[600px] text-left text-xs">
               <thead className="border-b border-border bg-muted/30 font-semibold text-muted-foreground">
                 <tr>
@@ -110,17 +144,11 @@ export default async function AdminAuditLogsPage() {
                 {dbLogs.map((log) => {
                   const actorName = log.actor?.name || "System Admin";
                   const dateStr = new Date(log.createdAt).toLocaleString("en-US", {
-                    month: "short",
-                    day: "numeric",
-                    hour: "2-digit",
-                    minute: "2-digit"
+                    month: "short", day: "numeric", hour: "2-digit", minute: "2-digit"
                   });
-
                   return (
                     <tr key={log.id} className="hover:bg-muted/20 transition">
-                      <td className="py-3.5 px-4 text-muted-foreground whitespace-nowrap font-mono text-[11px]">
-                        {dateStr}
-                      </td>
+                      <td className="py-3.5 px-4 text-muted-foreground whitespace-nowrap font-mono text-[11px]">{dateStr}</td>
                       <td className="py-3.5 px-4 font-bold text-foreground">
                         <div className="flex items-center gap-2">
                           <div className="flex h-6 w-6 items-center justify-center rounded-full bg-muted font-bold text-[10px]">
@@ -130,9 +158,7 @@ export default async function AdminAuditLogsPage() {
                         </div>
                       </td>
                       <td className="py-3.5 px-4 font-mono font-semibold text-foreground">
-                        <span className="rounded bg-muted px-2 py-0.5 text-[10px]">
-                          {log.action}
-                        </span>
+                        <span className="rounded bg-muted px-2 py-0.5 text-[10px]">{log.action}</span>
                       </td>
                       <td className="py-3.5 px-4 font-medium text-foreground">
                         {log.resource} {log.resourceId ? `(${log.resourceId.slice(-6).toUpperCase()})` : ""}

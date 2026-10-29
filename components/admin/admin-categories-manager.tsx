@@ -175,7 +175,7 @@ export function AdminCategoriesManager({
       </div>
 
       {/* Two-Column Split: Categories Table (Left) + Add New Form (Right) */}
-      <div className="grid gap-8 lg:grid-cols-[1.6fr_1fr] items-start">
+      <div className="grid gap-8 grid-cols-1 lg:grid-cols-[1.6fr_1fr] items-start">
         {/* Left Column: Categories List */}
         <div className="space-y-4">
           <div className="flex items-center gap-3 rounded-xl border border-border bg-background p-3.5 shadow-sm">
@@ -199,7 +199,7 @@ export function AdminCategoriesManager({
             </div>
           ) : (
             <div className="overflow-hidden rounded-xl border border-border bg-background shadow-sm">
-              <div className="overflow-x-auto">
+              <div className="overflow-x-auto -mx-px">
                 <table className="w-full min-w-[500px] text-left text-xs">
                 <thead className="border-b border-border bg-muted/30 font-semibold text-muted-foreground">
                   <tr>
@@ -268,7 +268,7 @@ export function AdminCategoriesManager({
         </div>
 
         {/* Right Column: Inline Add New Category Card Form */}
-        <div className="rounded-xl border border-border bg-background p-6 shadow-sm sticky top-6">
+        <div className="rounded-xl border border-border bg-background p-6 shadow-sm lg:sticky lg:top-6">
           <div className="flex items-center gap-2 mb-1">
             <Plus size={16} className="text-foreground" />
             <h2 className="text-base font-bold text-foreground">Add New Category</h2>

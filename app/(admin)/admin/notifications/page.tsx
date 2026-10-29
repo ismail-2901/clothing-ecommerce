@@ -180,7 +180,7 @@ export default function AdminNotificationsPage() {
       </div>
 
       {/* Two-Column Split: Notification Feed (Left) + Notification Preferences (Right) */}
-      <div className="grid gap-8 lg:grid-cols-[2fr_1.1fr] items-start">
+      <div className="grid gap-8 grid-cols-1 lg:grid-cols-[2fr_1.1fr] items-start">
         {/* Left Column: Feed */}
         <div className="space-y-4">
           <div className="flex items-center gap-1.5 overflow-x-auto pb-1">

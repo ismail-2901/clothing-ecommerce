@@ -233,7 +233,7 @@ export default async function AdminDashboardPage() {
       </div>
 
       {/* Sales Overview Chart + Top Categories Section */}
-      <div className="grid gap-6 lg:grid-cols-[1.8fr_1.2fr]">
+      <div className="grid gap-6 grid-cols-1 lg:grid-cols-[1.8fr_1.2fr]">
         <AdminDashboardSalesChart />
 
         {/* Top Selling Categories */}
@@ -286,7 +286,7 @@ export default async function AdminDashboardPage() {
       </div>
 
       {/* Recent Orders & Inventory Workload */}
-      <div className="grid gap-6 lg:grid-cols-[2fr_1.2fr]">
+      <div className="grid gap-6 grid-cols-1 lg:grid-cols-[2fr_1.2fr]">
         {/* Recent Orders Table */}
         <div className="rounded-xl border border-border bg-background p-6 shadow-sm">
           <div className="flex items-center justify-between mb-4">
@@ -302,7 +302,7 @@ export default async function AdminDashboardPage() {
             </Link>
           </div>
 
-          <div className="overflow-x-auto">
+          <div className="overflow-x-auto -mx-6 px-6 sm:mx-0 sm:px-0">
             <table className="w-full min-w-[600px] text-left text-xs">
               <thead className="border-b border-border text-muted-foreground font-semibold">
                 <tr>
