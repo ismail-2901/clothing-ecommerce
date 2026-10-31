@@ -8,6 +8,16 @@ import type { HeroSlideData } from "@/lib/cache/db-cache";
 
 type Slide = HeroSlideData;
 
+export function shouldAutoplayHero({
+  reducedMotion,
+  hasInteracted
+}: {
+  reducedMotion: boolean;
+  hasInteracted: boolean;
+}) {
+  return !reducedMotion && hasInteracted;
+}
+
 // Hardcoded fallback slides — used when no DB data exists (fresh install)
 const DEFAULT_SLIDES: Slide[] = [
   {
@@ -60,6 +70,7 @@ export function HeroSlider({ slides: propSlides }: { slides?: Slide[] }) {
 
   const [current, setCurrent] = useState(0);
   const [reducedMotion, setReducedMotion] = useState(false);
+  const [hasInteracted, setHasInteracted] = useState(false);
 
   useEffect(() => {
     const mq = window.matchMedia("(prefers-reduced-motion: reduce)");
@@ -70,25 +81,33 @@ export function HeroSlider({ slides: propSlides }: { slides?: Slide[] }) {
   }, []);
 
   const prevSlide = useCallback(() => {
+    setHasInteracted(true);
     setCurrent((c) => (c === 0 ? slides.length - 1 : c - 1));
   }, [slides.length]);
 
   const nextSlide = useCallback(() => {
+    setHasInteracted(true);
     setCurrent((c) => (c === slides.length - 1 ? 0 : c + 1));
   }, [slides.length]);
+
+  const selectSlide = useCallback((index: number) => {
+    setHasInteracted(true);
+    setCurrent(index);
+  }, []);
 
   // Reset current index if slides array changes length (e.g. admin removed a slide)
   useEffect(() => {
     setCurrent((c) => (c >= slides.length ? 0 : c));
   }, [slides.length]);
 
+  // Keep initial hero stable for LCP; resume autoplay after slide interaction.
   useEffect(() => {
-    if (reducedMotion) return;
+    if (!shouldAutoplayHero({ reducedMotion, hasInteracted })) return;
     const timer = setInterval(() => {
       setCurrent((c) => (c === slides.length - 1 ? 0 : c + 1));
     }, 10000);
     return () => clearInterval(timer);
-  }, [slides.length, reducedMotion]);
+  }, [hasInteracted, reducedMotion, slides.length]);
 
   const active = slides[Math.min(current, slides.length - 1)];
 
@@ -120,7 +139,7 @@ export function HeroSlider({ slides: propSlides }: { slides?: Slide[] }) {
                 <button
                   key={s.id}
                   type="button"
-                  onClick={() => setCurrent(idx)}
+                  onClick={() => selectSlide(idx)}
                   className={`elaris-slide-num ${idx === current ? "active" : ""}`}
                   aria-label={`Slide ${s.num}`}
                   aria-current={idx === current ? "true" : undefined}
