@@ -192,7 +192,7 @@ export function AdminHeroSlidesManager({ initialSlides }: { initialSlides: Slide
                 </button>
               </div>
               <button type="button" aria-label="Delete slide" onClick={(e) => { e.stopPropagation(); removeSlide(slide.id); }}
-                className="opacity-100 sm:opacity-0 sm:group-hover:opacity-100 rounded p-1.5 hover:bg-red-50 hover:text-red-600 transition-all">
+                className="inline-flex min-h-11 min-w-11 shrink-0 items-center justify-center rounded-md border border-red-200 bg-red-50 p-1.5 text-red-600 opacity-100 transition-all hover:bg-red-100 sm:min-h-0 sm:min-w-0 sm:border-transparent sm:bg-transparent sm:text-foreground sm:opacity-0 sm:group-hover:opacity-100 sm:hover:bg-red-50 sm:hover:text-red-600">
                 <Trash2 size={14} />
               </button>
             </div>
@@ -375,4 +375,3 @@ export function AdminHeroSlidesManager({ initialSlides }: { initialSlides: Slide
     </div>
   );
 }
-

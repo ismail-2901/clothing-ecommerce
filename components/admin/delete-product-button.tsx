@@ -53,6 +53,7 @@ export function DeleteProductButton({
   return (
     <button
       onClick={() => setConfirming(true)}
+      aria-label={`Delete ${productName}`}
       title={`Delete ${productName}`}
       className="flex h-8 w-8 items-center justify-center rounded-md border border-border text-muted-foreground hover:border-danger/40 hover:text-danger"
     >

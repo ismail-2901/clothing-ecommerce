@@ -113,7 +113,7 @@ export default async function AdminInventoryPage({ searchParams }: PageProps) {
       </div>
 
       {/* 4 KPI Cards */}
-      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+      <div className="grid gap-4 grid-cols-2 xl:grid-cols-4">
         <div className="rounded-xl border border-border bg-background p-5 shadow-sm">
           <p className="text-xs font-medium text-muted-foreground">Total SKUs Tracked</p>
           <p className="mt-2 text-2xl font-black text-foreground">{totalSKUs}</p>
@@ -219,7 +219,79 @@ export default async function AdminInventoryPage({ searchParams }: PageProps) {
         </div>
       ) : (
         <div className="overflow-hidden rounded-xl border border-border bg-background shadow-sm">
-          <div className="overflow-x-auto">
+          {/* Mobile: card list */}
+          <div className="sm:hidden divide-y divide-border/60">
+            {variants.map((v) => {
+              const available = Math.max(0, v.stock - v.reserved);
+              const isOutOfStock = v.stock === 0;
+              const isLowStock = v.stock > 0 && v.stock <= lowStockThreshold;
+
+              return (
+                <div key={v.sku} className="p-4 space-y-3">
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="min-w-0">
+                      <Link
+                        href={`/admin/products/${v.productId}/edit`}
+                        className="font-bold text-sm text-foreground hover:underline truncate block"
+                      >
+                        {v.product}
+                      </Link>
+                      <p className="text-[11px] text-muted-foreground font-mono">
+                        SKU: {v.sku}
+                      </p>
+                    </div>
+                    {isOutOfStock ? (
+                      <span className="inline-block rounded border border-rose-200 bg-rose-50 px-2 py-0.5 text-[10px] font-bold text-rose-700 shrink-0">
+                        Out of Stock
+                      </span>
+                    ) : isLowStock ? (
+                      <span className="inline-block rounded border border-amber-200 bg-amber-50 px-2 py-0.5 text-[10px] font-bold text-amber-700 shrink-0">
+                        Low Stock ({v.stock})
+                      </span>
+                    ) : (
+                      <span className="inline-block rounded border border-emerald-200 bg-emerald-50 px-2 py-0.5 text-[10px] font-bold text-emerald-700 shrink-0">
+                        In Stock
+                      </span>
+                    )}
+                  </div>
+
+                  <div className="flex items-center justify-between text-xs pt-1 border-t border-border/40">
+                    <div className="flex items-center gap-1.5">
+                      <span className="text-muted-foreground">Variant:</span>
+                      <span className="capitalize font-medium text-foreground">{v.color}</span>
+                      <span className="text-muted-foreground">/</span>
+                      <span className="rounded bg-muted px-1.5 py-0.5 font-bold text-[10px] text-foreground">
+                        {v.size}
+                      </span>
+                    </div>
+                    <div className="flex items-center gap-3 text-right">
+                      <span className="text-muted-foreground">
+                        Total: <strong className="text-foreground">{v.stock}</strong>
+                      </span>
+                      <span className="text-muted-foreground">
+                        Avail: <strong className="text-foreground">{available}</strong>
+                      </span>
+                    </div>
+                  </div>
+
+                  <div className="flex items-center justify-end gap-2 pt-2 border-t border-border/40">
+                    <Link
+                      href={`/admin/products/${v.productId}/edit`}
+                      aria-label={`Edit variant ${v.sku} of ${v.product}`}
+                      className="inline-flex items-center gap-1 rounded-md border border-border bg-background px-2.5 py-1.5 text-xs font-semibold text-foreground hover:bg-muted/40 transition"
+                    >
+                      <Edit size={12} />
+                      <span>Edit</span>
+                    </Link>
+                    <DeleteProductButton productId={v.productId} productName={v.product} />
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+
+          {/* Desktop: table */}
+          <div className="hidden sm:block overflow-x-auto">
             <table className="w-full min-w-[600px] text-left text-xs">
               <thead className="border-b border-border bg-muted/30 font-semibold text-muted-foreground">
                 <tr>
@@ -286,6 +358,7 @@ export default async function AdminInventoryPage({ searchParams }: PageProps) {
                         <div className="flex items-center justify-end gap-1.5">
                           <Link
                             href={`/admin/products/${v.productId}/edit`}
+                            aria-label={`Edit variant ${v.sku} of ${v.product}`}
                             className="inline-flex items-center gap-1 rounded-md border border-border px-2.5 py-1 text-xs font-semibold text-foreground hover:bg-muted/40 transition"
                           >
                             <Edit size={12} />
