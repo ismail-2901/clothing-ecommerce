@@ -178,7 +178,7 @@ export default async function AdminAnalyticsPage() {
       </div>
 
       {/* 4 Primary KPI Cards */}
-      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+      <div className="grid gap-4 grid-cols-2 xl:grid-cols-4">
         {metrics.map((m) => (
           <div key={m.label} className="rounded-xl border border-border bg-background p-5 shadow-sm">
             <p className="text-xs font-medium text-muted-foreground">{m.label}</p>
@@ -309,18 +309,11 @@ export default async function AdminAnalyticsPage() {
                   </tr>
                 ))
               ) : (
-                [
-                  { name: "Oversized Heavyweight Hoodie", units: 84, rev: 209160 },
-                  { name: "Minimalist Ribbed Knit Sweater", units: 62, rev: 154380 },
-                  { name: "Tailored Linen Blazer", units: 48, rev: 191520 },
-                  { name: "Relaxed Fit Cotton T-Shirt", units: 112, rev: 144480 },
-                ].map((item) => (
-                  <tr key={item.name} className="hover:bg-muted/20 transition">
-                    <td className="py-3.5 pr-4 font-bold text-foreground">{item.name}</td>
-                    <td className="py-3.5 px-4 text-center font-bold text-foreground">{item.units} units</td>
-                    <td className="py-3.5 pl-4 text-right font-black text-foreground">{formatMoney(item.rev)}</td>
-                  </tr>
-                ))
+                <tr>
+                  <td colSpan={3} className="py-8 text-center text-xs text-muted-foreground">
+                    No sales data recorded yet.
+                  </td>
+                </tr>
               )}
             </tbody>
           </table>
