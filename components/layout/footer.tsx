@@ -63,9 +63,9 @@ export function Footer() {
           {/* Newsletter & Socials & Script Tagline */}
           <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-6">
             <div className="w-full max-w-md">
-              <h3 className="text-xs font-bold uppercase tracking-wider text-foreground">
+              <p className="text-xs font-bold uppercase tracking-wider text-foreground">
                 Join Our Community
-              </h3>
+              </p>
               <p className="mt-0.5 text-xs text-muted-foreground">
                 Be the first to know about new collections and exclusive offers.
               </p>

@@ -141,7 +141,7 @@ export default async function AdminOrdersPage({ searchParams }: PageProps) {
       </div>
 
       {/* 4 KPI Cards */}
-      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+      <div className="grid gap-4 grid-cols-2 xl:grid-cols-4">
         <div className="rounded-xl border border-border bg-background p-5 shadow-sm">
           <p className="text-xs font-medium text-muted-foreground">Total Orders</p>
           <p className="mt-2 text-2xl font-black text-foreground">{totalCount}</p>
@@ -236,7 +236,59 @@ export default async function AdminOrdersPage({ searchParams }: PageProps) {
         </div>
       ) : (
         <div className="overflow-hidden rounded-xl border border-border bg-background shadow-sm">
-          <div className="overflow-x-auto">
+          {/* Mobile: card list */}
+          <div className="sm:hidden divide-y divide-border/60">
+            {orders.map((o) => {
+              const statusInfo = statusMap[o.status] || {
+                label: o.status,
+                class: "bg-muted text-foreground border-border"
+              };
+              const paymentClass = paymentBadgeStyle[o.paymentMethod.toUpperCase()] || "bg-zinc-100 text-zinc-700 border-zinc-200";
+
+              return (
+                <div key={o.id} className="p-4 space-y-3">
+                  <div className="flex items-center justify-between">
+                    <Link
+                      href={`/admin/orders/${o.id}`}
+                      className="font-mono text-sm font-bold text-foreground hover:underline"
+                    >
+                      #{o.orderNumber}
+                    </Link>
+                    <span className={`inline-block rounded border px-2 py-0.5 text-[10px] font-bold ${statusInfo.class}`}>
+                      {statusInfo.label}
+                    </span>
+                  </div>
+
+                  <div className="flex items-start justify-between gap-2">
+                    <div>
+                      <p className="text-xs font-bold text-foreground">{o.customer}</p>
+                      <p className="text-[11px] text-muted-foreground truncate max-w-[200px]">{o.email}</p>
+                    </div>
+                    <div className="text-right">
+                      <p className="text-sm font-black text-foreground">{formatMoney(o.total)}</p>
+                      <span className={`inline-block rounded border px-1.5 py-0.5 text-[10px] font-bold ${paymentClass}`}>
+                        {o.paymentMethod}
+                      </span>
+                    </div>
+                  </div>
+
+                  <div className="flex items-center justify-between pt-1 border-t border-border/40 text-[11px] text-muted-foreground">
+                    <span>{o.date} &bull; {o.itemsCount} {o.itemsCount === 1 ? "item" : "items"}</span>
+                    <Link
+                      href={`/admin/orders/${o.id}`}
+                      className="inline-flex items-center gap-1.5 rounded-md border border-border bg-background px-3 py-1.5 text-xs font-semibold text-foreground hover:bg-muted/40 transition"
+                    >
+                      <Eye size={13} />
+                      <span>View</span>
+                    </Link>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+
+          {/* Desktop: table */}
+          <div className="hidden sm:block overflow-x-auto">
             <table className="w-full min-w-[700px] text-left text-xs">
               <thead className="border-b border-border bg-muted/30 font-semibold text-muted-foreground">
                 <tr>

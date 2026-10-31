@@ -3,7 +3,6 @@ import { NextResponse, type NextRequest } from "next/server";
 // Paths that require the user to be authenticated (session cookie present)
 const AUTH_REQUIRED_PATTERNS = [
   /^\/account(\/|$)/,
-  /^\/api\/wishlist(\/|$)/,
 ];
 
 // Paths that require admin role.

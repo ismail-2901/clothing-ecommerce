@@ -217,7 +217,7 @@ export function FloatingAssistant() {
       )}
 
       <button
-        aria-label={open ? "Close shopping assistant" : "Open shopping assistant"}
+        aria-label={open ? "Close ELARIS AI shopping assistant" : "Ask ELARIS AI shopping assistant"}
         className="group ml-auto flex items-center gap-3 rounded-full border border-border/80 bg-background py-2 shadow-xl hover:shadow-2xl hover:border-foreground/30 transition-all duration-200 pl-2 pr-2 sm:pr-4"
         onClick={open ? () => setOpen(false) : handleOpen}
         type="button"

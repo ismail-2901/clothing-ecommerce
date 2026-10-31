@@ -55,11 +55,12 @@ export function AdminSearchInput({ placeholder = "Search..." }: { placeholder?: 
       {value && (
         <button
           type="button"
+          aria-label="Clear search"
           onClick={() => {
             setValue("");
             handleSearch("");
           }}
-          className="text-muted-foreground hover:text-foreground"
+          className="p-1 text-muted-foreground hover:text-foreground"
         >
           <X size={14} />
         </button>
