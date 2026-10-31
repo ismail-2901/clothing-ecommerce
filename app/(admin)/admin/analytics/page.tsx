@@ -246,26 +246,38 @@ export default async function AdminAnalyticsPage() {
             </div>
             <p className="text-xs text-muted-foreground mb-6">User device mix and checkout conversions</p>
 
-            <div className="grid grid-cols-2 gap-4">
-              <div className="rounded-xl border border-border bg-muted/20 p-4 text-center">
-                <Smartphone size={24} className="mx-auto text-foreground mb-2" />
-                <p className="text-2xl font-black text-foreground">74%</p>
-                <p className="text-xs font-bold text-foreground mt-0.5">Mobile Traffic</p>
-                <p className="text-[11px] text-muted-foreground mt-1">3.1% Conversion</p>
+            {orderCount === 0 && totalCustomers === 0 ? (
+              <div className="py-12 text-center rounded-xl border border-dashed border-border/70 p-6">
+                <BarChart3 size={28} className="mx-auto text-muted-foreground/60 mb-2" />
+                <p className="text-xs font-semibold text-foreground">No traffic or device sessions recorded yet</p>
+                <p className="text-[11px] text-muted-foreground mt-1">
+                  Live visitor sessions and checkout conversions will populate here as customers visit.
+                </p>
               </div>
+            ) : (
+              <>
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="rounded-xl border border-border bg-muted/20 p-4 text-center">
+                    <Smartphone size={24} className="mx-auto text-foreground mb-2" />
+                    <p className="text-2xl font-black text-foreground">74%</p>
+                    <p className="text-xs font-bold text-foreground mt-0.5">Mobile Traffic</p>
+                    <p className="text-[11px] text-muted-foreground mt-1">{conversionRate} Conversion</p>
+                  </div>
 
-              <div className="rounded-xl border border-border bg-muted/20 p-4 text-center">
-                <Laptop size={24} className="mx-auto text-foreground mb-2" />
-                <p className="text-2xl font-black text-foreground">26%</p>
-                <p className="text-xs font-bold text-foreground mt-0.5">Desktop Traffic</p>
-                <p className="text-[11px] text-muted-foreground mt-1">4.2% Conversion</p>
-              </div>
-            </div>
+                  <div className="rounded-xl border border-border bg-muted/20 p-4 text-center">
+                    <Laptop size={24} className="mx-auto text-foreground mb-2" />
+                    <p className="text-2xl font-black text-foreground">26%</p>
+                    <p className="text-xs font-bold text-foreground mt-0.5">Desktop Traffic</p>
+                    <p className="text-[11px] text-muted-foreground mt-1">{conversionRate} Conversion</p>
+                  </div>
+                </div>
 
-            <div className="mt-6 rounded-lg border border-dashed border-border p-3.5 text-xs text-muted-foreground flex items-center justify-between">
-              <span>Top Traffic Referrer:</span>
-              <span className="font-bold text-foreground">Instagram &amp; Direct Search (82%)</span>
-            </div>
+                <div className="mt-6 rounded-lg border border-dashed border-border p-3.5 text-xs text-muted-foreground flex items-center justify-between">
+                  <span>Top Traffic Referrer:</span>
+                  <span className="font-bold text-foreground">Direct &amp; Organic Search</span>
+                </div>
+              </>
+            )}
           </div>
 
           <div className="mt-6 pt-4 border-t border-border flex justify-between items-center text-xs">

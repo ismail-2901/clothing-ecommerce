@@ -8,6 +8,7 @@ import { rateLimiter } from "@/lib/rate-limit/rate-limit";
 import { getClientIp } from "@/lib/auth/otp";
 import { getServerSession } from "@/lib/auth/server";
 import { prisma } from "@/db/prisma";
+import { getDynamicStoreContext } from "@/lib/ai/store-context";
 
 const bodySchema = z.object({
   message: z.string().min(1).max(500)
@@ -144,7 +145,11 @@ async function findCouponDetails(session: { userId?: string } | null): Promise<s
   return `Current offers:\n• Use code '${storePolicies.shipping.freeShippingCode}' for free delivery on orders over ${formatMoney(storePolicies.shipping.freeThreshold * 100)}.\n• Explore current deals and new arrivals on our collection pages!`;
 }
 
-async function callLLM(message: string, context: string): Promise<string | null> {
+async function callLLM(
+  message: string,
+  context: string,
+  matchedProducts?: Array<{ name: string; price: string; link: string }>
+): Promise<string | null> {
   const apiKey = process.env.AI_PROVIDER_API_KEY;
   if (!apiKey) return null;
 
@@ -153,65 +158,81 @@ async function callLLM(message: string, context: string): Promise<string | null>
     apiKey.startsWith("AIza") ||
     apiKey.startsWith("AQ.");
 
-  const model =
+  const preferredModel =
     process.env.AI_MODEL_CHAT ||
-    (isGemini ? "gemini-flash-latest" : "gpt-4o-mini");
+    (isGemini ? "gemini-3.5-flash" : "gpt-4o-mini");
 
-  const systemPrompt = `You are ELARIS AI, the knowledgeable and polite shopping assistant for ELARIS (a premium fashion clothing brand in Bangladesh).
-Knowledge context:
-${context}
-Instructions:
-- Provide helpful, friendly, concise answers about ELARIS products, sizing, delivery (৳${storePolicies.shipping.insideDhakaFee} inside Dhaka, ৳${storePolicies.shipping.outsideDhakaFee} outside, free over ৳${storePolicies.shipping.freeThreshold}), 14-day returns, payments, and order tracking.
-- All currency is BDT (৳).
-- Keep answers under 3-4 sentences when possible.`;
+  const modelsToTry = isGemini
+    ? Array.from(new Set([preferredModel, "gemini-3.5-flash", "gemini-3.5-flash-lite", "gemini-2.5-flash-lite", "gemini-3.8-flash", "gemini-flash-latest"]))
+    : [preferredModel, "gpt-4o-mini", "gpt-3.5-turbo"];
 
-  try {
-    const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), 6000);
+  const productContext =
+    matchedProducts && matchedProducts.length > 0
+      ? `\n\nMATCHED PRODUCTS IN STORE:\n${matchedProducts.map((p) => `- ${p.name} (${p.price}) -> [View Product](${p.link})`).join("\n")}`
+      : "";
 
-    if (isGemini) {
-      const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          contents: [
-            { role: "user", parts: [{ text: `${systemPrompt}\n\nCustomer question: ${message}` }] }
-          ]
-        }),
-        signal: controller.signal
-      });
-      clearTimeout(timeout);
-      if (res.ok) {
-        const data = await res.json();
-        const text = data.candidates?.[0]?.content?.parts?.[0]?.text;
-        if (text) return text.trim();
+  const systemPrompt = `You are ELARIS AI, the intelligent, warm, and stylish personal shopping assistant for ELARIS (a premier fashion and apparel brand in Bangladesh).
+
+STORE KNOWLEDGE & CATALOG CONTEXT:
+${context}${productContext}
+
+GUIDELINES:
+- Customer Language: Always reply in the same language as the customer (English, বাংলা / Bengali, or Banglish).
+- Product Advice: When matched products exist, give polite, stylish outfit and sizing advice and invite them to explore the items.
+- Fresh/Restocking Catalog: When no products match or the catalog is restocking, politely explain that new season pieces are dropping regularly, highlight relevant categories (e.g. Menswear, Casual Shirts, Panjabi, Hoodies), and invite them to browse the shop or reach out to our styling team.
+- Accuracy: All currency is in BDT (৳). Only mention real policies, delivery fees (৳60 Dhaka, ৳120 outside Dhaka, free over ৳2,000), 14-day returns, and COD/bKash payments.
+- Tone: Welcoming, concise (2-4 sentences or clear bullet points), fashionable, and helpful.`;
+
+  for (const model of modelsToTry) {
+    try {
+      const controller = new AbortController();
+      const timeout = setTimeout(() => controller.abort(), 6500);
+
+      if (isGemini) {
+        const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            contents: [
+              { role: "user", parts: [{ text: `${systemPrompt}\n\nCustomer question: ${message}` }] }
+            ]
+          }),
+          signal: controller.signal
+        });
+        clearTimeout(timeout);
+        if (res.ok) {
+          const data = await res.json();
+          const text = data.candidates?.[0]?.content?.parts?.[0]?.text;
+          if (text) return text.trim();
+        }
+      } else {
+        const res = await fetch("https://api.openai.com/v1/chat/completions", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${apiKey}`
+          },
+          body: JSON.stringify({
+            model,
+            messages: [
+              { role: "system", content: systemPrompt },
+              { role: "user", content: message }
+            ],
+            max_tokens: 350
+          }),
+          signal: controller.signal
+        });
+        clearTimeout(timeout);
+        if (res.ok) {
+          const data = await res.json();
+          const text = data.choices?.[0]?.message?.content;
+          if (text) return text.trim();
+        }
       }
-    } else {
-      const res = await fetch("https://api.openai.com/v1/chat/completions", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${apiKey}`
-        },
-        body: JSON.stringify({
-          model,
-          messages: [
-            { role: "system", content: systemPrompt },
-            { role: "user", content: message }
-          ],
-          max_tokens: 300
-        }),
-        signal: controller.signal
-      });
-      clearTimeout(timeout);
-      if (res.ok) {
-        const data = await res.json();
-        const text = data.choices?.[0]?.message?.content;
-        if (text) return text.trim();
-      }
+    } catch {
+      // Try next fallback model
+      continue;
     }
-  } catch {
-    // Fallback to grounded knowledge
   }
   return null;
 }
@@ -299,10 +320,8 @@ export async function POST(request: NextRequest) {
 
   // 4. Non-product questions (orders without number, support, general queries)
   if (structured.intent !== "PRODUCT_SEARCH") {
-    const storeContext = Object.entries(storeKnowledge)
-      .map(([k, v]) => `${k.toUpperCase()}: ${v}`)
-      .join("\n");
-    const llmAnswer = await callLLM(message, storeContext);
+    const dynamicContext = await getDynamicStoreContext();
+    const llmAnswer = await callLLM(message, dynamicContext);
     const fallbackText =
       structured.intent === "ORDER_STATUS"
         ? storeKnowledge.order_help
@@ -310,7 +329,7 @@ export async function POST(request: NextRequest) {
           ? storeKnowledge.return
           : structured.intent === "DELIVERY"
             ? storeKnowledge.shipping
-            : "I'm here to help! You can ask me to find outfits, track an order (e.g. ATC-XXXXX), check active coupons, or ask about our shipping and returns.";
+            : "I'm here to help! You can ask me to discover outfits, track an order (e.g. #ATC-XXXXX), check active coupons, or ask about our shipping, returns, and sizing.";
 
     return NextResponse.json({
       intent: structured.intent,
@@ -326,20 +345,26 @@ export async function POST(request: NextRequest) {
     : await matchProducts({ query: message }, 3);
 
   const products = buildProductCards(finalMatches);
+  const dynamicContext = await getDynamicStoreContext();
 
   let text = "";
   if (finalMatches.length === 0) {
-    const storeContext = Object.entries(storeKnowledge)
-      .map(([k, v]) => `${k.toUpperCase()}: ${v}`)
-      .join("\n");
-    const llmFallback = await callLLM(message, storeContext);
+    const llmFallback = await callLLM(message, dynamicContext);
     text =
       llmFallback ??
-      "I couldn't find any products matching that description. Try searching by color, budget, or clothing type (e.g., 'black shirt under 3000').";
-  } else if (finalMatches.length === 1) {
-    text = "I found a product that matches what you're looking for:";
+      "I couldn't find any products matching that description right now. We are actively updating our new season collections — explore our categories on the shop page or let me know what color and style you prefer!";
   } else {
-    text = `Here are ${finalMatches.length} products that match your description:`;
+    const matchedItems = products.map((p) => ({
+      name: p.name,
+      price: p.price,
+      link: `/products/${p.slug}`
+    }));
+    const llmAnswer = await callLLM(message, dynamicContext, matchedItems);
+    text =
+      llmAnswer ??
+      (finalMatches.length === 1
+        ? "I found a product that matches what you're looking for:"
+        : `Here are ${finalMatches.length} products that match your description:`);
   }
 
   return NextResponse.json({
