@@ -1,35 +1,20 @@
-import { cache } from "react";
 import { CartProvider } from "@/components/cart/cart-provider";
 import { CartDrawer } from "@/components/cart/cart-drawer";
 import { Footer } from "@/components/layout/footer";
 import { SiteHeader } from "@/components/layout/site-header";
 import { WishlistProvider } from "@/components/wishlist/wishlist-provider";
-import { getServerSession } from "@/lib/auth/server";
-import { prisma } from "@/db/prisma";
 import { FloatingAssistantLazy } from "@/components/ai/floating-assistant-lazy";
 
-// M4: Wrapped with React cache() so multiple callers in the same SSR render
-// share one DB round-trip — wishlist is keyed on userId (unique index).
-const getWishlistProductIds = cache(async (userId: string): Promise<string[]> => {
-  const wishlist = await prisma.wishlist.findUnique({
-    where: { userId },
-    select: { items: { select: { productId: true } } }
-  });
-  return (wishlist?.items ?? []).map((i) => i.productId);
-});
-
-export default async function StorefrontLayout({
+// SSR session fetch removed — it called await headers() which forced
+// Cache-Control: no-store on every page, breaking bfcache.
+// WishlistProvider handles client-side sync: reads localStorage for guests,
+// fetches /api/wishlist on mount for authenticated users.
+export default function StorefrontLayout({
   children
 }: Readonly<{ children: React.ReactNode }>) {
-  // Run session + wishlist fetch truly in parallel
-  const session = await getServerSession();
-  const serverProductIds = session?.userId
-    ? await getWishlistProductIds(session.userId)
-    : undefined;
-
   return (
     <CartProvider>
-      <WishlistProvider serverProductIds={serverProductIds}>
+      <WishlistProvider>
         <SiteHeader />
         <main>{children}</main>
         <Footer />
@@ -40,4 +25,3 @@ export default async function StorefrontLayout({
     </CartProvider>
   );
 }
-

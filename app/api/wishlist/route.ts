@@ -10,7 +10,7 @@ const bodySchema = z.object({ productId: z.string().min(1) });
 export async function GET() {
   const session = await getServerSession();
   if (!session?.userId) {
-    return NextResponse.json({ items: [] });
+    return NextResponse.json({ items: [], authenticated: false });
   }
 
   const wishlist = await prisma.wishlist.findUnique({
@@ -19,7 +19,7 @@ export async function GET() {
   });
 
   return NextResponse.json(
-    { items: (wishlist?.items ?? []).map((i) => i.productId) },
+    { items: (wishlist?.items ?? []).map((i) => i.productId), authenticated: true },
     { headers: { "Cache-Control": "private, max-age=30, stale-while-revalidate=10" } }
   );
 }

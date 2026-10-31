@@ -247,7 +247,7 @@
   border-bottom: 1.5px solid transparent;
   font-size: 13px;
   font-weight: 600;
-  color: #a1a1aa;
+  color: #6b7280;
   cursor: pointer;
   padding: 0 0 2px;
   letter-spacing: 0.02em;
@@ -306,6 +306,8 @@
     border-left: 1px solid #e4e4e7;
     /* Right padding mirrors container-shell margin */
     padding-right: max(20px, calc((100vw - 1180px) / 2));
+    /* Stabilise height before badge renders — prevents CLS */
+    min-height: 600px;
   }
 }
 
@@ -446,11 +448,7 @@
 /* ═══════════════════════════════════════════════
    PERFORMANCE: below-fold sections skip layout/paint until visible
 ═══════════════════════════════════════════════ */
-.elaris-cat-section,
-.elaris-perf-below-fold {
-  content-visibility: auto;
-  contain-intrinsic-size: 0 500px;
-}
+/* content-visibility removed — caused CLS 0.32 (footer jump on real-height reveal) */
 
 /* GPU-accelerated transitions for hover cards */
 .elaris-cat-card,

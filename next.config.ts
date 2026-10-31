@@ -8,6 +8,7 @@ const nextConfig: NextConfig = {
   experimental: {
     optimizePackageImports: ["lucide-react", "@radix-ui/react-icons", "date-fns"],
     webVitalsAttribution: ["CLS", "LCP", "FCP", "TTFB"],
+    optimizeCss: true,
   },
   // Compress responses with gzip/brotli
   compress: true,

@@ -122,7 +122,7 @@ export function HeroSlider({ slides: propSlides }: { slides?: Slide[] }) {
                   type="button"
                   onClick={() => setCurrent(idx)}
                   className={`elaris-slide-num ${idx === current ? "active" : ""}`}
-                  aria-label={`Go to slide ${idx + 1}`}
+                  aria-label={`Slide ${s.num}`}
                   aria-current={idx === current ? "true" : undefined}
                 >
                   {s.num}

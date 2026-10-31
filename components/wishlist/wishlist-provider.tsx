@@ -35,92 +35,145 @@ function readStoredWishlist(): WishlistItem[] {
 export function WishlistProvider({ children, serverProductIds }: { children: ReactNode; serverProductIds?: string[] }) {
   const [items, setItems] = useState<WishlistItem[]>(readStoredWishlist);
   const [synced, setSynced] = useState(false);
+  const [isServerBacked, setIsServerBacked] = useState(serverProductIds !== undefined);
 
-  // BUG-46 FIX: Re-sync when serverProductIds changes (e.g. login or logout)
   useEffect(() => {
-    if (serverProductIds === undefined) {
-      // Guest or logged out: reset state from localStorage and do not retain previous user items
-      setItems(readStoredWishlist());
-      setSynced(true);
+    if (serverProductIds !== undefined) {
+      setIsServerBacked(true);
+      const localItems = readStoredWishlist();
+      const newLocals = localItems.filter((l) => !serverProductIds.includes(l.productId));
+      Promise.all(
+        newLocals.map((l) =>
+          fetch("/api/wishlist", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ productId: l.productId })
+          }).catch((err) => console.error("[Wishlist] Initial sync failed:", err))
+        )
+      ).finally(() => {
+        const serverStubs: WishlistItem[] = serverProductIds.map((id) => ({
+          productId: id,
+          slug: "",
+          name: "",
+          price: 0,
+          image: "",
+          addedAt: new Date().toISOString()
+        }));
+        const merged = [...serverStubs];
+        for (const local of localItems) {
+          if (!merged.some((m) => m.productId === local.productId)) {
+            merged.push(local);
+          }
+        }
+        setItems(merged);
+        window.localStorage.removeItem(STORAGE_KEY);
+        setSynced(true);
+      });
       return;
     }
 
-    const localItems = readStoredWishlist();
+    // Client-side auto-discovery: fetch /api/wishlist on mount
+    fetch("/api/wishlist")
+      .then((res) => (res.ok ? res.json() : null))
+      .then((data: { items?: string[]; authenticated?: boolean } | null) => {
+        if (!data || !data.authenticated) {
+          setItems(readStoredWishlist());
+          setIsServerBacked(false);
+          setSynced(true);
+          return;
+        }
 
-    // Push any local items that aren't in the DB yet
-    const newLocals = localItems.filter((l) => !serverProductIds.includes(l.productId));
-    Promise.all(
-      newLocals.map((l) =>
+        setIsServerBacked(true);
+        const remoteIds: string[] = data.items ?? [];
+        const localItems = readStoredWishlist();
+        const newLocals = localItems.filter((l) => !remoteIds.includes(l.productId));
+
+        Promise.all(
+          newLocals.map((l) =>
+            fetch("/api/wishlist", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ productId: l.productId })
+            }).catch((err) => console.error("[Wishlist] Initial sync failed:", err))
+          )
+        ).finally(() => {
+          const serverStubs: WishlistItem[] = remoteIds.map((id) => ({
+            productId: id,
+            slug: "",
+            name: "",
+            price: 0,
+            image: "",
+            addedAt: new Date().toISOString()
+          }));
+          const merged = [...serverStubs];
+          for (const local of localItems) {
+            if (!merged.some((m) => m.productId === local.productId)) {
+              merged.push(local);
+            }
+          }
+          setItems(merged);
+          window.localStorage.removeItem(STORAGE_KEY);
+          setSynced(true);
+        });
+      })
+      .catch(() => {
+        setItems(readStoredWishlist());
+        setIsServerBacked(false);
+        setSynced(true);
+      });
+  }, [serverProductIds]);
+
+  // Persist to localStorage only for guests (not server-backed)
+  useEffect(() => {
+    if (!synced || isServerBacked) return;
+    window.localStorage.setItem(STORAGE_KEY, JSON.stringify(items));
+  }, [items, synced, isServerBacked]);
+
+  const addItem = useCallback(
+    (item: Omit<WishlistItem, "addedAt">) => {
+      setItems((current) => addWishlistItem(current, item));
+      if (isServerBacked) {
         fetch("/api/wishlist", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ productId: l.productId })
-        }).catch((err) => console.error("[Wishlist] Initial sync failed:", err))
-      )
-    ).finally(() => {
-      // Merge: server items become stubs (name/price resolved on wishlist page via SSR)
-      const serverStubs: WishlistItem[] = serverProductIds.map((id) => ({
-        productId: id,
-        slug: "",
-        name: "",
-        price: 0,
-        image: "",
-        addedAt: new Date().toISOString()
-      }));
-      const merged = [...serverStubs];
-      for (const local of localItems) {
-        if (!merged.some((m) => m.productId === local.productId)) {
-          merged.push(local);
-        }
-      }
-      setItems(merged);
-      window.localStorage.removeItem(STORAGE_KEY); // DB is source of truth now
-      setSynced(true);
-    });
-  }, [serverProductIds]);
-
-  // Persist to localStorage only for guests (no serverProductIds)
-  useEffect(() => {
-    if (!synced || serverProductIds !== undefined) return;
-    window.localStorage.setItem(STORAGE_KEY, JSON.stringify(items));
-  }, [items, synced, serverProductIds]);
-
-  const addItem = useCallback((item: Omit<WishlistItem, "addedAt">) => {
-    setItems((current) => addWishlistItem(current, item));
-    if (serverProductIds !== undefined) {
-      fetch("/api/wishlist", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ productId: item.productId })
-      }).catch((err) => console.error("[Wishlist] Add item failed:", err));
-    }
-  }, [serverProductIds]);
-
-  const removeItem = useCallback((productId: string) => {
-    setItems((current) => removeWishlistItem(current, productId));
-    if (serverProductIds !== undefined) {
-      fetch("/api/wishlist", {
-        method: "DELETE",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ productId })
-      }).catch((err) => console.error("[Wishlist] Remove item failed:", err));
-    }
-  }, [serverProductIds]);
-
-  const toggleItem = useCallback((item: Omit<WishlistItem, "addedAt">) => {
-    setItems((current) => {
-      const next = toggleWishlistItem(current, item);
-      const wasAdded = next.some((i) => i.productId === item.productId);
-      if (serverProductIds !== undefined) {
-        fetch("/api/wishlist", {
-          method: wasAdded ? "POST" : "DELETE",
-          headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ productId: item.productId })
-        }).catch((err) => console.error("[Wishlist] Toggle item failed:", err));
+        }).catch((err) => console.error("[Wishlist] Add item failed:", err));
       }
-      return next;
-    });
-  }, [serverProductIds]);
+    },
+    [isServerBacked]
+  );
+
+  const removeItem = useCallback(
+    (productId: string) => {
+      setItems((current) => removeWishlistItem(current, productId));
+      if (isServerBacked) {
+        fetch("/api/wishlist", {
+          method: "DELETE",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ productId })
+        }).catch((err) => console.error("[Wishlist] Remove item failed:", err));
+      }
+    },
+    [isServerBacked]
+  );
+
+  const toggleItem = useCallback(
+    (item: Omit<WishlistItem, "addedAt">) => {
+      setItems((current) => {
+        const next = toggleWishlistItem(current, item);
+        const wasAdded = next.some((i) => i.productId === item.productId);
+        if (isServerBacked) {
+          fetch("/api/wishlist", {
+            method: wasAdded ? "POST" : "DELETE",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ productId: item.productId })
+          }).catch((err) => console.error("[Wishlist] Toggle item failed:", err));
+        }
+        return next;
+      });
+    },
+    [isServerBacked]
+  );
 
   const isSaved = useCallback(
     (productId: string) => items.some((item) => item.productId === productId),

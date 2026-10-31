@@ -46,6 +46,7 @@
     "@types/react": "^19.2.7",
     "@types/react-dom": "^19.2.3",
     "@vitest/coverage-v8": "^4.1.11",
+    "critters": "^0.0.25",
     "embedded-postgres": "^18.4.0-beta.17",
     "eslint": "^9.39.1",
     "eslint-config-next": "16.3.4",
@@ -59,5 +60,12 @@
   },
   "prisma": {
     "seed": "tsx prisma/seed.ts"
-  }
+  },
+  "browserslist": [
+    "> 0.5%",
+    "last 2 Chrome versions",
+    "last 2 Firefox versions",
+    "last 2 Safari versions",
+    "not dead"
+  ]
 }
