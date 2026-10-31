@@ -25,8 +25,9 @@ export async function GET(request: NextRequest) {
   const dayNames = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 
   if (period === "7 Days") {
-    startDate = analyticsSince(analyticsStartAt, new Date(now.getTime() - 6 * 86400000));
+    startDate = new Date(now.getTime() - 6 * 86400000);
     startDate.setHours(0, 0, 0, 0);
+    startDate = analyticsSince(analyticsStartAt, startDate);
 
     for (let i = 0; i < 7; i++) {
       const d = new Date(startDate.getTime() + i * 86400000);
@@ -41,8 +42,9 @@ export async function GET(request: NextRequest) {
       });
     }
   } else if (period === "30 Days") {
-    startDate = analyticsSince(analyticsStartAt, new Date(now.getTime() - 28 * 86400000));
+    startDate = new Date(now.getTime() - 28 * 86400000);
     startDate.setHours(0, 0, 0, 0);
+    startDate = analyticsSince(analyticsStartAt, startDate);
 
     for (let i = 0; i < 4; i++) {
       const start = new Date(startDate.getTime() + i * 7 * 86400000);
@@ -54,8 +56,9 @@ export async function GET(request: NextRequest) {
       });
     }
   } else if (period === "90 Days") {
-    startDate = analyticsSince(analyticsStartAt, new Date(now.getTime() - 90 * 86400000));
+    startDate = new Date(now.getTime() - 90 * 86400000);
     startDate.setHours(0, 0, 0, 0);
+    startDate = analyticsSince(analyticsStartAt, startDate);
 
     for (let i = 0; i < 3; i++) {
       const start = new Date(startDate.getTime() + i * 30 * 86400000);
@@ -68,8 +71,9 @@ export async function GET(request: NextRequest) {
     }
   } else {
     // 1 Year - 4 quarters
-    startDate = analyticsSince(analyticsStartAt, new Date(now.getTime() - 365 * 86400000));
+    startDate = new Date(now.getTime() - 365 * 86400000);
     startDate.setHours(0, 0, 0, 0);
+    startDate = analyticsSince(analyticsStartAt, startDate);
 
     for (let i = 0; i < 4; i++) {
       const start = new Date(startDate.getTime() + i * 91 * 86400000);

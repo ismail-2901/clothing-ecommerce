@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   ANALYTICS_START_AT_KEY,
   analyticsCreatedAtFilter,
+  analyticsSince,
   parseAnalyticsStartAt
 } from "@/features/admin/analytics";
 
@@ -23,5 +24,12 @@ describe("analytics reset window", () => {
 
     expect(analyticsCreatedAtFilter(startAt)).toEqual({ createdAt: { gte: startAt } });
     expect(analyticsCreatedAtFilter(undefined)).toEqual({});
+  });
+
+  it("keeps reset boundary later than requested report period", () => {
+    const resetAt = new Date("2026-10-31T18:00:00.000Z");
+    const reportStart = new Date("2026-10-31T00:00:00.000Z");
+
+    expect(analyticsSince(resetAt, reportStart)).toBe(resetAt);
   });
 });
