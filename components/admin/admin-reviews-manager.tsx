@@ -151,7 +151,7 @@ export function AdminReviewsManager({
       </div>
 
       {/* 4 KPI Cards */}
-      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+      <div className="grid gap-4 grid-cols-2 xl:grid-cols-4">
         <div className="rounded-xl border border-border bg-background p-5 shadow-sm">
           <p className="text-xs font-medium text-muted-foreground">Average Rating</p>
           <div className="mt-2 flex items-baseline gap-2">
@@ -199,6 +199,7 @@ export function AdminReviewsManager({
           <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
           <input
             type="text"
+            aria-label="Search reviews"
             placeholder="Search reviewer, product name, or review text…"
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
@@ -235,7 +236,86 @@ export function AdminReviewsManager({
         </div>
       ) : (
         <div className="overflow-hidden rounded-xl border border-border bg-background shadow-sm">
-          <div className="overflow-x-auto">
+          {/* Mobile: card list */}
+          <div className="sm:hidden divide-y divide-border/60">
+            {filtered.map((r) => {
+              const reviewerName = r.user?.name || "Verified Customer";
+              const dateStr = new Date(r.createdAt).toLocaleDateString("en-US", {
+                month: "short",
+                day: "numeric",
+                year: "numeric"
+              });
+
+              return (
+                <div
+                  key={r.id}
+                  onClick={() => setSelectedReview(r)}
+                  className="p-4 space-y-3 cursor-pointer hover:bg-muted/10 transition"
+                >
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="min-w-0">
+                      <p className="font-bold text-sm text-foreground truncate">{r.product.name}</p>
+                      <div className="flex items-center gap-1.5 mt-0.5">
+                        <span className="text-xs font-medium text-foreground">{reviewerName}</span>
+                        <ShieldCheck size={12} className="text-emerald-600 shrink-0" aria-label="Verified Buyer" />
+                        <span className="text-[11px] text-muted-foreground">• {dateStr}</span>
+                      </div>
+                    </div>
+                    <span
+                      className={`inline-block rounded border px-2 py-0.5 text-[10px] font-bold shrink-0 ${
+                        r.isVisible
+                          ? "border-emerald-200 bg-emerald-50 text-emerald-700"
+                          : "border-amber-200 bg-amber-50 text-amber-700"
+                      }`}
+                    >
+                      {r.isVisible ? "PUBLISHED" : "PENDING"}
+                    </span>
+                  </div>
+
+                  <div className="flex items-center gap-1" role="img" aria-label={`${r.rating} out of 5 stars`}>
+                    {[1, 2, 3, 4, 5].map((s) => (
+                      <Star
+                        key={s}
+                        size={13}
+                        className={s <= r.rating ? "fill-amber-400 text-amber-400" : "text-muted-foreground/30"}
+                      />
+                    ))}
+                    <span className="ml-1 text-xs font-bold text-foreground">{r.rating}.0</span>
+                  </div>
+
+                  {r.title && <p className="text-xs font-bold text-foreground truncate">{r.title}</p>}
+                  <p className="text-xs text-muted-foreground line-clamp-2 leading-relaxed">
+                    {r.body || "No written comment provided."}
+                  </p>
+
+                  <div className="flex items-center justify-end gap-2 pt-2 border-t border-border/40" onClick={(e) => e.stopPropagation()}>
+                    <button
+                      type="button"
+                      disabled={updatingId === r.id}
+                      onClick={() => handleToggleVisibility(r.id, r.isVisible)}
+                      aria-label={r.isVisible ? `Hide review for ${r.product.name}` : `Approve review for ${r.product.name}`}
+                      className="inline-flex items-center gap-1.5 rounded-md border border-border bg-background px-3 py-1.5 text-xs font-semibold text-foreground hover:bg-muted/40 transition disabled:opacity-50"
+                    >
+                      {r.isVisible ? <EyeOff size={13} /> : <Eye size={13} />}
+                      <span>{r.isVisible ? "Unpublish" : "Publish"}</span>
+                    </button>
+                    <button
+                      type="button"
+                      disabled={updatingId === r.id}
+                      onClick={() => handleDelete(r.id)}
+                      aria-label={`Delete review for ${r.product.name}`}
+                      className="inline-flex h-8 w-8 items-center justify-center rounded-md border border-border bg-background text-muted-foreground hover:text-rose-600 hover:border-rose-200 transition disabled:opacity-50"
+                    >
+                      <Trash2 size={14} />
+                    </button>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+
+          {/* Desktop: table */}
+          <div className="hidden sm:block overflow-x-auto">
             <table className="w-full min-w-[700px] text-left text-xs">
               <thead className="border-b border-border bg-muted/30 font-semibold text-muted-foreground">
                 <tr>
@@ -276,7 +356,7 @@ export function AdminReviewsManager({
                         <p className="text-[11px] text-muted-foreground">{dateStr}</p>
                       </td>
                       <td className="py-3.5 px-4">
-                        <div className="flex items-center gap-0.5">
+                        <div className="flex items-center gap-0.5" role="img" aria-label={`${r.rating} out of 5 stars`}>
                           {[1, 2, 3, 4, 5].map((s) => (
                             <Star
                               key={s}
@@ -310,7 +390,8 @@ export function AdminReviewsManager({
                             type="button"
                             disabled={updatingId === r.id}
                             onClick={() => handleToggleVisibility(r.id, r.isVisible)}
-                            className="inline-flex h-7 w-7 items-center justify-center rounded border border-border text-muted-foreground hover:text-foreground transition"
+                            aria-label={r.isVisible ? `Hide review for ${r.product.name}` : `Approve review for ${r.product.name}`}
+                            className="inline-flex h-8 w-8 items-center justify-center rounded border border-border text-muted-foreground hover:text-foreground transition disabled:opacity-50"
                             title={r.isVisible ? "Hide from Storefront" : "Approve & Publish"}
                           >
                             {r.isVisible ? <EyeOff size={13} /> : <Eye size={13} />}
@@ -319,7 +400,8 @@ export function AdminReviewsManager({
                             type="button"
                             disabled={updatingId === r.id}
                             onClick={() => handleDelete(r.id)}
-                            className="inline-flex h-7 w-7 items-center justify-center rounded border border-border text-muted-foreground hover:text-rose-600 hover:border-rose-200 transition"
+                            aria-label={`Delete review for ${r.product.name}`}
+                            className="inline-flex h-8 w-8 items-center justify-center rounded border border-border text-muted-foreground hover:text-rose-600 hover:border-rose-200 transition disabled:opacity-50"
                             title="Delete Review"
                           >
                             <Trash2 size={13} />
@@ -348,7 +430,8 @@ export function AdminReviewsManager({
                 <button
                   type="button"
                   onClick={() => setSelectedReview(null)}
-                  className="rounded-full p-1 text-muted-foreground hover:bg-muted hover:text-foreground"
+                  aria-label="Close review details"
+                  className="flex h-8 w-8 items-center justify-center rounded-full text-muted-foreground hover:bg-muted hover:text-foreground transition-colors"
                 >
                   <X size={18} />
                 </button>
@@ -398,6 +481,7 @@ export function AdminReviewsManager({
                 <form onSubmit={handleSendReply} className="space-y-2">
                   <textarea
                     rows={3}
+                    aria-label="Official store response"
                     placeholder="Thank the customer or address sizing feedback…"
                     value={replyText}
                     onChange={(e) => setReplyText(e.target.value)}
