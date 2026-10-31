@@ -78,7 +78,7 @@ export function LoginForm() {
           <div className="flex items-center gap-3">
             <Link
               href="/forgot-password"
-              className="text-xs text-muted-foreground hover:text-foreground underline underline-offset-4"
+              className="py-1 text-xs text-muted-foreground hover:text-foreground underline underline-offset-4"
             >
               Forgot password?
             </Link>

@@ -181,19 +181,19 @@ export function AdminHeroSlidesManager({ initialSlides }: { initialSlides: Slide
                 </div>
                 <p className="text-[11px] text-muted-foreground truncate">{slide.headline.join(" ")}</p>
               </div>
-              <div className="flex flex-col gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity">
-                <button type="button" onClick={(e) => { e.stopPropagation(); moveSlide(slide.id, "up"); }} disabled={idx === 0}
-                  className="rounded p-0.5 hover:bg-muted disabled:opacity-30">
-                  <ChevronUp size={12} />
+              <div className="flex flex-col gap-0.5 opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity">
+                <button type="button" aria-label="Move slide up" onClick={(e) => { e.stopPropagation(); moveSlide(slide.id, "up"); }} disabled={idx === 0}
+                  className="rounded p-1 hover:bg-muted disabled:opacity-30">
+                  <ChevronUp size={14} />
                 </button>
-                <button type="button" onClick={(e) => { e.stopPropagation(); moveSlide(slide.id, "down"); }} disabled={idx === slides.length - 1}
-                  className="rounded p-0.5 hover:bg-muted disabled:opacity-30">
-                  <ChevronDown size={12} />
+                <button type="button" aria-label="Move slide down" onClick={(e) => { e.stopPropagation(); moveSlide(slide.id, "down"); }} disabled={idx === slides.length - 1}
+                  className="rounded p-1 hover:bg-muted disabled:opacity-30">
+                  <ChevronDown size={14} />
                 </button>
               </div>
-              <button type="button" onClick={(e) => { e.stopPropagation(); removeSlide(slide.id); }}
-                className="opacity-0 group-hover:opacity-100 rounded p-1 hover:bg-red-50 hover:text-red-600 transition-all">
-                <Trash2 size={13} />
+              <button type="button" aria-label="Delete slide" onClick={(e) => { e.stopPropagation(); removeSlide(slide.id); }}
+                className="opacity-100 sm:opacity-0 sm:group-hover:opacity-100 rounded p-1.5 hover:bg-red-50 hover:text-red-600 transition-all">
+                <Trash2 size={14} />
               </button>
             </div>
           ))}

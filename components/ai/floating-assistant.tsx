@@ -217,7 +217,7 @@ export function FloatingAssistant() {
       )}
 
       <button
-        aria-label={open ? "Close ELARIS AI shopping assistant" : "Ask ELARIS AI shopping assistant"}
+        aria-label={open ? "Close ELARIS AI" : "Ask ELARIS AI"}
         className="group ml-auto flex items-center gap-3 rounded-full border border-border/80 bg-background py-2 shadow-xl hover:shadow-2xl hover:border-foreground/30 transition-all duration-200 pl-2 pr-2 sm:pr-4"
         onClick={open ? () => setOpen(false) : handleOpen}
         type="button"
@@ -231,9 +231,9 @@ export function FloatingAssistant() {
         </div>
         <div className="hidden sm:block text-left">
           <p className="text-[12px] font-bold text-foreground leading-tight">Ask ELARIS AI</p>
-          <p className="text-[10px] text-muted-foreground leading-tight">Track your order or find styles</p>
+          <p className="text-[10px] text-muted-foreground leading-tight" aria-hidden="true">Track your order or find styles</p>
         </div>
-        <span className="hidden sm:inline text-xs text-foreground/70 transition-transform duration-200 group-hover:translate-x-0.5">
+        <span aria-hidden="true" className="hidden sm:inline text-xs text-foreground/70 transition-transform duration-200 group-hover:translate-x-0.5">
           →
         </span>
       </button>
