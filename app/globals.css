@@ -292,6 +292,12 @@
   }
 }
 
+@media (min-width: 768px) {
+  .elaris-hero-img-col {
+    aspect-ratio: auto;
+  }
+}
+
 /* ── Right column: discount badge ── */
 .elaris-hero-badge-col {
   display: none; /* hidden on mobile */

@@ -69,7 +69,7 @@ export default async function HomePage() {
           <div className="elaris-cat-grid">
             {categoryGrid.map((cat) => (
               <Link key={cat.label} href={cat.href} className="elaris-cat-card group">
-                <div className="elaris-cat-img-wrap">
+                <div className="elaris-cat-img-wrap" style={{ aspectRatio: "16 / 10.5" }}>
                   <Image
                     src={cat.image}
                     alt={cat.alt}
@@ -136,7 +136,7 @@ export default async function HomePage() {
 
           <div className="grid gap-6 md:grid-cols-2">
             {/* Spotlight 1: Women */}
-            <div className="group relative overflow-hidden rounded-2xl bg-muted aspect-[4/5] sm:aspect-[16/11]">
+            <div className="group relative overflow-hidden rounded-2xl bg-muted aspect-[4/5] sm:aspect-[16/11]" style={{ aspectRatio: "4 / 5" }}>
               <Image
                 src="/elaris-women.jpg"
                 alt="Women's Editorial Collection"
@@ -166,7 +166,7 @@ export default async function HomePage() {
             </div>
 
             {/* Spotlight 2: Men */}
-            <div className="group relative overflow-hidden rounded-2xl bg-muted aspect-[4/5] sm:aspect-[16/11]">
+            <div className="group relative overflow-hidden rounded-2xl bg-muted aspect-[4/5] sm:aspect-[16/11]" style={{ aspectRatio: "4 / 5" }}>
               <Image
                 src="/elaris-men.jpg"
                 alt="Men's Editorial Streetwear"

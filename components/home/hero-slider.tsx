@@ -151,7 +151,7 @@ export function HeroSlider({ slides: propSlides }: { slides?: Slide[] }) {
         </div>
 
         {/* Center column: hero image fills full height */}
-        <div className="elaris-hero-img-col">
+        <div className="elaris-hero-img-col" style={{ aspectRatio: "3 / 4" }}>
           <Image
             src={active.image}
             alt={active.alt}
