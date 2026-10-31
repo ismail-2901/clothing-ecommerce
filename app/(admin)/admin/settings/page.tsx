@@ -285,7 +285,7 @@ export default function AdminSettingsPage() {
                     </div>
                     <p className="text-[11px] text-muted-foreground mt-0.5">{gw.fee}</p>
                   </div>
-                  <input type="checkbox" defaultChecked={gw.active} className="h-4 w-4 rounded accent-foreground" />
+                  <input type="checkbox" defaultChecked={gw.active} aria-label={`Enable ${gw.name}`} className="h-4 w-4 rounded accent-foreground" />
                 </div>
               ))}
             </div>
@@ -370,7 +370,7 @@ export default function AdminSettingsPage() {
                   <p className="font-bold text-foreground">Enforce Two-Factor Authentication (2FA)</p>
                   <p className="text-muted-foreground text-[11px]">Require TOTP authenticator code for all admin logins</p>
                 </div>
-                <input type="checkbox" defaultChecked className="h-4 w-4 rounded accent-foreground" />
+                <input type="checkbox" defaultChecked aria-label="Enforce Two-Factor Authentication" className="h-4 w-4 rounded accent-foreground" />
               </div>
 
               <div className="pt-3 flex justify-between items-center">
@@ -378,7 +378,7 @@ export default function AdminSettingsPage() {
                   <p className="font-bold text-foreground">Automatic Session Inactivity Timeout</p>
                   <p className="text-muted-foreground text-[11px]">Lock admin dashboard screen after 30 minutes of inactivity</p>
                 </div>
-                <input type="checkbox" defaultChecked className="h-4 w-4 rounded accent-foreground" />
+                <input type="checkbox" defaultChecked aria-label="Automatic Session Inactivity Timeout" className="h-4 w-4 rounded accent-foreground" />
               </div>
 
               <div className="pt-3 flex justify-between items-center">
@@ -386,7 +386,7 @@ export default function AdminSettingsPage() {
                   <p className="font-bold text-foreground">IP Geolocation Whitelisting</p>
                   <p className="text-muted-foreground text-[11px]">Alert on administrative logins outside Bangladesh</p>
                 </div>
-                <input type="checkbox" defaultChecked className="h-4 w-4 rounded accent-foreground" />
+                <input type="checkbox" defaultChecked aria-label="IP Geolocation Whitelisting" className="h-4 w-4 rounded accent-foreground" />
               </div>
             </div>
           </div>

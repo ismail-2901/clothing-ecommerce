@@ -119,7 +119,7 @@ export function AdminPasswordChangeForm() {
             <button
               type="button"
               onClick={() => setShowCurrent(!showCurrent)}
-              className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+              className="absolute right-1 top-1/2 -translate-y-1/2 flex h-8 w-8 items-center justify-center rounded-md text-muted-foreground hover:text-foreground"
               aria-label={showCurrent ? "Hide password" : "Show password"}
             >
               {showCurrent ? <EyeOff size={15} /> : <Eye size={15} />}
@@ -149,7 +149,7 @@ export function AdminPasswordChangeForm() {
             <button
               type="button"
               onClick={() => setShowNew(!showNew)}
-              className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+              className="absolute right-1 top-1/2 -translate-y-1/2 flex h-8 w-8 items-center justify-center rounded-md text-muted-foreground hover:text-foreground"
               aria-label={showNew ? "Hide password" : "Show password"}
             >
               {showNew ? <EyeOff size={15} /> : <Eye size={15} />}
@@ -176,7 +176,7 @@ export function AdminPasswordChangeForm() {
             <button
               type="button"
               onClick={() => setShowConfirm(!showConfirm)}
-              className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+              className="absolute right-1 top-1/2 -translate-y-1/2 flex h-8 w-8 items-center justify-center rounded-md text-muted-foreground hover:text-foreground"
               aria-label={showConfirm ? "Hide password" : "Show password"}
             >
               {showConfirm ? <EyeOff size={15} /> : <Eye size={15} />}
