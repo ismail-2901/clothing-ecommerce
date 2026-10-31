@@ -79,34 +79,62 @@ export async function getDynamicStoreContext(): Promise<string> {
     const contextText = `
 STORE OVERVIEW & BRAND IDENTITY:
 - Brand Name: ELARIS
-- Mission: Contemporary Premium Fashion & Apparel in Bangladesh. ELARIS combines modern minimalist cuts, quality craftsmanship, premium cotton/linen/knit fabrics, and timeless aesthetics.
+- Brand Identity: Contemporary Premium Fashion & Apparel in Bangladesh. ELARIS combines modern minimalist cuts, quality craftsmanship, premium cotton/linen/knit fabrics, and timeless aesthetics.
 - Flagship Address: ${storeConfig.contact.address}
 - Store Hours: 10:00 AM – 8:00 PM (Every day, 7 days a week)
 - Customer Support Email: ${storeConfig.contact.email}
 - Customer Support Phone: ${storeConfig.contact.phone}
 - Store Website: https://elaris-store.vercel.app
 
+HOW TO ORDER ON ELARIS (STEP-BY-STEP WEBSITE GUIDE):
+1. Browse Collections: Go to /shop or search for desired items by category, color, or style.
+2. Select Product Options: Pick your preferred size (XS, S, M, L, XL, XXL) and color on the product page.
+3. Add to Bag / Buy Now: Click "Add to Cart" or "Buy Now" to proceed immediately.
+4. Review Shopping Bag: Open your cart drawer/page to review selections, apply any discount code, and click "Proceed to Checkout".
+5. Enter Delivery Details: Provide your recipient name, active mobile phone number, delivery address, city, and district.
+6. Select Payment Method: Choose Cash on Delivery (COD), bKash, Nagad, or Debit/Credit Card (Visa, Mastercard, Amex via SSLCommerz).
+7. Confirm Order: Click "Place Order". You will immediately receive an order confirmation SMS and email with your #ATC-XXXXX tracking number.
+
 SHIPPING & DELIVERY RULES (BANGLADESH NATIONWIDE):
 - Inside Dhaka City: ৳${storePolicies.shipping.insideDhakaFee} (${storePolicies.shipping.dhakaDays}, typically 1-2 business days)
-- Outside Dhaka (all 64 districts): ৳${storePolicies.shipping.outsideDhakaFee} (${storePolicies.shipping.outsideDhakaDays}, typically 2-4 business days)
+- Outside Dhaka (all 64 districts & upazilas): ৳${storePolicies.shipping.outsideDhakaFee} (${storePolicies.shipping.outsideDhakaDays}, typically 2-4 business days)
 - Free Delivery: Automatically applied on orders of ৳${storePolicies.shipping.freeThreshold.toLocaleString()} or more, or by using coupon code '${storePolicies.shipping.freeShippingCode}'.
 - Express / Urgent Delivery: Available inside Dhaka upon request via support.
-- Order Tracking: Customers can track live progress at /track using their Order Number (e.g., #ATC-XXXXX). Logged-in customers can view live updates under Account → Orders.
+- Courier Partners: Steadfast, Pathao, Paperfly, RedX.
+- Order Tracking: Customers can track live progress 24/7 at /track using their Order Number (e.g., #ATC-XXXXX). Logged-in customers can view live updates under Account → Orders.
 
-PAYMENT METHODS:
-- Cash on Delivery (COD) available nationwide across Bangladesh.
+ORDER CANCELLATION & ADDRESS MODIFICATIONS:
+- Orders can be cancelled or modified before they enter the "SHIPPED" / "DISPATCHED" stage.
+- To cancel or change shipping address, visit Account → Orders or promptly contact support via phone (+880 1711-000000) or email (${storeConfig.contact.email}).
+
+PAYMENT METHODS & SECURITY:
+- Cash on Delivery (COD) available nationwide across Bangladesh (pay cash to delivery rider at your doorstep).
 - Mobile Financial Services (MFS): bKash, Nagad, Rocket.
 - Online Debit/Credit Cards & Internet Banking via SSLCommerz (Visa, Mastercard, Amex, etc.).
+- 100% secure, encrypted checkout.
 
 RETURN, EXCHANGE & REFUND POLICIES:
 - Returns & Exchanges: Allowed within ${storePolicies.returns.days} days of delivery.
 - Conditions: Garments must be unworn, unwashed, in original condition with all tags and packaging intact.
+- Free Size Exchanges: If an item doesn't fit, customers can exchange it for a different size easily.
 - Process: Easily initiated from Account → Orders or by contacting customer support.
 - Refunds: Processed within ${storePolicies.returns.refundDays} business days following return quality inspection, credited back to original payment method or bKash/Nagad.
 
-SIZE & FIT RECOMMENDATIONS:
+SIZE, FIT & FABRIC CARE:
 - Available Sizes: XS, S, M, L, XL, XXL (all measurements provided in inches on individual product pages).
 - Fitting Tip: Fits true-to-size. For oversized streetwear or relaxed layering looks, recommend sizing up one size.
+- Fabrics: 100% combed cotton, French terry loopknit fleece, pure linen blends, and breathable fine knits.
+- Washing & Care: Machine wash cold inside out with like colors. Do not bleach. Tumble dry on low heat or line dry in shade. Warm iron inside out.
+
+ACCOUNT, WISHLIST & OFFERS:
+- Passwordless fast login via phone number OTP or email.
+- Wishlist: Click the Heart icon on any product to save it to your wishlist (/account/wishlist).
+- Active Coupons & Promo Codes: Enter valid code at checkout to claim savings.
+
+AI REASONING & ASSISTANCE CAPABILITIES:
+- You are directly embedded on the ELARIS website (elaris-store.vercel.app). Never say you don't know the website or lack data!
+- If a customer asks about a product, category, or styling scenario not explicitly listed in the catalog, use your intelligent fashion and styling knowledge to recommend our existing categories, guide them to /shop, or suggest matching outfit combinations.
+- Always respond in the same language as the customer (English, বাংলা / Bengali, or Banglish) with elegance, warmth, and precision.
 
 AVAILABLE CATEGORIES (${categories.length}):
 ${categoryList}

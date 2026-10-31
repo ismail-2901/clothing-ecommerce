@@ -48,7 +48,15 @@ export function detectShoppingIntent(message: string): AssistantStructuredOutput
     };
   }
 
-  if (normalized.match(/track|order|where.*order|my order|status.*order|order.*status/)) {
+  if (normalized.match(/how.*(?:order|buy|purchase)|order.*(?:process|guide|steps|procedure)|kivabe.*order|order.*kivabe|place.*order|order.*niom/)) {
+    return {
+      intent: "GENERAL_SUPPORT",
+      filters,
+      response: "Here is how to place an order on ELARIS."
+    };
+  }
+
+  if (normalized.match(/track.*order|order.*track|where.*order|my order.*status|order.*status|order.*update|track/)) {
     return {
       intent: "ORDER_STATUS",
       filters,

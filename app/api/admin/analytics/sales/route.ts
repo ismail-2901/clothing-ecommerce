@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireAdminSession } from "@/lib/auth/server";
 import { prisma } from "@/db/prisma";
+import { analyticsSince, getAnalyticsStartAt } from "@/features/admin/analytics";
 
 export type SalesDataPoint = {
   label: string;
@@ -17,13 +18,14 @@ export async function GET(request: NextRequest) {
   const period = searchParams.get("period") || "7 Days";
 
   const now = new Date();
+  const analyticsStartAt = await getAnalyticsStartAt();
   let startDate = new Date();
   let buckets: { label: string; start: Date; end: Date }[] = [];
 
   const dayNames = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 
   if (period === "7 Days") {
-    startDate = new Date(now.getTime() - 6 * 86400000);
+    startDate = analyticsSince(analyticsStartAt, new Date(now.getTime() - 6 * 86400000));
     startDate.setHours(0, 0, 0, 0);
 
     for (let i = 0; i < 7; i++) {
@@ -39,7 +41,7 @@ export async function GET(request: NextRequest) {
       });
     }
   } else if (period === "30 Days") {
-    startDate = new Date(now.getTime() - 28 * 86400000);
+    startDate = analyticsSince(analyticsStartAt, new Date(now.getTime() - 28 * 86400000));
     startDate.setHours(0, 0, 0, 0);
 
     for (let i = 0; i < 4; i++) {
@@ -52,7 +54,7 @@ export async function GET(request: NextRequest) {
       });
     }
   } else if (period === "90 Days") {
-    startDate = new Date(now.getTime() - 90 * 86400000);
+    startDate = analyticsSince(analyticsStartAt, new Date(now.getTime() - 90 * 86400000));
     startDate.setHours(0, 0, 0, 0);
 
     for (let i = 0; i < 3; i++) {
@@ -66,7 +68,7 @@ export async function GET(request: NextRequest) {
     }
   } else {
     // 1 Year - 4 quarters
-    startDate = new Date(now.getTime() - 365 * 86400000);
+    startDate = analyticsSince(analyticsStartAt, new Date(now.getTime() - 365 * 86400000));
     startDate.setHours(0, 0, 0, 0);
 
     for (let i = 0; i < 4; i++) {

@@ -18,6 +18,7 @@ import { formatMoney } from "@/lib/utils/money";
 import { getServerUser } from "@/lib/auth/server";
 import { prisma } from "@/db/prisma";
 import { AdminDashboardSalesChart } from "@/components/admin/admin-dashboard-sales-chart";
+import { analyticsCreatedAtFilter, analyticsSince, getAnalyticsStartAt } from "@/features/admin/analytics";
 
 function subDays(days: number) {
   return new Date(Date.now() - days * 86400000);
@@ -30,6 +31,10 @@ export default async function AdminAnalyticsPage() {
   ) ?? false;
   if (!isAdmin) redirect("/login");
 
+  const analyticsStartAt = await getAnalyticsStartAt();
+  const analyticsCreatedAt = analyticsCreatedAtFilter(analyticsStartAt);
+  const newCustomersSince = analyticsSince(analyticsStartAt, subDays(30));
+
   // Aggregations
   const [
     totalRevenueAgg,
@@ -41,25 +46,27 @@ export default async function AdminAnalyticsPage() {
     ordersWithAddress
   ] = await Promise.all([
     prisma.order.aggregate({
-      where: { status: { notIn: ["CANCELLED", "FAILED_DELIVERY"] } },
+      where: { ...analyticsCreatedAt, status: { notIn: ["CANCELLED", "FAILED_DELIVERY"] } },
       _sum: { grandTotal: true },
       _count: { id: true }
     }),
-    prisma.order.count(),
-    prisma.user.count({ where: { deletedAt: null } }),
-    prisma.user.count({ where: { deletedAt: null, createdAt: { gte: subDays(30) } } }),
+    prisma.order.count({ where: analyticsCreatedAt }),
+    prisma.user.count({ where: { deletedAt: null, ...analyticsCreatedAt } }),
+    prisma.user.count({ where: { deletedAt: null, createdAt: { gte: newCustomersSince } } }),
     prisma.orderItem.groupBy({
+      where: analyticsCreatedAt,
       by: ["productId"],
       _sum: { quantity: true, lineTotal: true },
       orderBy: { _sum: { quantity: "desc" } },
       take: 5
     }),
     prisma.order.groupBy({
+      where: analyticsCreatedAt,
       by: ["status"],
       _count: { id: true }
     }),
     prisma.order.findMany({
-      where: { status: { notIn: ["CANCELLED", "FAILED_DELIVERY"] } },
+      where: { ...analyticsCreatedAt, status: { notIn: ["CANCELLED", "FAILED_DELIVERY"] } },
       select: { grandTotal: true, deliveryAddress: true }
     })
   ]);
@@ -246,43 +253,31 @@ export default async function AdminAnalyticsPage() {
             </div>
             <p className="text-xs text-muted-foreground mb-6">User device mix and checkout conversions</p>
 
-            {orderCount === 0 && totalCustomers === 0 ? (
-              <div className="py-12 text-center rounded-xl border border-dashed border-border/70 p-6">
-                <BarChart3 size={28} className="mx-auto text-muted-foreground/60 mb-2" />
-                <p className="text-xs font-semibold text-foreground">No traffic or device sessions recorded yet</p>
-                <p className="text-[11px] text-muted-foreground mt-1">
-                  Live visitor sessions and checkout conversions will populate here as customers visit.
-                </p>
+            <div className="grid grid-cols-2 gap-4">
+              <div className="rounded-xl border border-border bg-muted/20 p-4 text-center">
+                <Smartphone size={24} className="mx-auto text-foreground mb-2" />
+                <p className="text-2xl font-black text-foreground">0%</p>
+                <p className="text-xs font-bold text-foreground mt-0.5">Mobile Traffic</p>
+                <p className="text-[11px] text-muted-foreground mt-1">0.0% Conversion</p>
               </div>
-            ) : (
-              <>
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="rounded-xl border border-border bg-muted/20 p-4 text-center">
-                    <Smartphone size={24} className="mx-auto text-foreground mb-2" />
-                    <p className="text-2xl font-black text-foreground">74%</p>
-                    <p className="text-xs font-bold text-foreground mt-0.5">Mobile Traffic</p>
-                    <p className="text-[11px] text-muted-foreground mt-1">{conversionRate} Conversion</p>
-                  </div>
 
-                  <div className="rounded-xl border border-border bg-muted/20 p-4 text-center">
-                    <Laptop size={24} className="mx-auto text-foreground mb-2" />
-                    <p className="text-2xl font-black text-foreground">26%</p>
-                    <p className="text-xs font-bold text-foreground mt-0.5">Desktop Traffic</p>
-                    <p className="text-[11px] text-muted-foreground mt-1">{conversionRate} Conversion</p>
-                  </div>
-                </div>
+              <div className="rounded-xl border border-border bg-muted/20 p-4 text-center">
+                <Laptop size={24} className="mx-auto text-foreground mb-2" />
+                <p className="text-2xl font-black text-foreground">0%</p>
+                <p className="text-xs font-bold text-foreground mt-0.5">Desktop Traffic</p>
+                <p className="text-[11px] text-muted-foreground mt-1">0.0% Conversion</p>
+              </div>
+            </div>
 
-                <div className="mt-6 rounded-lg border border-dashed border-border p-3.5 text-xs text-muted-foreground flex items-center justify-between">
-                  <span>Top Traffic Referrer:</span>
-                  <span className="font-bold text-foreground">Direct &amp; Organic Search</span>
-                </div>
-              </>
-            )}
+            <div className="mt-6 rounded-lg border border-dashed border-border p-3.5 text-xs text-muted-foreground flex items-center justify-between">
+              <span>Top Traffic Referrer:</span>
+              <span className="font-bold text-foreground">0 sessions</span>
+            </div>
           </div>
 
           <div className="mt-6 pt-4 border-t border-border flex justify-between items-center text-xs">
             <span className="text-muted-foreground">Speed Benchmark</span>
-            <span className="font-bold text-emerald-600">98/100 Core Web Vitals</span>
+            <span className="font-bold text-muted-foreground">0/100 Core Web Vitals</span>
           </div>
         </div>
       </div>

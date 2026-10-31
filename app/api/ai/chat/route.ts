@@ -16,12 +16,22 @@ const bodySchema = z.object({
 
 // Comprehensive store knowledge base
 const storeKnowledge: Record<string, string> = {
-  greeting: "Hello! I am ELARIS AI, your personal shopping assistant. I can help you discover outfits, track your existing orders in real time, check active promo codes, or answer questions about delivery, returns, and sizing. How can I assist you today?",
-  shipping: `We deliver nationwide across Bangladesh:\n• Dhaka City: ৳${storePolicies.shipping.insideDhakaFee} delivery fee (${storePolicies.shipping.dhakaDays})\n• Outside Dhaka: ৳${storePolicies.shipping.outsideDhakaFee} delivery fee (${storePolicies.shipping.outsideDhakaDays})\n• Free Delivery: Automatically applied on orders of ৳${storePolicies.shipping.freeThreshold.toLocaleString()} or more, or with code ${storePolicies.shipping.freeShippingCode}.`,
-  return: `You may return or exchange any unworn, unwashed item with tags attached within ${storePolicies.returns.days} days of delivery. You can initiate a return directly from Account → Orders.`,
-  refund: `Refunds are processed within ${storePolicies.returns.refundDays} after our inspection team receives and verifies the returned item. Refunds are returned to your original payment method.`,
-  size: "We provide size guides (XS, S, M, L, XL, XXL) on every product page. All measurements are in inches. If you are between sizes, we recommend sizing up for a relaxed fit.",
-  payment: "We accept Cash on Delivery (COD), bKash, Nagad, SSLCommerz, and all major Debit/Credit cards (Visa, Mastercard, Amex).",
+  greeting: "Hello! I am ELARIS AI, your personal shopping assistant. I can help you discover outfits, place orders, track existing shipments in real time, check active promo codes, or answer questions about delivery, returns, and sizing. How can I assist you today?",
+  how_to_order: `How to place an order on ELARIS:
+1. Browse /shop or use the search bar to find your favorite apparel.
+2. Select your size (XS–XXL) & color on the product page.
+3. Click "Add to Cart" or "Buy Now".
+4. Open your Shopping Bag and click "Proceed to Checkout".
+5. Enter your delivery address (inside Dhaka or any district across Bangladesh).
+6. Select payment method: Cash on Delivery (COD), bKash, Nagad, or Debit/Credit Card.
+7. Click "Place Order". You'll instantly receive an SMS/email confirmation with your order number!`,
+  shipping: `We deliver nationwide across Bangladesh:\n• Dhaka City: ৳${storePolicies.shipping.insideDhakaFee} delivery fee (${storePolicies.shipping.dhakaDays})\n• Outside Dhaka (all 64 districts): ৳${storePolicies.shipping.outsideDhakaFee} delivery fee (${storePolicies.shipping.outsideDhakaDays})\n• Free Delivery: Automatically applied on orders of ৳${storePolicies.shipping.freeThreshold.toLocaleString()} or more, or with code ${storePolicies.shipping.freeShippingCode}.`,
+  return: `You may return or exchange any unworn, unwashed item with tags attached within ${storePolicies.returns.days} days of delivery. Free size exchanges are available. You can initiate a return or exchange directly from Account → Orders.`,
+  refund: `Refunds are processed within ${storePolicies.returns.refundDays} after our inspection team receives and verifies the returned item. Refunds are returned to your original payment method or bKash/Nagad.`,
+  cancel_order: `You can cancel or modify an order before it has been dispatched from Account → Orders. If your order is already packed or in transit, please contact our support team immediately at ${storeConfig.contact.phone} or ${storeConfig.contact.email}.`,
+  size: "We provide size guides (XS, S, M, L, XL, XXL) on every product page. All measurements are in inches. Regular cuts fit true to size; for a relaxed oversized streetwear aesthetic, we recommend sizing up one size.",
+  payment: "We accept Cash on Delivery (COD) across all Bangladesh, bKash, Nagad, Rocket, and all major Debit/Credit cards (Visa, Mastercard, Amex via SSLCommerz).",
+  fabric_care: "All ELARIS garments are crafted from premium cotton, linen, and knit blends. Wash cold inside out with similar colors, avoid bleach, tumble dry on low heat, and iron inside out on medium heat.",
   contact: `You can reach the ELARIS team via:\n• Email: ${storeConfig.contact.email}\n• Phone: ${storeConfig.contact.phone}\n• Store Location: ${storeConfig.contact.address}\n• Operating Hours: 10:00 AM – 8:00 PM, 7 days a week.`,
   order_help: "To track your order, please provide your Order Number (e.g., #ATC-XXXXX). You can also track your order at /track or view your history under Account → Orders."
 };
@@ -29,13 +39,16 @@ const storeKnowledge: Record<string, string> = {
 function findKnowledge(message: string): string | null {
   const normalized = message.toLowerCase();
   if (normalized.match(/^(hi|hello|hey|greetings|who are you|what can you do)\b/)) return storeKnowledge.greeting;
+  if (normalized.match(/how.*(?:order|buy|purchase)|order.*(?:process|guide|steps|procedure)|kivabe.*order|order.*kivabe|place.*order|order.*niom/)) return storeKnowledge.how_to_order;
+  if (normalized.match(/cancel.*order|change.*order|modify.*order/)) return storeKnowledge.cancel_order;
   if (normalized.match(/ship|deliver|delivery|courier|free ship/)) return storeKnowledge.shipping;
   if (normalized.match(/return|exchange|send back/)) return storeKnowledge.return;
   if (normalized.match(/refund|money back/)) return storeKnowledge.refund;
   if (normalized.match(/size|sizing|guide|fit|measure/)) return storeKnowledge.size;
+  if (normalized.match(/care|wash|fabric|iron|shrink/)) return storeKnowledge.fabric_care;
   if (normalized.match(/pay|payment|bkash|nagad|cod|card/)) return storeKnowledge.payment;
   if (normalized.match(/contact|support|help|email|reach|phone|address|location|store|hours/)) return storeKnowledge.contact;
-  if (normalized.match(/track.*order|where.*order|my order|status/)) return storeKnowledge.order_help;
+  if (normalized.match(/track.*order|where.*order|my order.*status|order.*status/)) return storeKnowledge.order_help;
   return null;
 }
 
@@ -171,12 +184,15 @@ async function callLLM(
       ? `\n\nMATCHED PRODUCTS IN STORE:\n${matchedProducts.map((p) => `- ${p.name} (${p.price}) -> [View Product](${p.link})`).join("\n")}`
       : "";
 
-  const systemPrompt = `You are ELARIS AI, the intelligent, warm, and stylish personal shopping assistant for ELARIS (a premier fashion and apparel brand in Bangladesh).
+  const systemPrompt = `You are ELARIS AI, the sophisticated, polite, and highly intelligent personal shopping assistant for ELARIS (elaris-store.vercel.app), a premier fashion and apparel brand in Bangladesh.
 
 STORE KNOWLEDGE & CATALOG CONTEXT:
 ${context}${productContext}
 
-GUIDELINES:
+INTELLIGENCE & BEHAVIOR:
+- Website Identity: You are directly built into the ELARIS website (elaris-store.vercel.app). Never claim you do not know the website or lack data.
+- Ordering Guide: If asked how to order, clearly guide them: 1. Browse /shop, 2. Select size & color, 3. Click "Add to Cart" or "Buy Now", 4. Proceed to Checkout, 5. Enter shipping address, 6. Choose Cash on Delivery (COD), bKash, Nagad, or Cards, 7. Click Place Order.
+- Deep Reasoning: If a customer asks a question, styling tip, fabric inquiry, or website navigation not explicitly in the context, use your advanced fashion, styling, and e-commerce intelligence to synthesize an accurate, elegant, and helpful answer.
 - Customer Language: Always reply in the same language as the customer (English, বাংলা / Bengali, or Banglish).
 - Product Advice: When matched products exist, give polite, stylish outfit and sizing advice and invite them to explore the items.
 - Fresh/Restocking Catalog: When no products match or the catalog is restocking, politely explain that new season pieces are dropping regularly, highlight relevant categories (e.g. Menswear, Casual Shirts, Panjabi, Hoodies), and invite them to browse the shop or reach out to our styling team.
@@ -193,9 +209,16 @@ GUIDELINES:
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
+            system_instruction: {
+              parts: [{ text: systemPrompt }]
+            },
             contents: [
-              { role: "user", parts: [{ text: `${systemPrompt}\n\nCustomer question: ${message}` }] }
-            ]
+              { role: "user", parts: [{ text: message }] }
+            ],
+            generationConfig: {
+              temperature: 0.7,
+              maxOutputTokens: 600
+            }
           }),
           signal: controller.signal
         });
@@ -218,7 +241,8 @@ GUIDELINES:
               { role: "system", content: systemPrompt },
               { role: "user", content: message }
             ],
-            max_tokens: 350
+            max_tokens: 600,
+            temperature: 0.7
           }),
           signal: controller.signal
         });
