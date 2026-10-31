@@ -161,7 +161,7 @@ export default async function AdminProductsPage({ searchParams }: PageProps) {
       </div>
 
       {/* 4 KPI Cards */}
-      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+      <div className="grid gap-4 grid-cols-2 xl:grid-cols-4">
         <div className="rounded-xl border border-border bg-background p-5 shadow-sm">
           <p className="text-xs font-medium text-muted-foreground">Total Catalog</p>
           <p className="mt-2 text-2xl font-black text-foreground">{totalCount}</p>
@@ -257,7 +257,102 @@ export default async function AdminProductsPage({ searchParams }: PageProps) {
         </div>
       ) : (
         <div className="overflow-hidden rounded-xl border border-border bg-background shadow-sm">
-          <div className="overflow-x-auto">
+          {/* Mobile: card list */}
+          <div className="sm:hidden divide-y divide-border/60">
+            {products.map((p) => {
+              const isPublished = p.status === "PUBLISHED";
+              const isDraft = p.status === "DRAFT";
+
+              return (
+                <div key={p.id} className="p-4 space-y-3">
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="flex items-center gap-3 min-w-0">
+                      <div className="relative h-12 w-10 overflow-hidden rounded border border-border bg-muted shrink-0">
+                        <Image
+                          src={p.image}
+                          alt={p.name}
+                          fill
+                          className="object-cover"
+                          sizes="40px"
+                        />
+                      </div>
+                      <div className="min-w-0">
+                        <Link
+                          href={`/admin/products/${p.id}/edit`}
+                          className="font-bold text-sm text-foreground hover:underline truncate block"
+                        >
+                          {p.name}
+                        </Link>
+                        <p className="text-[11px] text-muted-foreground font-mono truncate">
+                          /{p.slug}
+                        </p>
+                      </div>
+                    </div>
+                    {isPublished ? (
+                      <span className="inline-block rounded border border-emerald-200 bg-emerald-50 px-2 py-0.5 text-[10px] font-bold text-emerald-700 shrink-0">
+                        PUBLISHED
+                      </span>
+                    ) : isDraft ? (
+                      <span className="inline-block rounded border border-amber-200 bg-amber-50 px-2 py-0.5 text-[10px] font-bold text-amber-700 shrink-0">
+                        DRAFT
+                      </span>
+                    ) : (
+                      <span className="inline-block rounded border border-zinc-200 bg-zinc-100 px-2 py-0.5 text-[10px] font-bold text-zinc-700 shrink-0">
+                        ARCHIVED
+                      </span>
+                    )}
+                  </div>
+
+                  <div className="flex items-center justify-between text-xs pt-1 border-t border-border/40">
+                    <div>
+                      <span className="text-muted-foreground">{p.parentCategory ? `${p.parentCategory} / ` : ""}{p.category}</span>
+                      <span className="ml-2 rounded bg-muted px-1.5 py-0.5 text-[10px] font-bold">
+                        {p.variantsCount} {p.variantsCount === 1 ? "var" : "vars"}
+                      </span>
+                    </div>
+                    <div className="text-right">
+                      <span className="font-extrabold text-foreground">
+                        {p.minPrice === p.maxPrice
+                          ? formatMoney(p.minPrice)
+                          : `${formatMoney(p.minPrice)} – ${formatMoney(p.maxPrice)}`}
+                      </span>
+                      <span className={`ml-2 text-[11px] font-bold ${
+                        p.totalStock === 0 ? "text-rose-600" : p.totalStock <= 5 ? "text-amber-600" : "text-muted-foreground"
+                      }`}>
+                        ({p.totalStock} in stock)
+                      </span>
+                    </div>
+                  </div>
+
+                  <div className="flex items-center justify-end gap-2 pt-2 border-t border-border/40">
+                    <Link
+                      href={`/shop`}
+                      target="_blank"
+                      aria-label={`View ${p.name} on storefront`}
+                      className="inline-flex items-center gap-1 rounded-md border border-border bg-background px-2.5 py-1.5 text-xs font-semibold text-muted-foreground hover:bg-muted hover:text-foreground transition"
+                      title="View on Storefront"
+                    >
+                      <Eye size={13} />
+                      <span>Storefront</span>
+                    </Link>
+                    <Link
+                      href={`/admin/products/${p.id}/edit`}
+                      aria-label={`Edit ${p.name}`}
+                      className="inline-flex items-center gap-1 rounded-md border border-border bg-background px-2.5 py-1.5 text-xs font-semibold text-foreground hover:bg-muted/40 transition"
+                      title="Edit Product"
+                    >
+                      <Pencil size={13} />
+                      <span>Edit</span>
+                    </Link>
+                    <DeleteProductButton productId={p.id} productName={p.name} />
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+
+          {/* Desktop: table */}
+          <div className="hidden sm:block overflow-x-auto">
             <table className="w-full min-w-[600px] text-left text-xs">
               <thead className="border-b border-border bg-muted/30 font-semibold text-muted-foreground">
                 <tr>
@@ -358,6 +453,7 @@ export default async function AdminProductsPage({ searchParams }: PageProps) {
                           <Link
                             href={`/shop`}
                             target="_blank"
+                            aria-label={`View ${p.name} on storefront`}
                             className="rounded p-1.5 text-muted-foreground hover:bg-muted hover:text-foreground transition"
                             title="View on Storefront"
                           >
@@ -365,6 +461,7 @@ export default async function AdminProductsPage({ searchParams }: PageProps) {
                           </Link>
                           <Link
                             href={`/admin/products/${p.id}/edit`}
+                            aria-label={`Edit ${p.name}`}
                             className="rounded p-1.5 text-muted-foreground hover:bg-muted hover:text-foreground transition"
                             title="Edit Product"
                           >
