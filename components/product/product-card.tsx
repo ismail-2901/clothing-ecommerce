@@ -57,6 +57,7 @@ export function ProductCard({ product, priority = false }: { product: CatalogPro
         <Link
           href={`/products/${product.slug}`}
           className="block relative aspect-[2/3] sm:aspect-[3/4] overflow-hidden rounded-xl bg-muted/40 border border-border/60"
+          style={{ aspectRatio: "2 / 3" }}
         >
           <Image
             src={imageSrc}

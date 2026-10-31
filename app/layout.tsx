@@ -48,8 +48,6 @@ export default function RootLayout({
   return (
     <html lang="en" className={inter.variable}>
       <head>
-        {/* Preload LCP hero image — discovered before JS executes */}
-        <link rel="preload" as="image" href="/elaris-hero.jpg" fetchPriority="high" />
         {/* Preconnect to critical third-party origins */}
         <link rel="preconnect" href="https://res.cloudinary.com" crossOrigin="anonymous" />
         <link rel="dns-prefetch" href="https://res.cloudinary.com" />

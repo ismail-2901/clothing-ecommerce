@@ -86,7 +86,7 @@ export function HeroSlider({ slides: propSlides }: { slides?: Slide[] }) {
     if (reducedMotion) return;
     const timer = setInterval(() => {
       setCurrent((c) => (c === slides.length - 1 ? 0 : c + 1));
-    }, 7000);
+    }, 10000);
     return () => clearInterval(timer);
   }, [slides.length, reducedMotion]);
 
