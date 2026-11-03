@@ -3,7 +3,7 @@ import { requireAdminSession } from "@/lib/auth/server";
 import { prisma } from "@/db/prisma";
 
 export async function GET() {
-  const auth = await requireAdminSession("order:manage");
+  const auth = await requireAdminSession("audit:read");
   if (!auth.ok) return auth.response;
 
   const MAX_EXPORT = 10000;

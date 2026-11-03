@@ -17,6 +17,10 @@ data/admin-credentials.json
 .vercel
 .env*
 
+# Python
+__pycache__/
+*.py[cod]
+
 # Playwright
 /playwright-report/
 /blob-report/

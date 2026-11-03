@@ -240,14 +240,14 @@ export default async function ShopPage({ searchParams }: ShopPageProps) {
                 {currentPage > 1 ? (
                   <Link
                     href={createPageUrl(currentPage - 1)}
-                    className="flex h-8 w-8 items-center justify-center rounded-md border border-border hover:bg-muted text-foreground transition-colors"
+                    className="flex h-11 w-11 sm:h-9 sm:w-9 items-center justify-center rounded-lg border border-border hover:bg-muted text-foreground transition-colors"
                     aria-label="Previous page"
                   >
                     ←
                   </Link>
                 ) : (
                   <span
-                    className="flex h-8 w-8 items-center justify-center rounded-md border border-border/40 text-muted-foreground/40 cursor-not-allowed"
+                    className="flex h-11 w-11 sm:h-9 sm:w-9 items-center justify-center rounded-lg border border-border/40 text-muted-foreground/40 cursor-not-allowed"
                     aria-disabled="true"
                   >
                     ←
@@ -258,7 +258,7 @@ export default async function ShopPage({ searchParams }: ShopPageProps) {
                   <Link
                     key={p}
                     href={createPageUrl(p)}
-                    className={`flex h-8 w-8 items-center justify-center rounded-md text-xs font-bold transition-colors ${
+                    className={`flex h-11 w-11 sm:h-9 sm:w-9 items-center justify-center rounded-lg text-xs font-bold transition-colors ${
                       p === currentPage
                         ? "bg-foreground text-background"
                         : "border border-border hover:bg-muted text-foreground"
@@ -271,14 +271,14 @@ export default async function ShopPage({ searchParams }: ShopPageProps) {
                 {currentPage < totalPages ? (
                   <Link
                     href={createPageUrl(currentPage + 1)}
-                    className="flex h-8 w-8 items-center justify-center rounded-md border border-border hover:bg-muted text-foreground transition-colors"
+                    className="flex h-11 w-11 sm:h-9 sm:w-9 items-center justify-center rounded-lg border border-border hover:bg-muted text-foreground transition-colors"
                     aria-label="Next page"
                   >
                     →
                   </Link>
                 ) : (
                   <span
-                    className="flex h-8 w-8 items-center justify-center rounded-md border border-border/40 text-muted-foreground/40 cursor-not-allowed"
+                    className="flex h-11 w-11 sm:h-9 sm:w-9 items-center justify-center rounded-lg border border-border/40 text-muted-foreground/40 cursor-not-allowed"
                     aria-disabled="true"
                   >
                     →

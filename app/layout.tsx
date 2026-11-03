@@ -1,16 +1,22 @@
 import type { Metadata, Viewport } from "next";
-import { Inter } from "next/font/google";
+import { Inter, Playfair_Display } from "next/font/google";
 import "./globals.css";
 import { storeConfig } from "@/config/store";
 
-// P3/M5: next/font self-hosts Inter — eliminates render-blocking cross-origin <link>,
-// removes FOUT, and avoids the external DNS lookup on every cold load.
+// P3/M5: next/font self-hosts Inter and Playfair Display — eliminates render-blocking cross-origin <link>,
+// removes FOUT, and avoids external DNS lookup on every cold load.
 const inter = Inter({
   subsets: ["latin"],
-  weight: ["400", "600", "700", "800"],
-  display: "optional",
+  weight: ["400", "500", "600", "700", "800"],
+  display: "swap",
   preload: true,
   variable: "--font-inter"
+});
+
+const playfair = Playfair_Display({
+  subsets: ["latin"],
+  display: "swap",
+  variable: "--font-playfair"
 });
 
 function getMetadataBase(): URL {
@@ -46,7 +52,7 @@ export default function RootLayout({
   children
 }: Readonly<{ children: React.ReactNode }>) {
   return (
-    <html lang="en" className={inter.variable}>
+    <html lang="en" className={`${inter.variable} ${playfair.variable}`}>
       <head>
         {/* Preconnect to critical third-party origins */}
         <link rel="preconnect" href="https://res.cloudinary.com" crossOrigin="anonymous" />
@@ -54,7 +60,7 @@ export default function RootLayout({
         <link rel="preconnect" href="https://images.unsplash.com" crossOrigin="anonymous" />
         <link rel="dns-prefetch" href="https://images.unsplash.com" />
       </head>
-      <body className={inter.className}>
+      <body className={`${inter.className} font-sans`}>
         <noscript>
           <div
             role="status"

@@ -1,7 +1,7 @@
 import { cloneElement, isValidElement, type ButtonHTMLAttributes, type ReactElement } from "react";
 import { cn } from "@/lib/utils/cn";
 
-type ButtonVariant = "solid" | "outline" | "ghost";
+type ButtonVariant = "solid" | "outline" | "ghost" | "gold";
 type ButtonSize = "sm" | "md" | "lg";
 
 type ButtonProps = ButtonHTMLAttributes<HTMLButtonElement> & {
@@ -13,9 +13,10 @@ type ButtonProps = ButtonHTMLAttributes<HTMLButtonElement> & {
 type SlottableElement = ReactElement<{ className?: string }>;
 
 const variants: Record<ButtonVariant, string> = {
-  solid: "bg-foreground text-white hover:bg-zinc-800",
+  solid: "bg-foreground text-background hover:bg-stone-800 shadow-sm",
   outline: "border border-border bg-background text-foreground hover:bg-muted",
-  ghost: "text-foreground hover:bg-muted"
+  ghost: "text-foreground hover:bg-muted",
+  gold: "bg-amber-700 text-white hover:bg-amber-800 shadow-sm"
 };
 
 const sizes: Record<ButtonSize, string> = {

@@ -3,7 +3,7 @@
 import { useState } from "react";
 import Link from "next/link";
 import Image from "next/image";
-import { Minus, Plus, Trash2, ArrowRight, ShieldCheck, RotateCcw, Truck, Tag, X } from "lucide-react";
+import { Minus, Plus, Trash2, ArrowRight, ShieldCheck, RotateCcw, Truck, Tag, X, Sparkles, CheckCircle2 } from "lucide-react";
 import { useCart } from "@/components/cart/cart-provider";
 import { useWishlist } from "@/components/wishlist/wishlist-provider";
 import { formatMoney } from "@/lib/utils/money";
@@ -78,82 +78,99 @@ export function CartPageContent() {
 
   if (items.length === 0) {
     return (
-      <div className="container-shell min-h-[60vh] py-16 text-center">
-        <div className="mx-auto max-w-md space-y-4">
-          <p className="text-xs uppercase tracking-widest text-muted-foreground">Your Bag</p>
-          <h1 className="text-3xl font-bold tracking-tight">Your Cart is Empty</h1>
-          <p className="text-sm text-muted-foreground">
-            Explore our new collection to discover pieces that reflect your personal style.
+      <div className="container-shell min-h-[65vh] py-20 text-center flex flex-col items-center justify-center">
+        <div className="mx-auto max-w-md space-y-5">
+          <p className="text-[11px] uppercase tracking-[0.2em] text-muted-foreground font-semibold">
+            Editorial Wardrobe
           </p>
-          <Link
-            href="/shop"
-            className="inline-flex items-center gap-2 rounded-md bg-foreground px-6 py-3 text-xs font-bold uppercase tracking-wider text-background hover:bg-foreground/90 transition-colors"
-          >
-            Start Shopping <ArrowRight size={14} />
-          </Link>
+          <h1 className="font-serif text-3xl sm:text-4xl font-medium tracking-tight text-foreground">
+            Your Shopping Bag is Empty
+          </h1>
+          <p className="text-sm text-muted-foreground leading-relaxed">
+            Explore our curated seasonal capsule to discover pieces crafted with enduring elegance and tailored precision.
+          </p>
+          <div className="pt-3">
+            <Link
+              href="/shop"
+              className="inline-flex items-center gap-2 rounded-none bg-foreground px-8 py-3.5 text-xs font-semibold uppercase tracking-[0.16em] text-background hover:bg-foreground/90 transition-all shadow-sm"
+            >
+              Discover Collection <ArrowRight size={14} />
+            </Link>
+          </div>
         </div>
       </div>
     );
   }
 
+  const freeThreshold = storePolicies.shipping.freeThreshold * 100;
+  const freePct = Math.min(100, Math.round((summary.subtotal / freeThreshold) * 100));
+  const remainingFree = freeThreshold - summary.subtotal;
+  const isFreeDelivery = summary.subtotal >= freeThreshold;
+
   return (
-    <div className="container-shell py-8 space-y-12">
+    <div className="container-shell py-8 sm:py-12 space-y-10 sm:space-y-14">
       {/* Breadcrumb & Header */}
-      <div>
-        <nav className="flex items-center gap-2 text-xs text-muted-foreground mb-3">
-          <Link href="/" className="hover:text-foreground">Home</Link>
-          <span>/</span>
-          <span className="text-foreground">Cart</span>
+      <div className="space-y-3 border-b border-border/70 pb-6">
+        <nav className="flex items-center gap-2 text-xs text-muted-foreground">
+          <Link href="/" className="hover:text-foreground transition-colors">Home</Link>
+          <span className="text-border">/</span>
+          <span className="text-foreground font-medium">Shopping Bag</span>
         </nav>
-        <div className="flex items-center justify-between">
-          <h1 className="text-2xl sm:text-3xl font-extrabold tracking-tight">
-            Your Cart ({items.length})
-          </h1>
+        <div className="flex flex-col sm:flex-row sm:items-baseline justify-between gap-3">
+          <div className="flex items-baseline gap-3">
+            <h1 className="font-serif text-3xl sm:text-4xl font-semibold tracking-tight text-foreground">
+              Shopping Bag
+            </h1>
+            <span className="text-xs font-mono tracking-wider text-muted-foreground uppercase">
+              ({items.length} {items.length === 1 ? "piece" : "pieces"})
+            </span>
+          </div>
           <Link
             href="/shop"
-            className="flex items-center gap-1.5 text-xs font-semibold text-foreground/80 hover:text-foreground underline underline-offset-4"
+            className="inline-flex items-center gap-1.5 text-xs font-medium text-muted-foreground hover:text-foreground underline underline-offset-4 transition-colors"
           >
-            Continue Shopping <ArrowRight size={14} />
+            Continue Browsing <ArrowRight size={13} />
           </Link>
         </div>
       </div>
 
-      {/* D4: Free delivery progress bar */}
-      {(() => {
-        const threshold = storePolicies.shipping.freeThreshold * 100;
-        const pct = Math.min(100, Math.round((summary.subtotal / threshold) * 100));
-        const remaining = threshold - summary.subtotal;
-        return (
-          <div className="rounded-xl border border-border/60 bg-muted/20 px-4 py-3 space-y-2">
-            {summary.subtotal >= threshold ? (
-              <p className="text-xs font-semibold text-emerald-600">
-                🎉 You&apos;ve unlocked free delivery!
-              </p>
-            ) : (
-              <p className="text-xs text-muted-foreground">
-                Add <span className="font-bold text-foreground">{formatMoney(remaining)}</span> more to get free delivery
-              </p>
-            )}
-            <div className="h-1.5 w-full rounded-full bg-muted overflow-hidden">
-              <div
-                className="h-full rounded-full bg-foreground transition-all duration-500"
-                style={{ width: `${pct}%` }}
-              />
-            </div>
-          </div>
-        );
-      })()}
+      {/* Free delivery progress banner */}
+      <div className="rounded-xl border border-border/70 bg-stone-50/60 p-4 sm:p-5 space-y-2.5">
+        <div className="flex items-center justify-between text-xs">
+          {isFreeDelivery ? (
+            <span className="inline-flex items-center gap-1.5 font-medium text-amber-900">
+              <Sparkles size={14} className="text-amber-600 fill-amber-500/20" />
+              Complimentary standard delivery unlocked
+            </span>
+          ) : (
+            <span className="text-muted-foreground">
+              Add <strong className="font-semibold text-foreground">{formatMoney(remainingFree)}</strong> more to receive complimentary delivery across Bangladesh
+            </span>
+          )}
+          <span className="text-[11px] font-mono font-medium text-muted-foreground">
+            {freePct}%
+          </span>
+        </div>
+        <div className="h-1.5 w-full rounded-full bg-stone-200/80 overflow-hidden">
+          <div
+            className={`h-full rounded-full transition-all duration-700 ease-out ${
+              isFreeDelivery ? "bg-amber-600" : "bg-foreground"
+            }`}
+            style={{ width: `${freePct}%` }}
+          />
+        </div>
+      </div>
 
       {/* Main Cart Grid */}
-      <div className="grid gap-8 lg:grid-cols-[1.5fr_0.9fr] items-start">
+      <div className="grid gap-10 lg:grid-cols-[1.55fr_0.95fr] items-start">
         {/* Cart Items Table */}
         <div className="space-y-6">
-          {/* Table Header */}
-          <div className="hidden sm:grid grid-cols-[1.6fr_1fr_1fr_1fr] border-b border-border/80 pb-3 text-xs font-bold uppercase tracking-wider text-muted-foreground">
-            <span>Product</span>
-            <span className="text-center">Price</span>
+          {/* Table Header (Desktop) */}
+          <div className="hidden sm:grid grid-cols-[1.6fr_1fr_1fr_1fr] border-b border-border/80 pb-3 text-[11px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">
+            <span>Garment</span>
+            <span className="text-center">Unit Price</span>
             <span className="text-center">Quantity</span>
-            <span className="text-right">Total</span>
+            <span className="text-right">Line Total</span>
           </div>
 
           {/* Items Rows */}
@@ -162,64 +179,84 @@ export function CartPageContent() {
               const itemKey = item.id || item.sku;
               const isChecked = selectedItems[itemKey] ?? true;
               const price = item.unitPrice ?? item.price;
+              const lineTotal = price * item.quantity;
+
               return (
-                <div key={itemKey} className="py-5">
-                  {/* Mobile layout: product info + inline controls */}
-                  <div className="flex gap-3">
+                <div key={itemKey} className="py-6 first:pt-2">
+                  {/* Item Container */}
+                  <div className="flex gap-4 sm:gap-5">
                     <input
                       type="checkbox"
                       checked={isChecked}
                       onChange={(e) =>
                         setSelectedItems((prev) => ({ ...prev, [itemKey]: e.target.checked }))
                       }
+                      aria-label={`Select ${item.name}`}
                       className="mt-1 h-4 w-4 shrink-0 rounded border-border text-foreground accent-foreground cursor-pointer"
                     />
-                    <div className="relative h-32 w-28 shrink-0 overflow-hidden rounded-lg bg-muted">
+
+                    {/* Standardized 3:4 aspect ratio thumbnail */}
+                    <div className="relative aspect-[3/4] w-24 sm:w-28 shrink-0 overflow-hidden rounded bg-stone-100 border border-border/70">
                       {item.image ? (
-                        <Image src={item.image} alt={item.name} fill className="object-cover" sizes="112px" />
+                        <Image
+                          src={item.image}
+                          alt={item.name}
+                          fill
+                          className="object-cover object-top"
+                          sizes="(min-width: 640px) 112px, 96px"
+                        />
                       ) : (
-                        <div className="h-full w-full bg-zinc-100" />
+                        <div className="h-full w-full bg-stone-100" />
                       )}
                     </div>
-                    <div className="flex-1 min-w-0 space-y-1">
-                      <h3 className="text-sm font-bold text-foreground">{item.name}</h3>
-                      <p className="text-xs text-muted-foreground">
-                        {item.color ? `Color: ${item.color}` : "Color: Default"}{item.size ? ` | Size: ${item.size}` : ""}
-                      </p>
-                      <div className="flex items-center gap-1.5">
-                        <span className="h-2 w-2 rounded-full bg-emerald-500" />
-                        <span className="text-[11px] font-medium text-emerald-600">In Stock</span>
-                      </div>
-                      {/* Mobile-only price */}
-                      <div className="flex items-center gap-2 sm:hidden pt-0.5">
-                        <span className="text-sm font-bold">{formatMoney(price)}</span>
-                        <span className="text-xs text-muted-foreground line-through">{formatMoney(Math.round(price * 1.25))}</span>
-                        <span className="rounded bg-black px-1.5 py-0.5 text-[9px] font-bold text-white uppercase">20% OFF</span>
-                      </div>
-                      {/* Mobile-only qty + total row */}
-                      <div className="flex items-center justify-between sm:hidden pt-1">
-                        <div className="inline-flex items-center rounded-md border border-border bg-background">
-                          <button
-                            type="button"
-                            onClick={() => updateQuantity(itemKey, item.quantity - 1)}
-                            className="px-2.5 py-1.5 hover:bg-muted text-muted-foreground hover:text-foreground transition-colors"
-                            aria-label="Decrease quantity"
-                          >
-                            <Minus size={13} />
-                          </button>
-                          <span className="w-8 text-center text-xs font-semibold">{item.quantity}</span>
-                          <button
-                            type="button"
-                            onClick={() => updateQuantity(itemKey, item.quantity + 1)}
-                            className="px-2.5 py-1.5 hover:bg-muted text-muted-foreground hover:text-foreground transition-colors"
-                            aria-label="Increase quantity"
-                          >
-                            <Plus size={13} />
-                          </button>
+
+                    <div className="flex-1 min-w-0 flex flex-col justify-between py-0.5">
+                      <div className="space-y-1.5">
+                        <h3 className="font-serif text-sm sm:text-base font-semibold text-foreground leading-snug">
+                          {item.name}
+                        </h3>
+                        <p className="text-[11px] text-muted-foreground uppercase tracking-wider">
+                          {item.color ? `Color: ${item.color}` : "Default"}
+                          {item.size ? ` · Size: ${item.size}` : ""}
+                        </p>
+                        <div className="flex items-center gap-1.5 pt-0.5">
+                          <span className="h-1.5 w-1.5 rounded-full bg-emerald-600" />
+                          <span className="text-[11px] font-medium text-emerald-700">In Stock</span>
                         </div>
-                        <span className="text-sm font-extrabold">{formatMoney(price * item.quantity)}</span>
                       </div>
-                      <div className="flex items-center gap-3 pt-1 text-xs text-muted-foreground">
+
+                      {/* Mobile-only price + stepper + total */}
+                      <div className="sm:hidden pt-3 space-y-2.5">
+                        <div className="flex items-center justify-between">
+                          <span className="text-xs text-muted-foreground">Price</span>
+                          <span className="text-xs font-semibold text-foreground">{formatMoney(price)}</span>
+                        </div>
+                        <div className="flex items-center justify-between">
+                          <div className="inline-flex h-8 items-center rounded border border-border bg-background shadow-xs">
+                            <button
+                              type="button"
+                              onClick={() => updateQuantity(itemKey, item.quantity - 1)}
+                              className="flex h-full min-w-[32px] items-center justify-center text-muted-foreground hover:text-foreground transition-colors"
+                              aria-label="Decrease quantity"
+                            >
+                              <Minus size={12} />
+                            </button>
+                            <span className="min-w-[28px] text-center text-xs font-semibold">{item.quantity}</span>
+                            <button
+                              type="button"
+                              onClick={() => updateQuantity(itemKey, item.quantity + 1)}
+                              className="flex h-full min-w-[32px] items-center justify-center text-muted-foreground hover:text-foreground transition-colors"
+                              aria-label="Increase quantity"
+                            >
+                              <Plus size={12} />
+                            </button>
+                          </div>
+                          <span className="text-sm font-bold text-foreground">{formatMoney(lineTotal)}</span>
+                        </div>
+                      </div>
+
+                      {/* Item actions */}
+                      <div className="flex items-center gap-4 pt-3 text-xs text-muted-foreground">
                         <button
                           type="button"
                           onClick={() => removeItem(itemKey)}
@@ -227,7 +264,7 @@ export function CartPageContent() {
                         >
                           Remove
                         </button>
-                        <span>|</span>
+                        <span className="text-border">|</span>
                         <button
                           type="button"
                           onClick={() => {
@@ -248,34 +285,32 @@ export function CartPageContent() {
                     </div>
                   </div>
 
-                  {/* Desktop-only: price / qty / total inline grid row */}
-                  <div className="hidden sm:grid grid-cols-[1fr_auto_auto] items-center gap-6 mt-3 pl-[calc(16px+80px+12px)]">
+                  {/* Desktop-only: price / qty / total inline columns */}
+                  <div className="hidden sm:grid grid-cols-[1fr_auto_auto] items-center gap-8 mt-4 pl-[calc(16px+112px+20px)]">
                     <div>
-                      <p className="text-sm font-bold">{formatMoney(price)}</p>
-                      <p className="text-xs text-muted-foreground line-through">{formatMoney(Math.round(price * 1.25))}</p>
-                      <span className="inline-block mt-0.5 rounded bg-black px-1.5 py-0.5 text-[9px] font-bold text-white uppercase">20% OFF</span>
+                      <p className="text-xs font-semibold text-foreground">{formatMoney(price)}</p>
                     </div>
-                    <div className="inline-flex items-center rounded-md border border-border bg-background">
+                    <div className="inline-flex h-8 items-center rounded border border-border bg-background shadow-xs">
                       <button
                         type="button"
                         onClick={() => updateQuantity(itemKey, item.quantity - 1)}
-                        className="px-2.5 py-1.5 hover:bg-muted text-muted-foreground hover:text-foreground transition-colors"
+                        className="flex h-full min-w-[32px] items-center justify-center text-muted-foreground hover:text-foreground hover:bg-muted/50 transition-colors"
                         aria-label="Decrease quantity"
                       >
-                        <Minus size={13} />
+                        <Minus size={12} />
                       </button>
-                      <span className="w-8 text-center text-xs font-semibold">{item.quantity}</span>
+                      <span className="min-w-[28px] text-center text-xs font-semibold">{item.quantity}</span>
                       <button
                         type="button"
                         onClick={() => updateQuantity(itemKey, item.quantity + 1)}
-                        className="px-2.5 py-1.5 hover:bg-muted text-muted-foreground hover:text-foreground transition-colors"
+                        className="flex h-full min-w-[32px] items-center justify-center text-muted-foreground hover:text-foreground hover:bg-muted/50 transition-colors"
                         aria-label="Increase quantity"
                       >
-                        <Plus size={13} />
+                        <Plus size={12} />
                       </button>
                     </div>
-                    <p className="text-sm font-extrabold min-w-[80px] text-right">
-                      {formatMoney(price * item.quantity)}
+                    <p className="text-sm font-semibold min-w-[88px] text-right text-foreground">
+                      {formatMoney(lineTotal)}
                     </p>
                   </div>
                 </div>
@@ -284,171 +319,188 @@ export function CartPageContent() {
           </div>
 
           {/* Table Footer Controls */}
-          <div className="flex items-center justify-between border-t border-border/80 pt-4 text-xs font-semibold">
-            <label className="flex items-center gap-2 cursor-pointer">
+          <div className="flex items-center justify-between border-t border-border/80 pt-4 text-xs font-medium">
+            <label className="flex items-center gap-2.5 cursor-pointer">
               <input
                 type="checkbox"
                 checked={isAllSelected}
                 onChange={(e) => toggleSelectAll(e.target.checked)}
                 className="h-4 w-4 rounded border-border accent-foreground cursor-pointer"
               />
-              <span>Select All ({items.length} items)</span>
+              <span className="text-muted-foreground">Select All ({items.length} items)</span>
             </label>
             <button
               type="button"
               onClick={() => items.forEach((i) => removeItem(i.id || i.sku))}
               className="flex items-center gap-1.5 text-muted-foreground hover:text-red-600 transition-colors"
             >
-              <Trash2 size={14} /> Remove Selected
+              <Trash2 size={13} /> Remove Selected
             </button>
           </div>
         </div>
 
         {/* Order Summary Sidebar */}
-        <aside className="rounded-xl border border-border bg-background p-6 shadow-sm space-y-6 sticky top-24">
-          <h2 className="text-lg font-bold text-foreground">Order Summary</h2>
+        <aside className="rounded-xl border border-border/80 bg-background p-6 sm:p-7 shadow-xs space-y-6 sticky top-24">
+          <h2 className="font-serif text-xl font-semibold text-foreground tracking-tight">
+            Order Summary
+          </h2>
 
           {/* Breakdown */}
-          <div className="space-y-3 text-sm">
+          <div className="space-y-3 text-xs">
             <div className="flex justify-between text-muted-foreground">
-              <span>Subtotal ({items.length} items)</span>
-              <span className="font-semibold text-foreground">{formatMoney(summary.subtotal)}</span>
+              <span>Subtotal ({items.length} {items.length === 1 ? "item" : "items"})</span>
+              <span className="font-medium text-foreground">{formatMoney(summary.subtotal)}</span>
             </div>
             {appliedCoupon && appliedCoupon.discountAmount > 0 && (
-              <div className="flex justify-between text-emerald-600">
+              <div className="flex justify-between text-amber-900 font-medium">
                 <span>Coupon ({appliedCoupon.code})</span>
-                <span className="font-semibold">- {formatMoney(appliedCoupon.discountAmount)}</span>
+                <span>- {formatMoney(appliedCoupon.discountAmount)}</span>
               </div>
             )}
             <div className="flex justify-between text-muted-foreground">
-              <span>Shipping</span>
-              <span className="font-semibold text-foreground">
-                {summary.shippingFee === 0 ? "Free" : formatMoney(summary.shippingFee)}
+              <span>Estimated Delivery</span>
+              <span className="font-medium text-foreground">
+                {summary.shippingFee === 0 ? "Complimentary" : formatMoney(summary.shippingFee)}
               </span>
             </div>
-            <p className="text-[11px] text-muted-foreground">
+            <p className="text-[11px] text-muted-foreground leading-relaxed">
               {storePolicies.shipping.freeDeliveryText}
             </p>
           </div>
 
-          {/* Total */}
-          <div className="border-t border-border/80 pt-4">
+          {/* Grand Total */}
+          <div className="border-t border-border/80 pt-4 space-y-2">
             <div className="flex items-baseline justify-between">
-              <span className="text-base font-bold">Total</span>
-              <span className="text-2xl font-extrabold">
+              <span className="text-xs uppercase tracking-[0.14em] text-muted-foreground">Estimated Total</span>
+              <span className="font-serif text-2xl font-bold tracking-tight text-foreground">
                 {formatMoney(Math.max(0, summary.grandTotal - (appliedCoupon?.discountAmount ?? 0)))}
               </span>
             </div>
             {appliedCoupon && appliedCoupon.discountAmount > 0 && (
-              <p className="mt-1 text-xs text-emerald-600 font-semibold">
-                🌱 You saved {formatMoney(appliedCoupon.discountAmount)} with {appliedCoupon.code}!
-              </p>
+              <div className="flex items-center gap-1.5 text-xs text-amber-900 font-medium">
+                <CheckCircle2 size={13} className="text-amber-700" />
+                <span>You saved {formatMoney(appliedCoupon.discountAmount)} with {appliedCoupon.code}</span>
+              </div>
             )}
           </div>
 
           {/* Coupon Input */}
-          {appliedCoupon ? (
-            <div className="flex items-center justify-between rounded-md border border-emerald-200 bg-emerald-50 px-3 py-2">
-              <div className="flex items-center gap-2">
-                <Tag size={13} className="text-emerald-600" />
-                <span className="text-xs font-semibold text-emerald-700">{appliedCoupon.code}</span>
-                <span className="text-xs text-emerald-600">— {appliedCoupon.title}</span>
-              </div>
-              <button
-                type="button"
-                onClick={handleRemoveCoupon}
-                aria-label="Remove coupon"
-                className="text-emerald-500 hover:text-red-500 transition-colors"
-              >
-                <X size={13} />
-              </button>
-            </div>
-          ) : (
-            <form onSubmit={handleApplyCoupon} className="space-y-1.5">
-              <div className="flex gap-2">
-                <div className="relative flex-1">
-                  <Tag size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
-                  <input
-                    type="text"
-                    value={couponCode}
-                    onChange={(e) => { setCouponCode(e.target.value); setCouponError(null); }}
-                    placeholder="Enter coupon code"
-                    className="h-10 w-full rounded-md border border-border bg-muted/20 pl-9 pr-3 text-xs placeholder:text-muted-foreground focus:border-foreground focus:outline-none"
-                  />
+          <div className="pt-1">
+            {appliedCoupon ? (
+              <div className="flex items-center justify-between rounded border border-amber-300/80 bg-amber-50/60 px-3.5 py-2.5">
+                <div className="flex items-center gap-2">
+                  <Tag size={13} className="text-amber-700" />
+                  <span className="text-xs font-semibold text-amber-950">{appliedCoupon.code}</span>
+                  <span className="text-xs text-amber-800">— {appliedCoupon.title}</span>
                 </div>
                 <button
-                  type="submit"
-                  disabled={couponLoading || !couponCode.trim()}
-                  className="h-10 rounded-md bg-foreground px-5 text-xs font-bold uppercase tracking-wider text-background hover:bg-foreground/90 disabled:opacity-50 transition-colors"
+                  type="button"
+                  onClick={handleRemoveCoupon}
+                  aria-label="Remove coupon"
+                  className="text-amber-800 hover:text-red-600 transition-colors"
                 >
-                  {couponLoading ? "…" : "Apply"}
+                  <X size={13} />
                 </button>
               </div>
-              {couponError && (
-                <p className="text-xs font-medium text-red-600">{couponError}</p>
-              )}
-            </form>
-          )}
+            ) : (
+              <form onSubmit={handleApplyCoupon} className="space-y-1.5">
+                <div className="flex gap-2">
+                  <div className="relative flex-1">
+                    <Tag size={13} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
+                    <input
+                      type="text"
+                      value={couponCode}
+                      onChange={(e) => { setCouponCode(e.target.value); setCouponError(null); }}
+                      placeholder="Promotional code"
+                      className="h-10 w-full rounded border border-border bg-stone-50/40 pl-9 pr-3 text-xs placeholder:text-muted-foreground focus:border-foreground focus:outline-none"
+                    />
+                  </div>
+                  <button
+                    type="submit"
+                    disabled={couponLoading || !couponCode.trim()}
+                    className="h-10 rounded-none bg-foreground px-5 text-xs font-semibold uppercase tracking-[0.14em] text-background hover:bg-foreground/90 disabled:opacity-40 transition-colors"
+                  >
+                    {couponLoading ? "…" : "Apply"}
+                  </button>
+                </div>
+                {couponError && (
+                  <p className="text-[11px] font-medium text-red-600">{couponError}</p>
+                )}
+              </form>
+            )}
+          </div>
 
           {/* Checkout CTA */}
           <Link
             href="/checkout"
-            className="flex h-12 w-full items-center justify-center gap-2 rounded-md bg-foreground text-xs font-bold uppercase tracking-widest text-background hover:bg-foreground/90 transition-colors shadow-md"
+            className="flex h-12 w-full items-center justify-center gap-2 rounded-none bg-foreground text-xs font-semibold uppercase tracking-[0.16em] text-background hover:bg-foreground/90 transition-all shadow-sm active:scale-[0.99]"
           >
-            Proceed to Checkout <ArrowRight size={15} />
+            Proceed to Checkout <ArrowRight size={14} />
           </Link>
 
           {/* Trust Value Props */}
           <div className="border-t border-border/80 pt-5 grid grid-cols-3 gap-2 text-center text-[10px] text-muted-foreground">
-            <div className="space-y-1">
-              <Truck size={18} className="mx-auto text-foreground/80" />
-              <p className="font-bold text-foreground">Free Delivery</p>
-              <p>{storePolicies.shipping.freeDeliveryText}</p>
+            <div className="space-y-1.5">
+              <Truck size={17} className="mx-auto text-foreground/80 stroke-[1.5]" />
+              <p className="font-semibold text-foreground">Complimentary</p>
+              <p>Over ৳5,000</p>
             </div>
-            <div className="space-y-1">
-              <RotateCcw size={18} className="mx-auto text-foreground/80" />
-              <p className="font-bold text-foreground">Easy Returns</p>
-              <p>{storePolicies.returns.description}</p>
+            <div className="space-y-1.5">
+              <RotateCcw size={17} className="mx-auto text-foreground/80 stroke-[1.5]" />
+              <p className="font-semibold text-foreground">7-Day Return</p>
+              <p>Complimentary</p>
             </div>
-            <div className="space-y-1">
-              <ShieldCheck size={18} className="mx-auto text-foreground/80" />
-              <p className="font-bold text-foreground">Secure Payment</p>
-              <p>100% secure checkout</p>
+            <div className="space-y-1.5">
+              <ShieldCheck size={17} className="mx-auto text-foreground/80 stroke-[1.5]" />
+              <p className="font-semibold text-foreground">Certified Safe</p>
+              <p>Encrypted</p>
             </div>
           </div>
         </aside>
       </div>
 
-      {/* You May Also Like Carousel */}
-      <section className="border-t border-border/80 pt-10 space-y-6">
-        <h2 className="text-xl font-bold tracking-tight text-foreground">You May Also Like</h2>
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+      {/* Curated Recommendations */}
+      <section className="border-t border-border/80 pt-12 space-y-6">
+        <div className="flex items-baseline justify-between">
+          <h2 className="font-serif text-2xl font-semibold tracking-tight text-foreground">
+            Curated Recommendations
+          </h2>
+          <Link
+            href="/shop"
+            className="text-xs font-medium text-muted-foreground hover:text-foreground underline underline-offset-4"
+          >
+            View All Pieces
+          </Link>
+        </div>
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 sm:gap-6">
           {recommendations.map((item) => (
             <Link
               key={item.id}
               href={`/products/${item.slug}`}
-              className="group block rounded-lg border border-border/80 bg-background p-3 hover:shadow-md transition-all"
+              className="group block rounded border border-border/70 bg-background p-3 hover:shadow-md transition-all"
             >
-              <div className="relative aspect-[3/4] overflow-hidden rounded-md bg-muted">
+              <div className="relative aspect-[3/4] overflow-hidden rounded bg-stone-100">
                 <Image
                   src={item.image}
                   alt={item.name}
                   fill
-                  className="object-cover transition-transform duration-300 group-hover:scale-105"
+                  className="object-cover object-top transition-transform duration-700 ease-out group-hover:scale-[1.03]"
                   sizes="(min-width: 768px) 25vw, 50vw"
                 />
               </div>
               <div className="mt-3 space-y-1">
-                <h3 className="text-xs font-bold text-foreground truncate">{item.name}</h3>
+                <h3 className="text-xs font-medium text-foreground truncate group-hover:underline">
+                  {item.name}
+                </h3>
                 <div className="flex items-center gap-2 text-xs">
-                  <span className="font-extrabold">{formatMoney(item.price)}</span>
+                  <span className="font-semibold text-foreground">{formatMoney(item.price)}</span>
                   {item.originalPrice && (
                     <span className="text-muted-foreground line-through text-[11px]">
                       {formatMoney(item.originalPrice)}
                     </span>
                   )}
                   {item.discount && (
-                    <span className="rounded bg-black px-1 text-[9px] font-bold text-white">
+                    <span className="rounded bg-stone-900 px-1 text-[9px] font-bold text-white uppercase">
                       {item.discount}
                     </span>
                   )}

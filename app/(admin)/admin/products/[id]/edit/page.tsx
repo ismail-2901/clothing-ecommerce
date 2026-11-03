@@ -1,6 +1,8 @@
 export const dynamic = "force-dynamic";
 
+import Link from "next/link";
 import { notFound } from "next/navigation";
+import { ArrowLeft } from "lucide-react";
 import { prisma } from "@/db/prisma";
 import { AdminProductForm, type ProductFormInitialData } from "@/components/admin/admin-product-form";
 import { DeleteProductButton } from "@/components/admin/delete-product-button";
@@ -38,13 +40,16 @@ export default async function AdminProductEditPage({ params }: Props) {
   if (!product) notFound();
 
   // Group flat variants by color → VariantGroup[]
-  const groupMap = new Map<string, { sizes: string[]; stockQuantity: number }>();
+  const groupMap = new Map<string, { sizes: string[]; stockQuantity: number; priceOverride?: number }>();
   for (const v of product.variants) {
     const key = v.color;
     if (!groupMap.has(key)) {
-      groupMap.set(key, { sizes: [], stockQuantity: v.stockQuantity });
+      groupMap.set(key, {
+        sizes: [],
+        stockQuantity: v.stockQuantity,
+        priceOverride: v.priceOverride ?? undefined
+      });
     }
-    // Handle legacy "M, L, XL" combined strings — split into individual sizes
     const sizeParts = v.size.includes(",")
       ? v.size.split(",").map((s) => s.trim()).filter(Boolean)
       : [v.size];
@@ -57,12 +62,13 @@ export default async function AdminProductEditPage({ params }: Props) {
 
   const variantGroups: ProductFormInitialData["variantGroups"] = Array.from(
     groupMap.entries()
-  ).map(([color, { sizes, stockQuantity }], i) => ({
+  ).map(([color, { sizes, stockQuantity, priceOverride }], i) => ({
     id: String(i + 1),
     color,
     sizes,
     sku: "",
     stockQuantity,
+    priceOverride
   }));
 
   const initialData: ProductFormInitialData = {
@@ -80,24 +86,54 @@ export default async function AdminProductEditPage({ params }: Props) {
   };
 
   return (
-    <div>
+    <div className="space-y-6">
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-        <div>
-          <p className="text-xs font-semibold uppercase tracking-[0.18em] text-muted-foreground">
-            Catalog Operations
-          </p>
-          <h1 className="mt-2 text-3xl font-semibold">Edit Product</h1>
-          <p className="mt-1 text-sm text-muted-foreground">
-            Update details, variants, and images for{" "}
-            <span className="font-medium text-foreground">{product.name}</span>.
+        <div className="space-y-2">
+          <Link
+            href="/admin/products"
+            className="inline-flex items-center gap-1.5 text-xs font-semibold text-muted-foreground hover:text-foreground transition w-fit"
+          >
+            <ArrowLeft size={13} />
+            <span>Back to Products</span>
+          </Link>
+          <div className="flex items-center gap-2">
+            <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-foreground">
+              Edit Product
+            </h1>
+            <span
+              className={`rounded-full px-2.5 py-0.5 text-[11px] font-bold border ${
+                product.status === "PUBLISHED"
+                  ? "border-emerald-200 bg-emerald-50 text-emerald-700"
+                  : product.status === "DRAFT"
+                  ? "border-amber-200 bg-amber-50 text-amber-700"
+                  : "border-zinc-200 bg-zinc-100 text-zinc-700"
+              }`}
+            >
+              {product.status}
+            </span>
+          </div>
+          <p className="text-xs sm:text-sm text-muted-foreground">
+            Update specifications, variant matrices, and images for{" "}
+            <strong className="text-foreground">{product.name}</strong>.
           </p>
         </div>
-        <DeleteProductButton
-          productId={product.id}
-          productName={product.name}
-          redirectTo="/admin/products"
-        />
+
+        <div className="flex items-center gap-2">
+          <Link
+            href="/shop"
+            target="_blank"
+            className="inline-flex items-center gap-1.5 rounded-lg border border-border bg-background px-3 py-1.5 text-xs font-medium text-muted-foreground hover:bg-muted hover:text-foreground transition shadow-xs"
+          >
+            Storefront
+          </Link>
+          <DeleteProductButton
+            productId={product.id}
+            productName={product.name}
+            redirectTo="/admin/products"
+          />
+        </div>
       </div>
+
       <AdminProductForm categories={categories} initialData={initialData} />
     </div>
   );

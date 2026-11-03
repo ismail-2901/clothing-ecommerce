@@ -22,15 +22,15 @@ export function ShopCatalogView({
     <div className="space-y-6">
       {/* Controls Bar */}
       <div className="flex items-center justify-between border-b border-border/80 pb-4">
-        <p className="text-xs sm:text-sm font-bold text-foreground">
-          {totalCount} Products
+        <p className="text-xs sm:text-sm font-semibold text-foreground">
+          Showing <span className="font-bold">{totalCount}</span> {totalCount === 1 ? "Product" : "Products"}
         </p>
-        <div className="flex items-center gap-4">
+        <div className="flex items-center gap-3 sm:gap-4">
           <div className="flex items-center gap-2 text-xs">
-            <span className="text-muted-foreground hidden sm:inline">Sort by:</span>
+            <span className="text-muted-foreground hidden sm:inline">Sort:</span>
             <select
               defaultValue={sortValue}
-              className="rounded-md border border-border bg-background px-2.5 py-1.5 text-xs font-medium focus:border-foreground focus:outline-none cursor-pointer"
+              className="rounded-lg border border-border bg-background px-3 py-1.5 text-xs font-medium text-foreground focus:border-stone-900 focus:outline-none cursor-pointer shadow-xs"
               onChange={(e) => {
                 const url = new URL(window.location.href);
                 url.searchParams.set("sort", e.target.value);
@@ -44,11 +44,15 @@ export function ShopCatalogView({
               <option value="newest">Newest Arrivals</option>
             </select>
           </div>
-          <div className="hidden sm:flex items-center gap-1 text-muted-foreground">
+          <div className="hidden sm:flex items-center gap-1 text-muted-foreground border-l border-border/60 pl-3">
             <button
               type="button"
               onClick={() => setView("grid")}
-              className={`p-1.5 rounded transition ${view === "grid" ? "text-foreground bg-muted shadow-sm" : "hover:text-foreground hover:bg-muted"}`}
+              className={`p-1.5 rounded-md transition ${
+                view === "grid"
+                  ? "text-foreground bg-muted shadow-xs"
+                  : "hover:text-foreground hover:bg-muted"
+              }`}
               aria-label="Grid view"
               aria-pressed={view === "grid"}
             >
@@ -57,7 +61,11 @@ export function ShopCatalogView({
             <button
               type="button"
               onClick={() => setView("list")}
-              className={`p-1.5 rounded transition ${view === "list" ? "text-foreground bg-muted shadow-sm" : "hover:text-foreground hover:bg-muted"}`}
+              className={`p-1.5 rounded-md transition ${
+                view === "list"
+                  ? "text-foreground bg-muted shadow-xs"
+                  : "hover:text-foreground hover:bg-muted"
+              }`}
               aria-label="List view"
               aria-pressed={view === "list"}
             >
@@ -67,18 +75,18 @@ export function ShopCatalogView({
         </div>
       </div>
 
-      {/* Cards Display (Grid or List mode) */}
+      {/* Cards Display (Grid or List mode) with 2-Column Mobile Grid */}
       {products.length === 0 ? (
         <div className="rounded-xl border border-dashed border-border p-12 text-center text-muted-foreground">
-          <p className="text-base font-semibold text-foreground">No products found</p>
-          <p className="mt-1 text-xs">Try clearing filters or checking other categories.</p>
+          <p className="text-base font-semibold text-foreground">No apparel pieces found</p>
+          <p className="mt-1 text-xs text-muted-foreground">Try clearing filters or checking other collections.</p>
         </div>
       ) : (
         <div
           className={
             view === "grid"
-              ? "grid gap-6 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4"
-              : "grid gap-6 grid-cols-1 sm:grid-cols-2 lg:grid-cols-2"
+              ? "grid grid-cols-2 gap-3 sm:gap-6 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4"
+              : "grid gap-6 grid-cols-1 sm:grid-cols-2"
           }
         >
           {products.map((product) => (

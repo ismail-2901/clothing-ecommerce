@@ -1,22 +1,55 @@
 @import "tailwindcss";
 
 :root {
-  --background: #ffffff;
-  --foreground: #0a0a0a;
-  --muted: #f4f4f5;
-  --muted-foreground: #71717a;
-  --border: #d4d4d8;
-  --surface: #ffffff;
-  --surface-strong: #111111;
-  --accent: #0a0a0a;
-  --accent-foreground: #ffffff;
+  /* Core Luxury Palette — UI/UX Pro Max E-commerce Luxury (#4) */
+  --background: #fafaf9;          /* Warm Soft Paper / Off-White */
+  --foreground: #1c1917;          /* Deep Warm Stone Black */
+  --muted: #f5f5f4;               /* Warm Stone Muted */
+  --muted-foreground: #78716c;    /* Warm Stone Gray */
+  --border: #e7e5e4;              /* Stone-200 (Clean, Soft Contrast) */
+  --surface: #ffffff;             /* Pure Card White */
+  --surface-strong: #1c1917;
+  --accent: #1c1917;
+  --accent-foreground: #fafaf9;
+  --accent-gold: #a16207;         /* Antique Champagne Gold */
+  --accent-gold-light: #fefce8;
   --danger: #b91c1c;
-  --success: #166534;
+  --success: #15803d;
+
+  /* Typography Variables */
+  --font-serif: var(--font-playfair), "Playfair Display", Georgia, serif;
+  --font-sans: var(--font-inter), Inter, Geist, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+
+  /* Restrained Luxury Radii */
+  --radius-xs: 2px;
   --radius-sm: 4px;
   --radius-md: 6px;
   --radius-lg: 8px;
-  --shadow-sm: 0 1px 2px rgb(0 0 0 / 0.06);
-  --shadow-md: 0 8px 24px rgb(0 0 0 / 0.08);
+  --radius-xl: 12px;
+  --radius-2xl: 16px;
+  --radius-full: 9999px;
+
+  /* Diffuse Luxury Shadows */
+  --shadow-subtle: 0 1px 3px 0 rgb(28 25 23 / 0.04), 0 1px 2px -1px rgb(28 25 23 / 0.04);
+  --shadow-sm: 0 1px 2px rgb(28 25 23 / 0.05);
+  --shadow-md: 0 8px 24px rgb(28 25 23 / 0.06);
+  --shadow-luxury: 0 12px 32px -4px rgb(28 25 23 / 0.08), 0 4px 12px -2px rgb(28 25 23 / 0.03);
+
+  /* Enterprise Admin Design System Tokens */
+  --admin-bg: #f9fafb;             /* Gray-50: crisp, enterprise clean canvas */
+  --admin-surface: #ffffff;        /* Pure White card surfaces */
+  --admin-surface-muted: #f3f4f6;  /* Gray-100 */
+  --admin-border: #e5e7eb;         /* Gray-200 */
+  --admin-border-subtle: #f3f4f6;  /* Gray-100 */
+  --admin-text-primary: #111827;   /* Gray-900 */
+  --admin-text-secondary: #4b5563; /* Gray-600 */
+  --admin-text-muted: #6b7280;     /* Gray-500 */
+  --admin-primary: #111827;        /* Solid Dark */
+  --admin-primary-hover: #1f2937;  /* Gray-800 */
+  --admin-accent: #2563eb;         /* Action Blue */
+  --admin-accent-soft: #eff6ff;    /* Blue-50 */
+  --admin-sidebar-w: 16rem;
+  --admin-sidebar-compact-w: 4.5rem;
 }
 
 @theme inline {
@@ -29,14 +62,24 @@
   --color-surface-strong: var(--surface-strong);
   --color-accent: var(--accent);
   --color-accent-foreground: var(--accent-foreground);
+  --color-accent-gold: var(--accent-gold);
+  --color-accent-gold-light: var(--accent-gold-light);
   --color-danger: var(--danger);
   --color-success: var(--success);
-  --radius-sm: 4px;
-  --radius-md: 6px;
-  --radius-lg: 8px;
-  --shadow-sm: 0 1px 2px rgb(0 0 0 / 0.06);
-  --shadow-md: 0 8px 24px rgb(0 0 0 / 0.08);
-  --font-sans: Inter, Geist, Manrope, ui-sans-serif, system-ui, sans-serif;
+  --radius-xs: var(--radius-xs);
+  --radius-sm: var(--radius-sm);
+  --radius-md: var(--radius-md);
+  --radius-lg: var(--radius-lg);
+  --radius-xl: var(--radius-xl);
+  --radius-2xl: var(--radius-2xl);
+  --radius-full: var(--radius-full);
+  --shadow-subtle: var(--shadow-subtle);
+  --shadow-sm: var(--shadow-sm);
+  --shadow-md: var(--shadow-md);
+  --shadow-luxury: var(--shadow-luxury);
+  --font-serif: var(--font-serif);
+  --font-display: var(--font-serif);
+  --font-sans: var(--font-sans);
 }
 
 @layer base {
@@ -78,24 +121,41 @@
 }
 
 :focus-visible {
-  outline: 2px solid #111111;
+  outline: 2px solid var(--foreground);
   outline-offset: 3px;
 }
 
 ::selection {
-  background: #111111;
-  color: #ffffff;
+  background: var(--foreground);
+  color: var(--background);
 }
 
+/* Upgraded fluid luxury container with responsive gutters */
 .container-shell {
-  width: min(100% - 32px, 1180px);
+  width: min(100% - 32px, 1320px);
   margin-inline: auto;
 }
 
 @media (min-width: 768px) {
   .container-shell {
-    width: min(100% - 64px, 1180px);
+    width: min(100% - 48px, 1320px);
   }
+}
+
+@media (min-width: 1280px) {
+  .container-shell {
+    width: min(100% - 64px, 1320px);
+  }
+}
+
+/* Editorial typography utility classes */
+.font-display {
+  font-family: var(--font-serif);
+}
+
+.editorial-title {
+  font-family: var(--font-serif);
+  letter-spacing: -0.02em;
 }
 
 /* ═══════════════════════════════════════════════
@@ -135,24 +195,24 @@
 }
 
 /* ═══════════════════════════════════════════════
-   ELARIS HERO — full viewport width, 3 columns
+   ELARIS HERO — Editorial 2-Column Campaign Layout
 ═══════════════════════════════════════════════ */
 .elaris-hero {
   width: 100%;
-  background: #fff;
+  background: var(--background);
 }
 
-/* 3-column grid: text | image | badge */
+/* 2-column balanced grid: editorial text | campaign imagery */
 .elaris-hero-grid {
   display: grid;
   grid-template-columns: 1fr; /* mobile: stack */
-  min-height: 76vh;
+  min-height: auto;
   align-items: stretch;
 }
 
-@media (min-width: 768px) {
+@media (min-width: 1024px) {
   .elaris-hero-grid {
-    grid-template-columns: 1.4fr 1.3fr 0.5fr;
+    grid-template-columns: 1.15fr 1fr;
     min-height: 76vh;
   }
 }
@@ -162,19 +222,23 @@
   display: flex;
   flex-direction: column;
   justify-content: space-between;
-  /* Left padding mirrors container-shell margin so text aligns with nav */
-  padding-top: 3rem;
-  padding-bottom: 1.75rem;
-  padding-left: 16px;
-  padding-right: 2rem;
+  padding: 2.25rem 1rem 2.25rem;
 }
 
-@media (min-width: 768px) {
+@media (min-width: 640px) {
   .elaris-hero-left {
-    /* max(32px, (100vw - 1180px) / 2) aligns with container-shell left edge */
-    padding-left: max(32px, calc((100vw - 1180px) / 2));
-    padding-right: 2.5rem;
-    border-right: 1px solid #e4e4e7;
+    padding: 2.75rem 1.75rem 2.5rem;
+  }
+}
+
+@media (min-width: 1024px) {
+  .elaris-hero-left {
+    /* Aligns with container-shell left edge */
+    padding-left: max(32px, calc((100vw - 1320px) / 2));
+    padding-right: 3.5rem;
+    padding-top: 4rem;
+    padding-bottom: 3rem;
+    border-right: 1px solid var(--border);
   }
 }
 
@@ -182,196 +246,91 @@
 .elaris-kicker {
   font-size: 11px;
   font-weight: 600;
-  letter-spacing: 0.16em;
+  letter-spacing: 0.2em;
   text-transform: uppercase;
-  color: #71717a;
-  margin: 0 0 0.6rem;
+  color: var(--muted-foreground);
 }
 
-/* Huge headline */
+/* Huge editorial headline */
 .elaris-headline {
-  font-size: clamp(2.25rem, 3.2vw, 4.5rem);
-  font-weight: 900;
-  line-height: 0.95;
-  letter-spacing: -0.03em;
-  margin: 0 0 1.1rem;
-  color: #0a0a0a;
+  font-family: var(--font-serif);
+  font-size: clamp(2.25rem, 3.6vw, 4.5rem);
+  font-weight: 700;
+  line-height: 1.02;
+  letter-spacing: -0.025em;
+  color: var(--foreground);
 }
 .elaris-headline span { display: block; }
 
 /* Subline */
 .elaris-subline {
-  font-size: 14px;
-  line-height: 1.5;
-  color: #71717a;
-  margin: 0 0 1.75rem;
+  font-size: 14.5px;
+  line-height: 1.6;
+  color: var(--muted-foreground);
 }
 
 /* CTA button */
 .elaris-cta-link {
   display: inline-flex;
   align-items: center;
-  gap: 8px;
-  padding: 13px 22px;
-  background: #0a0a0a;
-  color: #fff;
-  font-size: 12px;
+  gap: 10px;
+  padding: 13px 26px;
+  background: var(--foreground);
+  color: var(--background);
+  font-size: 11.5px;
   font-weight: 700;
-  letter-spacing: 0.1em;
+  letter-spacing: 0.12em;
   text-transform: uppercase;
   text-decoration: none;
   border-radius: var(--radius-md, 6px);
-  transition: opacity 0.15s;
+  transition: all 0.2s ease;
   width: fit-content;
 }
-.elaris-cta-link:hover { opacity: 0.8; }
+.elaris-cta-link:hover {
+  opacity: 0.9;
+  transform: translateY(-1px);
+}
 
 /* Slide bar — pinned to bottom of left column */
 .elaris-slide-bar {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  border-top: 1px solid #d4d4d8;
-  padding-top: 1rem;
 }
 
-.elaris-slide-nums {
-  display: flex;
-  align-items: center;
-  gap: 1.4rem;
-}
-
-.elaris-slide-num {
-  background: none;
-  border: none;
-  border-bottom: 1.5px solid transparent;
-  font-size: 13px;
-  font-weight: 600;
-  color: #6b7280;
-  cursor: pointer;
-  padding: 0 0 2px;
-  letter-spacing: 0.02em;
-  transition: color 0.15s;
-  line-height: 1;
-}
-.elaris-slide-num.active {
-  color: #0a0a0a;
-  border-bottom-color: #0a0a0a;
-}
-
-.elaris-slide-navs {
-  display: flex;
-  gap: 6px;
-}
-
-.elaris-nav-btn {
-  width: 34px;
-  height: 34px;
-  border: 1px solid #d4d4d8;
-  background: transparent;
-  border-radius: 50%;
-  cursor: pointer;
-  font-size: 14px;
-  display: grid;
-  place-items: center;
-  transition: background 0.15s;
-}
-.elaris-nav-btn:hover { background: #f4f4f5; }
-
-/* ── Center column: hero image ── */
+/* ── Right column: hero campaign imagery ── */
 .elaris-hero-img-col {
   position: relative;
   overflow: hidden;
-  background: #e8e8e8;
+  background: var(--muted);
 }
 
-@media (max-width: 767px) {
+@media (max-width: 1023px) {
   .elaris-hero-img-col {
-    aspect-ratio: 3 / 4;
+    aspect-ratio: 4 / 5;
     order: -1;
+    min-height: 380px;
   }
 }
 
-@media (min-width: 768px) {
+@media (min-width: 1024px) {
   .elaris-hero-img-col {
     aspect-ratio: auto;
+    min-height: 100%;
+    order: 1;
   }
 }
 
-/* ── Right column: discount badge ── */
+/* Obsolete isolated badge column — retained as hidden for zero regression */
 .elaris-hero-badge-col {
-  display: none; /* hidden on mobile */
-}
-
-@media (min-width: 768px) {
-  .elaris-hero-badge-col {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    padding: 2rem 1.5rem;
-    border-left: 1px solid #e4e4e7;
-    /* Right padding mirrors container-shell margin */
-    padding-right: max(20px, calc((100vw - 1180px) / 2));
-    /* Stabilise height before badge renders — prevents CLS */
-    min-height: 600px;
-  }
-}
-
-.elaris-badge-box {
-  border: 1px solid #d4d4d8;
-  padding: 2rem 1.25rem;
-  text-align: center;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 3px;
-  width: 100%;
-  max-width: 170px;
-}
-
-.elaris-badge-gift {
-  color: #71717a;
-  margin-bottom: 10px;
-}
-
-.elaris-badge-upto {
-  font-size: 9px;
-  font-weight: 600;
-  letter-spacing: 0.14em;
-  text-transform: uppercase;
-  color: #71717a;
-}
-
-.elaris-badge-pct {
-  font-size: 3rem;
-  font-weight: 900;
-  line-height: 1;
-  color: #0a0a0a;
-}
-
-.elaris-badge-off {
-  font-size: 13px;
-  font-weight: 800;
-  letter-spacing: 0.14em;
-  text-transform: uppercase;
-  color: #0a0a0a;
-}
-
-.elaris-badge-note {
-  font-size: 8px;
-  font-weight: 600;
-  letter-spacing: 0.1em;
-  text-transform: uppercase;
-  color: #71717a;
-  margin-top: 6px;
-  line-height: 1.5;
+  display: none !important;
 }
 
 /* ═══════════════════════════════════════════════
    ELARIS CATEGORY SECTION
 ═══════════════════════════════════════════════ */
 .elaris-cat-section {
-  border-top: 1px solid #e4e4e7;
+  border-top: 1px solid var(--border);
   padding-top: 3.5rem;
   padding-bottom: 4rem;
 }
@@ -383,7 +342,7 @@
   letter-spacing: 0.16em;
   text-transform: uppercase;
   margin: 0 0 2rem;
-  color: #0a0a0a;
+  color: var(--foreground);
 }
 
 /* 4-column grid with clean gaps between cards */
@@ -414,13 +373,13 @@
   color: inherit;
 }
 
-/* Compact landscape aspect ratio with rounded corners */
+/* Portrait 3:4 aspect ratio with rounded corners */
 .elaris-cat-img-wrap {
   position: relative;
-  aspect-ratio: 16 / 10.5;
+  aspect-ratio: 3 / 4;
   overflow: hidden;
-  border-radius: 12px;
-  background: #f4f4f6;
+  border-radius: var(--radius-xl, 12px);
+  background: var(--muted);
 }
 
 /* Clean label and arrow below card without borders */
@@ -435,7 +394,7 @@
   letter-spacing: 0.1em;
   text-transform: uppercase;
   background: transparent;
-  color: #0a0a0a;
+  color: var(--foreground);
   flex-shrink: 0;
 }
 

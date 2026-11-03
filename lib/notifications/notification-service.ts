@@ -260,3 +260,48 @@ export async function sendContactEmail(options: {
     text: `Hi ${firstName}, we've received your message and will respond within 24 hours.`
   });
 }
+
+
+export async function sendAbandonedCheckoutRecoveryEmail(options: {
+  to: string;
+  customerName: string;
+  cartValue: number;
+  items: Array<{ name: string; variant?: string; quantity: number }>;
+  recoveryUrl?: string;
+}): Promise<void> {
+  const { to, customerName, cartValue, items, recoveryUrl } = options;
+  const safeName = escapeHtml(customerName || "there");
+  const formattedTotal = (cartValue / 100).toLocaleString("en-BD", {
+    style: "currency",
+    currency: "BDT",
+    minimumFractionDigits: 0
+  });
+  const checkoutUrl = recoveryUrl || `${APP_URL}/cart`;
+
+  const itemsHtml = items
+    .map(
+      (item) => `
+      <div style="padding: 8px 0; border-bottom: 1px solid #f0f0f0;">
+        <span><strong>${escapeHtml(item.name)}</strong> ${item.variant ? `<small style="color: #666;">(${escapeHtml(item.variant)})</small>` : ""} &times; ${item.quantity}</span>
+      </div>
+    `
+    )
+    .join("");
+
+  await sendEmail({
+    to,
+    subject: `Your bag is waiting at ${BRAND_NAME}`,
+    html: layout(`
+      <h2>Still thinking it over?</h2>
+      <p>Hi ${safeName}, your curated selections are saved and ready for you.</p>
+      <div style="margin: 20px 0; padding: 16px; background: #fafafa; border-radius: 6px;">
+        <h3 style="font-size: 13px; text-transform: uppercase; color: #888; margin-top: 0;">Reserved Items</h3>
+        ${itemsHtml}
+        <p style="margin-top: 12px; font-weight: bold; text-align: right;">Estimated Total: ${formattedTotal}</p>
+      </div>
+      <p>Complete your order now to ensure nationwide delivery across Bangladesh.</p>
+      <p style="margin-top: 24px;"><a href="${checkoutUrl}" class="btn">Resume Checkout</a></p>
+    `),
+    text: `Hi ${safeName}, your reserved items (${formattedTotal}) are waiting at ${BRAND_NAME}. Complete your order at: ${checkoutUrl}`
+  });
+}

@@ -10,7 +10,7 @@ import { useCart } from "@/components/cart/cart-provider";
 
 export default function CheckoutSuccessPage() {
   return (
-    <Suspense fallback={<div className="container-shell py-12 text-center text-sm text-muted-foreground">Loading confirmation...</div>}>
+    <Suspense fallback={<div className="container-shell py-16 text-center text-xs uppercase tracking-widest text-muted-foreground">Loading confirmation...</div>}>
       <CheckoutSuccessContent />
     </Suspense>
   );
@@ -142,68 +142,68 @@ function CheckoutSuccessContent() {
   ];
 
   return (
-    <div className="container-shell py-10 space-y-12">
+    <div className="container-shell py-10 sm:py-14 space-y-12">
       {/* Top Hero Banner */}
-      <div className="relative overflow-hidden rounded-2xl border border-border bg-background p-6 sm:p-10 shadow-sm">
+      <div className="relative overflow-hidden rounded-xl border border-border/80 bg-background p-6 sm:p-10 shadow-xs">
         <div className="grid gap-8 lg:grid-cols-[1.4fr_1fr] items-center">
           <div className="space-y-4">
             <div className="flex h-12 w-12 items-center justify-center rounded-full bg-foreground text-background">
-              <Check size={24} strokeWidth={3} />
+              <Check size={22} strokeWidth={2.5} />
             </div>
-            <p className="text-xs font-bold uppercase tracking-widest text-muted-foreground">
-              ORDER PLACED SUCCESSFULLY
+            <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-muted-foreground">
+              Order Confirmed & Logged
             </p>
-            <h1 className="text-3xl sm:text-4xl font-extrabold tracking-tight text-foreground">
-              Thank You, {activeCustomerName.split(" ")[0]}!
+            <h1 className="font-serif text-3xl sm:text-4xl font-semibold tracking-tight text-foreground">
+              Thank You, {activeCustomerName.split(" ")[0]}
             </h1>
-            <p className="text-sm text-muted-foreground leading-relaxed max-w-lg">
-              Your order has been placed successfully. We&apos;ll notify you once your order is confirmed.
+            <p className="text-xs sm:text-sm text-muted-foreground leading-relaxed max-w-lg">
+              Your order has been placed successfully and is queued for verification and dispatch. A confirmation message has been dispatched to your contact.
             </p>
             <div className="flex flex-wrap items-center gap-3 pt-2">
               <Link
                 href="/shop"
-                className="flex items-center gap-2 rounded-md bg-foreground px-6 py-3 text-xs font-bold uppercase tracking-wider text-background hover:bg-foreground/90 transition-colors"
+                className="flex items-center gap-2 rounded-none bg-foreground px-6 py-3 text-xs font-semibold uppercase tracking-[0.16em] text-background hover:bg-foreground/90 transition-all shadow-sm"
               >
-                Continue Shopping <ArrowRight size={14} />
+                Continue Browsing <ArrowRight size={14} />
               </Link>
               <Link
                 href="/account/orders"
-                className="flex items-center gap-2 rounded-md border border-border bg-background px-6 py-3 text-xs font-bold uppercase tracking-wider text-foreground hover:bg-muted transition-colors"
+                className="flex items-center gap-2 rounded-none border border-border bg-background px-6 py-3 text-xs font-semibold uppercase tracking-[0.16em] text-foreground hover:bg-muted/50 transition-colors"
               >
-                View Order Details
+                View Order History
               </Link>
             </div>
           </div>
 
           {/* Purchased Items Preview in Hero Banner */}
-          <div className="relative rounded-xl border border-border/80 bg-muted/20 p-5 space-y-3">
-            <div className="flex items-center justify-between text-xs border-b border-border/60 pb-2">
-              <span className="font-bold text-foreground">Purchased Items ({activeItems.length})</span>
-              <span className="font-extrabold text-foreground">{formatMoney(activeTotal)}</span>
+          <div className="relative rounded-lg border border-border/70 bg-stone-50/50 p-5 space-y-3">
+            <div className="flex items-center justify-between text-xs border-b border-border/60 pb-2.5">
+              <span className="font-medium text-foreground">Purchased Pieces ({activeItems.length})</span>
+              <span className="font-serif font-bold text-foreground">{formatMoney(activeTotal)}</span>
             </div>
             <div className="flex items-center gap-3 overflow-x-auto py-1">
               {activeItems.map((item, idx) => (
-                <div key={idx} className="flex items-center gap-2.5 shrink-0 bg-background rounded-lg border border-border p-2 pr-3">
-                  <div className="relative h-12 w-10 shrink-0 overflow-hidden rounded bg-muted">
+                <div key={idx} className="flex items-center gap-2.5 shrink-0 bg-background rounded border border-border/70 p-2 pr-3">
+                  <div className="relative aspect-[3/4] w-10 shrink-0 overflow-hidden rounded bg-stone-100">
                     <Image
                       src={item.image || "/elaris-women.jpg"}
                       alt={item.name}
                       fill
-                      className="object-cover"
+                      className="object-cover object-top"
                       sizes="40px"
                     />
                   </div>
                   <div className="text-left max-w-[130px]">
-                    <p className="text-xs font-bold text-foreground truncate">{item.name}</p>
-                    <p className="text-[10px] text-muted-foreground">
-                      {item.size || "M"} · Qty: {item.quantity}
+                    <p className="text-xs font-medium text-foreground truncate">{item.name}</p>
+                    <p className="text-[10px] text-muted-foreground uppercase tracking-wider">
+                      {item.size || "M"} · Qty {item.quantity}
                     </p>
                   </div>
                 </div>
               ))}
             </div>
             <p className="text-[11px] text-muted-foreground">
-              Payment: <strong className="text-foreground">{order?.paymentMethod || "Cash on Delivery"}</strong>
+              Payment Method: <strong className="font-medium text-foreground">{order?.paymentMethod === "COD" ? "Cash on Delivery" : (order?.paymentMethod || "Cash on Delivery")}</strong>
             </p>
           </div>
         </div>
@@ -212,24 +212,26 @@ function CheckoutSuccessContent() {
       {/* 2-Column Details: Order Details & Track Your Order */}
       <div className="grid gap-8 lg:grid-cols-2 items-start">
         {/* Order Details Card */}
-        <div className="rounded-xl border border-border bg-background p-6 space-y-6 shadow-sm">
-          <div className="flex items-center justify-between border-b border-border/80 pb-4">
-            <h2 className="text-base font-bold text-foreground">Order Details</h2>
+        <div className="rounded-xl border border-border/80 bg-background p-6 sm:p-7 space-y-6 shadow-xs">
+          <div className="flex items-center justify-between border-b border-border/70 pb-4">
+            <h2 className="font-serif text-lg font-semibold text-foreground tracking-tight">
+              Order Receipt
+            </h2>
             <span className="text-xs text-muted-foreground">
-              Order Date: {order?.dateStr || new Date().toLocaleDateString("en-BD", { day: "numeric", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit" })}
+              {order?.dateStr || new Date().toLocaleDateString("en-BD", { day: "numeric", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit" })}
             </span>
           </div>
 
           <div className="grid gap-5 sm:grid-cols-2 text-xs">
             <div>
-              <p className="text-muted-foreground">Order Number</p>
+              <p className="text-muted-foreground">Order Reference</p>
               <div className="mt-1 flex items-center gap-2">
-                <span className="font-bold text-sm text-foreground">{activeOrderId}</span>
+                <span className="font-mono font-semibold text-sm text-foreground">{activeOrderId}</span>
                 <button
                   type="button"
                   onClick={handleCopy}
                   className="rounded p-1 hover:bg-muted text-muted-foreground hover:text-foreground transition-colors"
-                  aria-label="Copy order ID"
+                  aria-label="Copy order reference"
                 >
                   {copied ? <span className="text-[10px] text-emerald-600 font-bold">Copied!</span> : <Copy size={13} />}
                 </button>
@@ -237,28 +239,28 @@ function CheckoutSuccessContent() {
             </div>
 
             <div>
-              <p className="text-muted-foreground">Order Status</p>
-              <div className="mt-1 inline-flex items-center gap-1.5 rounded-full bg-amber-50 px-2.5 py-0.5 text-xs font-semibold text-amber-700">
+              <p className="text-muted-foreground">Status</p>
+              <div className="mt-1 inline-flex items-center gap-1.5 rounded-full bg-amber-50 px-2.5 py-0.5 text-xs font-semibold text-amber-800 border border-amber-200/60">
                 <Clock size={12} />
-                Pending Confirmation
+                Pending Dispatch
               </div>
             </div>
 
             <div>
               <p className="text-muted-foreground">Payment Method</p>
-              <p className="mt-1 font-semibold text-foreground">
-                {order?.paymentMethod === "COD" ? "Cash on Delivery (Pay on Arrival)" : (order?.paymentMethod || "Cash on Delivery")}
+              <p className="mt-1 font-medium text-foreground">
+                {order?.paymentMethod === "COD" ? "Cash on Delivery" : (order?.paymentMethod || "Cash on Delivery")}
               </p>
-              <p className="mt-0.5 text-[10px] text-amber-700 font-medium">Please keep cash ready for the courier.</p>
+              <p className="mt-0.5 text-[11px] text-amber-800">Please prepare cash for the delivery agent.</p>
             </div>
 
             <div>
               <p className="text-muted-foreground">Estimated Delivery</p>
-              <p className="mt-1 font-semibold text-foreground">2 - 4 Business Days</p>
+              <p className="mt-1 font-medium text-foreground">2 – 4 Business Days</p>
             </div>
 
             <div className="sm:col-span-2">
-              <p className="text-muted-foreground">Shipping Address</p>
+              <p className="text-muted-foreground">Shipping Destination</p>
               <p className="mt-1 font-medium text-foreground leading-relaxed whitespace-pre-line">
                 {activeCustomerName}
                 {order?.phone ? ` (${order.phone})` : ""}<br />
@@ -267,39 +269,41 @@ function CheckoutSuccessContent() {
               </p>
             </div>
 
-            <div className="sm:col-span-2 border-t border-border/80 pt-3 flex items-baseline justify-between">
+            <div className="sm:col-span-2 border-t border-border/70 pt-3.5 flex items-baseline justify-between">
               <div>
-                <p className="text-muted-foreground">Total Amount</p>
-                <p className="text-xl font-extrabold text-foreground">
+                <p className="text-muted-foreground">Total Settled</p>
+                <p className="font-serif text-2xl font-bold text-foreground">
                   {formatMoney(activeTotal)}
                 </p>
               </div>
-              <span className="text-xs font-semibold text-emerald-600">Verified Order</span>
+              <span className="text-xs font-medium text-emerald-700">Verified Submission</span>
             </div>
           </div>
         </div>
 
         {/* Track Your Order Card */}
-        <div className="rounded-xl border border-border bg-background p-6 space-y-6 shadow-sm">
-          <div className="flex items-center justify-between border-b border-border/80 pb-4">
-            <h2 className="text-base font-bold text-foreground">Track Your Order</h2>
-            <Link href="/account/orders" className="text-xs font-semibold text-foreground hover:underline">
-              View Full Tracking →
+        <div className="rounded-xl border border-border/80 bg-background p-6 sm:p-7 space-y-6 shadow-xs">
+          <div className="flex items-center justify-between border-b border-border/70 pb-4">
+            <h2 className="font-serif text-lg font-semibold text-foreground tracking-tight">
+              Order Fulfillment Tracking
+            </h2>
+            <Link href="/account/orders" className="text-xs font-medium text-muted-foreground hover:text-foreground underline underline-offset-4">
+              Full Status →
             </Link>
           </div>
 
           {/* Stepper with icons */}
           <div className="grid grid-cols-5 gap-2 text-center text-[10px]">
             <div className="space-y-1.5">
-              <div className="mx-auto flex h-9 w-9 items-center justify-center rounded-full bg-foreground text-background">
+              <div className="mx-auto flex h-9 w-9 items-center justify-center rounded-full bg-stone-900 text-white">
                 <Check size={16} strokeWidth={2.5} />
               </div>
-              <p className="font-bold text-foreground">Order Placed</p>
-              <p className="text-muted-foreground">Today</p>
+              <p className="font-semibold text-foreground">Logged</p>
+              <p className="text-muted-foreground">Completed</p>
             </div>
 
             <div className="space-y-1.5">
-              <div className="mx-auto flex h-9 w-9 items-center justify-center rounded-full border border-border bg-muted/30 text-muted-foreground">
+              <div className="mx-auto flex h-9 w-9 items-center justify-center rounded-full border border-border bg-stone-100 text-muted-foreground">
                 <CheckCircle2 size={16} />
               </div>
               <p className="font-medium text-muted-foreground">Confirmed</p>
@@ -307,23 +311,23 @@ function CheckoutSuccessContent() {
             </div>
 
             <div className="space-y-1.5">
-              <div className="mx-auto flex h-9 w-9 items-center justify-center rounded-full border border-border bg-muted/30 text-muted-foreground">
+              <div className="mx-auto flex h-9 w-9 items-center justify-center rounded-full border border-border bg-stone-100 text-muted-foreground">
                 <Package size={16} />
               </div>
-              <p className="font-medium text-muted-foreground">Processing</p>
+              <p className="font-medium text-muted-foreground">Tailoring</p>
               <p className="text-muted-foreground">Pending</p>
             </div>
 
             <div className="space-y-1.5">
-              <div className="mx-auto flex h-9 w-9 items-center justify-center rounded-full border border-border bg-muted/30 text-muted-foreground">
+              <div className="mx-auto flex h-9 w-9 items-center justify-center rounded-full border border-border bg-stone-100 text-muted-foreground">
                 <Truck size={16} />
               </div>
-              <p className="font-medium text-muted-foreground">Shipped</p>
+              <p className="font-medium text-muted-foreground">In Transit</p>
               <p className="text-muted-foreground">Pending</p>
             </div>
 
             <div className="space-y-1.5">
-              <div className="mx-auto flex h-9 w-9 items-center justify-center rounded-full border border-border bg-muted/30 text-muted-foreground">
+              <div className="mx-auto flex h-9 w-9 items-center justify-center rounded-full border border-border bg-stone-100 text-muted-foreground">
                 <Home size={16} />
               </div>
               <p className="font-medium text-muted-foreground">Delivered</p>
@@ -332,14 +336,14 @@ function CheckoutSuccessContent() {
           </div>
 
           {/* Notice Box */}
-          <div className="flex items-start gap-3 rounded-lg border border-border/80 bg-muted/20 p-4 text-xs">
+          <div className="flex items-start gap-3 rounded-lg border border-border/80 bg-stone-50/60 p-4 text-xs">
             <Mail size={16} className="text-muted-foreground shrink-0 mt-0.5" />
             <div className="space-y-0.5">
-              <p className="font-bold text-foreground">
-                We&apos;ll send you an email and SMS once your order is confirmed.
+              <p className="font-semibold text-foreground">
+                We will dispatch an SMS and confirmation email upon package dispatch.
               </p>
-              <p className="text-muted-foreground">
-                You can also track your order anytime from your account.
+              <p className="text-muted-foreground leading-relaxed">
+                You can review real-time parcel transit and delivery schedule from your client dashboard.
               </p>
             </div>
           </div>
@@ -347,36 +351,40 @@ function CheckoutSuccessContent() {
       </div>
 
       {/* Items In This Order */}
-      <div className="rounded-xl border border-border bg-background p-6 space-y-4 shadow-sm">
-        <div className="flex items-center justify-between border-b border-border/80 pb-3">
-          <h2 className="text-base font-bold text-foreground">Items in This Order ({activeItems.length})</h2>
-          <Link href="/shop" className="text-xs font-semibold text-muted-foreground hover:text-foreground">
-            Continue Shopping →
+      <div className="rounded-xl border border-border/80 bg-background p-6 sm:p-7 space-y-4 shadow-xs">
+        <div className="flex items-center justify-between border-b border-border/70 pb-3">
+          <h2 className="font-serif text-lg font-semibold text-foreground tracking-tight">
+            Garments in This Order ({activeItems.length})
+          </h2>
+          <Link href="/shop" className="text-xs font-medium text-muted-foreground hover:text-foreground underline underline-offset-4">
+            Discover More Pieces →
           </Link>
         </div>
 
         <div className="divide-y divide-border/60">
           {activeItems.map((item, idx) => (
-            <div key={idx} className="py-3 flex items-center justify-between">
-              <div className="flex items-center gap-3">
-                <div className="relative h-14 w-12 shrink-0 overflow-hidden rounded bg-muted">
+            <div key={idx} className="py-4 flex items-center justify-between">
+              <div className="flex items-center gap-3.5">
+                <div className="relative aspect-[3/4] w-14 shrink-0 overflow-hidden rounded bg-stone-100 border border-border/70">
                   <Image
                     src={item.image || "/elaris-women.jpg"}
                     alt={item.name}
                     fill
-                    className="object-cover"
-                    sizes="48px"
+                    className="object-cover object-top"
+                    sizes="56px"
                   />
                 </div>
-                <div>
-                  <p className="text-xs font-bold text-foreground">{item.name}</p>
-                  <p className="text-[11px] text-muted-foreground">
-                    Color: {item.color || "Standard"} | Size: {item.size || "Regular"} | Qty: {item.quantity}
+                <div className="space-y-0.5">
+                  <p className="text-xs sm:text-sm font-medium text-foreground">{item.name}</p>
+                  <p className="text-[11px] text-muted-foreground uppercase tracking-wider">
+                    {item.color || "Standard"} · Size: {item.size || "Regular"} · Qty: {item.quantity}
                   </p>
                 </div>
               </div>
               <div className="text-right">
-                <p className="text-xs font-bold">{formatMoney(item.price * item.quantity)}</p>
+                <p className="text-xs sm:text-sm font-semibold text-foreground">
+                  {formatMoney(item.price * item.quantity)}
+                </p>
               </div>
             </div>
           ))}
@@ -384,35 +392,39 @@ function CheckoutSuccessContent() {
       </div>
 
       {/* Recommended Products Carousel */}
-      <div className="space-y-4 pt-4 border-t border-border/80">
-        <h2 className="text-base font-bold text-foreground">You May Also Like</h2>
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+      <div className="space-y-6 pt-6 border-t border-border/80">
+        <h2 className="font-serif text-2xl font-semibold tracking-tight text-foreground">
+          Curated For You
+        </h2>
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 sm:gap-6">
           {recommendations.map((item) => (
             <Link
               key={item.id}
               href={`/products/${item.slug}`}
-              className="group block rounded-lg border border-border/80 bg-background p-3 hover:shadow-md transition-all"
+              className="group block rounded border border-border/70 bg-background p-3 hover:shadow-md transition-all"
             >
-              <div className="relative aspect-[3/4] overflow-hidden rounded-md bg-muted">
+              <div className="relative aspect-[3/4] overflow-hidden rounded bg-stone-100">
                 <Image
                   src={item.image}
                   alt={item.name}
                   fill
-                  className="object-cover transition-transform duration-300 group-hover:scale-105"
+                  className="object-cover object-top transition-transform duration-700 ease-out group-hover:scale-[1.03]"
                   sizes="(min-width: 768px) 25vw, 50vw"
                 />
               </div>
               <div className="mt-3 space-y-1">
-                <h3 className="text-xs font-bold text-foreground truncate">{item.name}</h3>
+                <h3 className="text-xs font-medium text-foreground truncate group-hover:underline">
+                  {item.name}
+                </h3>
                 <div className="flex items-center gap-2 text-xs">
-                  <span className="font-extrabold">{formatMoney(item.price)}</span>
+                  <span className="font-semibold text-foreground">{formatMoney(item.price)}</span>
                   {item.original && (
                     <span className="text-muted-foreground line-through text-[11px]">
                       {formatMoney(item.original)}
                     </span>
                   )}
                   {item.discount && (
-                    <span className="rounded bg-black px-1 text-[9px] font-bold text-white">
+                    <span className="rounded bg-stone-900 px-1 text-[9px] font-bold text-white uppercase">
                       {item.discount}
                     </span>
                   )}

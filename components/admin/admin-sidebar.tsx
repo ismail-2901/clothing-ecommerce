@@ -21,10 +21,12 @@ import {
   Users,
   Bell,
   UserCheck,
-  LogOut,
   Menu,
   X,
-  ImagePlay
+  ImagePlay,
+  PanelLeftClose,
+  PanelLeftOpen,
+  ArrowUpRight
 } from "lucide-react";
 
 import { AdminNotificationNavBadge } from "@/components/admin/admin-notification-bell";
@@ -63,7 +65,6 @@ export const navGroups = [
       { label: "Analytics", icon: ChartNoAxesCombined, href: "/admin/analytics" }
     ]
   },
-
   {
     label: "SYSTEM",
     items: [
@@ -75,7 +76,7 @@ export const navGroups = [
   }
 ] as const;
 
-type UserInfo = { name?: string | null; email?: string | null; image?: string | null };
+export type UserInfo = { name?: string | null; email?: string | null; image?: string | null };
 
 function getInitials(name?: string | null, email?: string | null): string {
   if (name && name.trim()) {
@@ -94,62 +95,117 @@ function getInitials(name?: string | null, email?: string | null): string {
 function SidebarInner({
   user,
   onNavClick,
-  isMobileDrawer
+  isMobileDrawer = false,
+  isCollapsed = false,
+  onToggleCollapse
 }: {
   user: UserInfo;
   onNavClick?: () => void;
   isMobileDrawer?: boolean;
+  isCollapsed?: boolean;
+  onToggleCollapse?: () => void;
 }) {
   const pathname = usePathname();
 
   return (
-    <div className="flex flex-col justify-between min-h-full pb-6">
-      <div className="space-y-6">
-        {/* Brand */}
+    <div className="flex flex-col justify-between min-h-full pb-4">
+      <div className="space-y-5">
+        {/* Brand Header */}
         {!isMobileDrawer && (
-          <div className="px-2">
-            <Link
-              href="/admin"
-              onClick={onNavClick}
-              className="block text-2xl font-black tracking-[0.16em] uppercase text-foreground"
-            >
-              ELARIS
-            </Link>
-            <p className="text-[10px] font-bold tracking-[0.2em] text-muted-foreground uppercase">
-              ADMIN PANEL
-            </p>
+          <div className="flex items-center justify-between px-1 pt-1 pb-2 border-b border-border/60">
+            {isCollapsed ? (
+              <Link
+                href="/admin"
+                onClick={onNavClick}
+                className="flex h-9 w-9 mx-auto items-center justify-center rounded-lg bg-stone-900 text-white font-black text-sm tracking-widest shadow-xs hover:bg-stone-800 transition-colors"
+                title="ELARIS Admin"
+              >
+                E
+              </Link>
+            ) : (
+              <div className="min-w-0">
+                <Link
+                  href="/admin"
+                  onClick={onNavClick}
+                  className="block text-xl font-black tracking-[0.16em] uppercase text-foreground leading-none"
+                >
+                  ELARIS
+                </Link>
+                <p className="text-[9px] font-bold tracking-[0.2em] text-muted-foreground uppercase pt-1">
+                  ADMIN CONTROL
+                </p>
+              </div>
+            )}
+
+            {/* Collapse / Expand Toggle Button */}
+            {onToggleCollapse && (
+              <button
+                type="button"
+                onClick={onToggleCollapse}
+                className={`hidden lg:flex items-center justify-center rounded-lg p-1.5 text-muted-foreground hover:bg-stone-100 hover:text-foreground transition-all cursor-pointer ${
+                  isCollapsed ? "mx-auto mt-2" : ""
+                }`}
+                title={isCollapsed ? "Expand sidebar" : "Collapse sidebar"}
+                aria-label={isCollapsed ? "Expand sidebar" : "Collapse sidebar"}
+              >
+                {isCollapsed ? <PanelLeftOpen size={16} /> : <PanelLeftClose size={16} />}
+              </button>
+            )}
           </div>
         )}
 
         {/* Navigation Groups */}
-        <div className="space-y-5">
+        <div className="space-y-4">
           {navGroups.map((group) => (
             <div key={group.label} className="space-y-1">
-              <p className="px-3 text-[10px] font-bold uppercase tracking-[0.15em] text-muted-foreground/80">
-                {group.label}
-              </p>
+              {!isCollapsed ? (
+                <p className="px-3 text-[10px] font-bold uppercase tracking-[0.16em] text-muted-foreground/80">
+                  {group.label}
+                </p>
+              ) : (
+                <div className="mx-2 my-2 border-t border-border/60" aria-hidden="true" />
+              )}
+
               <nav className="space-y-0.5">
                 {group.items.map(({ label, icon: Icon, href }) => {
                   const isActive =
                     href === "/admin"
                       ? pathname === "/admin"
                       : pathname.startsWith(href);
+
                   return (
                     <Link
                       key={href}
                       href={href}
                       onClick={onNavClick}
-                      className={`flex items-center justify-between rounded-lg px-3 py-2 text-xs font-semibold transition-colors ${
-                        isActive
-                          ? "bg-foreground text-background"
-                          : "text-muted-foreground hover:bg-muted hover:text-foreground"
+                      title={isCollapsed ? label : undefined}
+                      aria-label={label}
+                      className={`relative flex items-center rounded-lg transition-all ${
+                        isCollapsed
+                          ? `h-10 w-10 mx-auto justify-center ${
+                              isActive
+                                ? "bg-stone-900 text-white shadow-xs font-semibold before:absolute before:left-0 before:top-2 before:bottom-2 before:w-1 before:bg-blue-500 before:rounded-r"
+                                : "text-stone-600 hover:bg-stone-100 hover:text-stone-900"
+                            }`
+                          : `justify-between px-3 py-2 text-xs font-medium ${
+                              isActive
+                                ? "bg-stone-900 text-white shadow-2xs font-semibold"
+                                : "text-stone-600 hover:bg-stone-100 hover:text-stone-900"
+                            }`
                       }`}
                     >
-                      <div className="flex items-center gap-3">
-                        <Icon size={16} />
-                        <span>{label}</span>
+                      <div className={`flex items-center ${isCollapsed ? "justify-center" : "gap-3"}`}>
+                        <Icon size={isCollapsed ? 18 : 16} className="shrink-0" />
+                        {!isCollapsed && <span className="truncate">{label}</span>}
                       </div>
-                      {href === "/admin/notifications" && <AdminNotificationNavBadge />}
+
+                      {href === "/admin/notifications" && (
+                        isCollapsed ? (
+                          <span className="absolute top-1.5 right-1.5 h-2 w-2 rounded-full bg-rose-500 ring-2 ring-white" />
+                        ) : (
+                          <AdminNotificationNavBadge />
+                        )
+                      )}
                     </Link>
                   );
                 })}
@@ -160,47 +216,91 @@ function SidebarInner({
       </div>
 
       {/* Sidebar Footer */}
-      <div className="mt-8 space-y-4 pt-4 border-t border-border/60">
-        <div className="relative overflow-hidden rounded-xl border border-border bg-stone-100 p-4 flex items-center justify-between">
-          <div className="space-y-1">
-            <p className="font-serif italic text-base leading-tight text-foreground">
-              Grow<br />Your Brand
-            </p>
-            <p className="text-[9px] font-bold tracking-widest text-muted-foreground uppercase pt-1">
-              ELARIS ADMIN
-            </p>
+      <div className={`mt-6 pt-3 border-t border-border/60 ${isCollapsed ? "space-y-3" : "space-y-3.5"}`}>
+        {/* Promotional Banner (Expanded only) */}
+        {!isCollapsed && !isMobileDrawer && (
+          <div className="relative overflow-hidden rounded-xl border border-border/80 bg-stone-100/70 p-3.5 flex items-center justify-between">
+            <div className="space-y-0.5">
+              <p className="font-serif italic text-sm font-medium leading-tight text-foreground">
+                Grow<br />Your Brand
+              </p>
+              <p className="text-[8.5px] font-bold tracking-widest text-muted-foreground uppercase pt-1">
+                ELARIS ADMIN
+              </p>
+            </div>
+            <div className="relative h-14 w-12 rounded-lg overflow-hidden shrink-0 border border-border/40">
+              <Image
+                src="/elaris-women.jpg"
+                alt="Storefront"
+                fill
+                className="object-cover"
+                sizes="48px"
+              />
+            </div>
           </div>
-          <div className="relative h-16 w-14 rounded-lg overflow-hidden shrink-0">
-            <Image src="/elaris-women.jpg" alt="Admin Promotion" fill className="object-cover" sizes="56px" />
-          </div>
-        </div>
+        )}
 
-        <div className="flex items-center justify-between text-xs pt-1">
-          <Link
-            href="/"
-            onClick={onNavClick}
-            className="font-semibold text-muted-foreground hover:text-foreground"
-          >
-            ← Storefront
-          </Link>
-          <div className="w-24">
-            <AdminLogoutButton />
+        {/* Quick Actions Row */}
+        {isCollapsed ? (
+          <div className="flex flex-col items-center gap-2">
+            <Link
+              href="/"
+              onClick={onNavClick}
+              title="Visit Storefront"
+              aria-label="Visit Storefront"
+              className="flex h-8 w-8 items-center justify-center rounded-lg text-stone-600 hover:bg-stone-100 hover:text-foreground transition-colors"
+            >
+              <ArrowUpRight size={16} />
+            </Link>
+            <AdminLogoutButton compact />
           </div>
-        </div>
+        ) : (
+          <div className="flex items-center justify-between text-xs px-1">
+            <Link
+              href="/"
+              onClick={onNavClick}
+              className="inline-flex items-center gap-1 font-semibold text-muted-foreground hover:text-foreground transition-colors"
+            >
+              <span>← Storefront</span>
+            </Link>
+            <div className="w-24">
+              <AdminLogoutButton />
+            </div>
+          </div>
+        )}
 
-        {/* User info at bottom */}
-        <div className="flex items-center gap-2.5 px-1 pt-1 border-t border-border/40">
-          <div className="relative h-7 w-7 overflow-hidden rounded-full border border-border bg-stone-900 text-stone-100 flex items-center justify-center shrink-0">
+        {/* User Card */}
+        <div
+          className={`flex items-center border-t border-border/40 pt-2.5 ${
+            isCollapsed ? "justify-center" : "gap-2.5 px-1"
+          }`}
+          title={`${user.name ?? "Administrator"} (${user.email ?? "admin@elaris.internal"})`}
+        >
+          <div className="relative h-7 w-7 overflow-hidden rounded-full border border-border bg-stone-900 text-stone-100 flex items-center justify-center shrink-0 shadow-2xs">
             {user.image ? (
-              <Image src={user.image} alt={user.name ?? "Admin"} fill className="object-cover" sizes="28px" />
+              <Image
+                src={user.image}
+                alt={user.name ?? "Admin"}
+                fill
+                className="object-cover"
+                sizes="28px"
+              />
             ) : (
-              <span className="text-[10px] font-bold tracking-tight">{getInitials(user.name, user.email)}</span>
+              <span className="text-[10px] font-bold tracking-tight">
+                {getInitials(user.name, user.email)}
+              </span>
             )}
           </div>
-          <div className="min-w-0">
-            <p className="text-xs font-bold text-foreground truncate">{user.name ?? "Admin"}</p>
-            <p className="text-[10px] text-muted-foreground truncate">{user.email}</p>
-          </div>
+          {!isCollapsed && (
+            <div className="min-w-0">
+              <p className="text-xs font-bold text-foreground truncate leading-tight">
+                {user.name ?? "Admin"}
+              </p>
+              <p className="text-[10px] text-muted-foreground truncate leading-tight">
+                {user.email}
+              </p>
+            </div>
+          )}
         </div>
       </div>
     </div>
@@ -208,10 +308,26 @@ function SidebarInner({
 }
 
 /* ── Desktop sidebar (always visible lg+) ── */
-export function AdminDesktopSidebar({ user }: { user: UserInfo }) {
+export function AdminDesktopSidebar({
+  user,
+  isCollapsed = false,
+  onToggleCollapse
+}: {
+  user: UserInfo;
+  isCollapsed?: boolean;
+  onToggleCollapse?: () => void;
+}) {
   return (
-    <aside className="fixed inset-y-0 left-0 z-50 hidden w-64 overflow-y-auto border-r border-border/80 bg-background p-5 lg:flex lg:flex-col">
-      <SidebarInner user={user} />
+    <aside
+      className={`fixed inset-y-0 left-0 z-50 hidden overflow-y-auto border-r border-border/80 bg-white transition-[width] duration-300 ease-in-out lg:flex lg:flex-col ${
+        isCollapsed ? "w-[72px] p-3" : "w-64 p-4"
+      }`}
+    >
+      <SidebarInner
+        user={user}
+        isCollapsed={isCollapsed}
+        onToggleCollapse={onToggleCollapse}
+      />
     </aside>
   );
 }
@@ -219,12 +335,8 @@ export function AdminDesktopSidebar({ user }: { user: UserInfo }) {
 /* ── Mobile drawer ── */
 export function AdminMobileNav({ user }: { user: UserInfo }) {
   const [open, setOpen] = useState(false);
-  const [mounted, setMounted] = useState(false);
+  const [mounted] = useState(() => typeof window !== "undefined");
   const pathname = usePathname();
-
-  useEffect(() => {
-    setMounted(true);
-  }, []);
 
   // Close drawer on route change
   useEffect(() => {
@@ -279,24 +391,24 @@ export function AdminMobileNav({ user }: { user: UserInfo }) {
         role="dialog"
         aria-modal="true"
         aria-label="Admin navigation"
-        className={`fixed inset-y-0 left-0 z-[10000] w-72 sm:w-80 max-w-[85vw] h-[100dvh] overflow-y-auto overscroll-contain border-r border-border/80 bg-background p-5 shadow-2xl transition-transform duration-300 ease-in-out ${
+        className={`fixed inset-y-0 left-0 z-[10000] w-72 sm:w-80 max-w-[85vw] h-[100dvh] overflow-y-auto overscroll-contain border-r border-border/80 bg-white p-5 shadow-2xl transition-transform duration-300 ease-in-out ${
           open ? "translate-x-0" : "-translate-x-full"
         }`}
       >
         {/* Top Header inside Drawer with Brand & Close Button */}
-        <div className="flex items-center justify-between pb-4 mb-3 border-b border-border/60">
+        <div className="flex items-center justify-between pb-3 mb-3 border-b border-border/60">
           <div>
             <span className="block text-xl font-black tracking-[0.16em] uppercase text-foreground">
               ELARIS
             </span>
             <span className="text-[9px] font-bold tracking-[0.2em] text-muted-foreground uppercase">
-              ADMIN PANEL
+              ADMIN CONTROL
             </span>
           </div>
           <button
             type="button"
             onClick={() => setOpen(false)}
-            className="flex h-9 w-9 items-center justify-center rounded-lg border border-border text-muted-foreground hover:bg-muted hover:text-foreground active:scale-95 transition-all"
+            className="flex h-9 w-9 items-center justify-center rounded-lg border border-border text-muted-foreground hover:bg-stone-100 hover:text-foreground active:scale-95 transition-all cursor-pointer"
             aria-label="Close navigation menu"
           >
             <X size={18} />
@@ -315,7 +427,7 @@ export function AdminMobileNav({ user }: { user: UserInfo }) {
         id="admin-mobile-nav-trigger"
         type="button"
         onClick={() => setOpen(true)}
-        className="inline-flex lg:hidden items-center justify-center rounded-lg p-2 text-foreground hover:bg-muted active:scale-95 transition-all"
+        className="inline-flex lg:hidden items-center justify-center rounded-lg p-2 text-foreground hover:bg-stone-100 active:scale-95 transition-all cursor-pointer"
         aria-label="Open navigation menu"
         aria-expanded={open}
         aria-controls="admin-mobile-drawer"

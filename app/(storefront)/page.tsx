@@ -63,24 +63,53 @@ export default async function HomePage() {
 
 
       {/* ── Shop By Category ── */}
-      <section className="elaris-cat-section">
+      <section className="py-14 border-t border-border/80 bg-background">
         <div className="container-shell">
-          <p className="elaris-cat-title">Shop by Category</p>
-          <div className="elaris-cat-grid">
+          <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-4 mb-8">
+            <div>
+              <span className="text-[11px] font-semibold uppercase tracking-[0.2em] text-muted-foreground">
+                Explore Collections
+              </span>
+              <h2 className="font-serif text-2xl sm:text-3xl font-bold tracking-tight text-foreground mt-1">
+                Curated Wardrobe Categories
+              </h2>
+            </div>
+            <Link
+              href="/shop"
+              className="inline-flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wider text-foreground hover:text-stone-600 transition-colors"
+            >
+              <span>Explore All</span>
+              <ArrowRight size={14} />
+            </Link>
+          </div>
+
+          <div className="grid grid-cols-2 gap-3 sm:gap-6 lg:grid-cols-4">
             {categoryGrid.map((cat) => (
-              <Link key={cat.label} href={cat.href} className="elaris-cat-card group">
-                <div className="elaris-cat-img-wrap" style={{ aspectRatio: "16 / 10.5" }}>
+              <Link
+                key={cat.label}
+                href={cat.href}
+                className="group relative flex flex-col overflow-hidden rounded-xl bg-muted border border-border/70"
+              >
+                <div className="relative aspect-[3/4] w-full overflow-hidden bg-muted">
                   <Image
                     src={cat.image}
                     alt={cat.alt}
                     fill
-                    className={`object-cover ${cat.position || "object-center"} transition-transform duration-500 group-hover:scale-105`}
-                    sizes="(min-width: 768px) 25vw, 50vw"
+                    className={`object-cover ${cat.position || "object-top"} transition-transform duration-700 ease-out group-hover:scale-[1.03]`}
+                    sizes="(min-width: 1024px) 25vw, (min-width: 640px) 50vw, 50vw"
                   />
-                </div>
-                <div className="elaris-cat-footer">
-                  <span>{cat.label}</span>
-                  <ArrowRight size={14} aria-hidden="true" />
+                  <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent flex flex-col justify-end p-4 sm:p-5 text-white transition-opacity duration-300">
+                    <span className="text-[10px] font-semibold uppercase tracking-widest text-amber-300 mb-0.5">
+                      Capsule
+                    </span>
+                    <h3 className="font-serif text-lg sm:text-xl font-bold tracking-tight flex items-center justify-between">
+                      <span>{cat.label}</span>
+                      <ArrowRight
+                        size={15}
+                        className="transform -translate-x-2 opacity-0 group-hover:translate-x-0 group-hover:opacity-100 transition-all duration-300"
+                      />
+                    </h3>
+                  </div>
                 </div>
               </Link>
             ))}
@@ -98,7 +127,7 @@ export default async function HomePage() {
                   <Sparkles size={14} className="text-amber-500" />
                   <span>Curated Collection</span>
                 </div>
-                <h2 className="mt-1 text-2xl sm:text-3xl font-extrabold tracking-tight text-foreground">
+                <h2 className="mt-1 text-2xl sm:text-3xl font-display font-semibold tracking-tight text-foreground">
                   Featured Arrivals
                 </h2>
               </div>
@@ -126,7 +155,7 @@ export default async function HomePage() {
             <p className="text-[11px] font-bold uppercase tracking-[0.2em] text-muted-foreground">
               Curated Editorial
             </p>
-            <h2 className="text-2xl sm:text-3xl font-extrabold tracking-tight text-foreground">
+            <h2 className="text-2xl sm:text-3xl font-display font-semibold tracking-tight text-foreground">
               Form, Function &amp; Fluidity
             </h2>
             <p className="text-xs sm:text-sm text-muted-foreground leading-relaxed">
@@ -148,7 +177,7 @@ export default async function HomePage() {
                 <p className="text-[10px] font-bold uppercase tracking-widest text-white/70">
                   New Capsule
                 </p>
-                <h3 className="text-xl sm:text-2xl font-black tracking-tight">
+                <h3 className="text-xl sm:text-2xl font-display font-semibold tracking-tight">
                   The Feminine Silhouette
                 </h3>
                 <p className="text-xs text-white/80 max-w-sm line-clamp-2">
@@ -178,7 +207,7 @@ export default async function HomePage() {
                 <p className="text-[10px] font-bold uppercase tracking-widest text-white/70">
                   Signature Drop
                 </p>
-                <h3 className="text-xl sm:text-2xl font-black tracking-tight">
+                <h3 className="text-xl sm:text-2xl font-display font-semibold tracking-tight">
                   Urban Architecture
                 </h3>
                 <p className="text-xs text-white/80 max-w-sm line-clamp-2">

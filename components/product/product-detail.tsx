@@ -28,29 +28,22 @@ import {
 import { useCart } from "@/components/cart/cart-provider";
 import { useWishlist } from "@/components/wishlist/wishlist-provider";
 import type { CatalogProduct, ProductReviewSummary } from "@/features/catalog/data";
-
 import { ProductCard } from "@/components/product/product-card";
 import { formatMoney } from "@/lib/utils/money";
 import { storePolicies } from "@/config/store";
 
-
-const SIZE_SORT_ORDER = ["XS", "S", "M", "L", "XL", "XXL"];
-
 const colorHexMap: Record<string, string> = {
-  black: "#111111",
-  cream: "#F4EFEA",
-  white: "#FFFFFF",
-  gray: "#9CA3AF",
-  grey: "#9CA3AF",
-  olive: "#556B2F",
-  beige: "#D8C7B5",
-  tan: "#C2A68C",
-  brown: "#4B3621",
-  charcoal: "#2F3E46"
+  black: "#1c1917",
+  cream: "#f5f5f4",
+  white: "#ffffff",
+  gray: "#9ca3af",
+  grey: "#9ca3af",
+  olive: "#44403c",
+  beige: "#e7e5e4",
+  tan: "#d6d3d1",
+  brown: "#57534e",
+  charcoal: "#292524"
 };
-
-
-
 
 export function ProductDetail({
   product,
@@ -61,7 +54,6 @@ export function ProductDetail({
   reviewSummary?: ProductReviewSummary;
   relatedProducts?: CatalogProduct[];
 }) {
-
   const { addItem } = useCart();
   const { toggleItem, isSaved } = useWishlist();
 
@@ -80,10 +72,13 @@ export function ProductDetail({
 
   const [activeImageIndex, setActiveImageIndex] = useState(0);
   const [quantity, setQuantity] = useState(1);
-  const [activeTab, setActiveTab] = useState<"description" | "size" | "material" | "shipping" | "reviews">("description");
+  const [activeTab, setActiveTab] = useState<
+    "description" | "size" | "material" | "shipping" | "reviews"
+  >("description");
   const [showSizeGuide, setShowSizeGuide] = useState(false);
   const [isLightboxOpen, setIsLightboxOpen] = useState(false);
   const [sizeGuideUnit, setSizeGuideUnit] = useState<"in" | "cm">("in");
+  const [addedToast, setAddedToast] = useState(false);
 
   useEffect(() => {
     if (showSizeGuide || isLightboxOpen) {
@@ -101,6 +96,7 @@ export function ProductDetail({
       };
     }
   }, [showSizeGuide, isLightboxOpen]);
+
   const [imgZoom, setImgZoom] = useState<{ x: number; y: number } | null>(null);
   const mainImgRef = useRef<HTMLDivElement>(null);
 
@@ -141,7 +137,12 @@ export function ProductDetail({
 
   const price = activeVariant?.price ?? 0;
   const comparePrice = activeVariant?.compareAtPrice;
-  const discountPct = comparePrice && comparePrice > price ? Math.round(((comparePrice - price) / comparePrice) * 100) : null;
+  const discountPct =
+    comparePrice && comparePrice > price
+      ? Math.round(((comparePrice - price) / comparePrice) * 100)
+      : null;
+
+  const isSale = Boolean(discountPct && discountPct > 0);
 
   const handleAddToCart = () => {
     addItem({
@@ -153,8 +154,10 @@ export function ProductDetail({
       color: selectedColor,
       price,
       quantity,
-      image: galleryImages[activeImageIndex]?.src ?? galleryImages[0]?.src ?? "/elaris-women.jpg",
+      image: galleryImages[activeImageIndex]?.src ?? galleryImages[0]?.src ?? "/elaris-women.jpg"
     });
+    setAddedToast(true);
+    setTimeout(() => setAddedToast(false), 2400);
   };
 
   const handleToggleWishlist = () => {
@@ -171,52 +174,74 @@ export function ProductDetail({
   const [copied, setCopied] = useState(false);
 
   return (
-    <div className="container-shell py-8 pb-24 space-y-14 lg:pb-8">
-      {/* Breadcrumb */}
-      <nav className="flex items-center gap-2 text-xs text-muted-foreground">
-        <Link href="/" className="hover:text-foreground">Home</Link>
+    <div className="container-shell py-8 pb-28 space-y-16 lg:pb-12">
+      {/* Toast Notification when product is added to bag */}
+      {addedToast && (
+        <div
+          role="status"
+          aria-live="polite"
+          className="fixed bottom-20 right-4 sm:bottom-8 sm:right-8 z-50 flex items-center gap-2.5 rounded-xl border border-border bg-stone-900 text-stone-100 px-4 py-3 text-xs font-semibold shadow-2xl animate-in fade-in slide-in-from-bottom-2 duration-200"
+        >
+          <Check size={16} className="text-emerald-400" />
+          <span>Added to your shopping bag</span>
+        </div>
+      )}
+
+      {/* Breadcrumb Navigation */}
+      <nav aria-label="Breadcrumb" className="flex items-center gap-2 text-xs text-muted-foreground">
+        <Link href="/" className="hover:text-foreground transition-colors">
+          Home
+        </Link>
         <span>/</span>
-        <Link href={`/shop?category=${(product.category || "women").toLowerCase()}`} className="hover:text-foreground" style={{textTransform: "capitalize"}}>{product.category || "Women"}</Link>
+        <Link
+          href={`/shop?category=${(product.category || "women").toLowerCase()}`}
+          className="hover:text-foreground capitalize transition-colors"
+        >
+          {product.category || "Women"}
+        </Link>
         <span>/</span>
-        <Link href="/shop" className="hover:text-foreground">{product.category || "Tops"}</Link>
+        <Link href="/shop" className="hover:text-foreground transition-colors">
+          Catalog
+        </Link>
         <span>/</span>
-        <span className="text-foreground">{product.name}</span>
+        <span className="text-foreground truncate max-w-[200px] sm:max-w-none">{product.name}</span>
       </nav>
 
-      {/* PDP Main Showcase (Left: Vertical Thumbnails + Main Image | Right: Product Buy Box) */}
-      <div className="grid gap-10 lg:grid-cols-[1.3fr_1fr] items-start">
-        {/* Left: Gallery */}
+      {/* PDP Main Showcase: Left Image Gallery | Right Product Buy Box */}
+      <div className="grid gap-10 lg:grid-cols-[1.25fr_1fr] xl:grid-cols-[1.3fr_1fr] items-start">
+        {/* Left: Editorial Gallery */}
         <div className="flex flex-col-reverse sm:flex-row gap-4">
-          {/* Thumbnail Rail: Horizontal at bottom on mobile, vertical column on left on sm+ */}
-          <div className="flex sm:flex-col gap-2.5 overflow-x-auto sm:overflow-y-auto max-h-none sm:max-h-[560px] pb-1 sm:pb-0 scrollbar-none">
+          {/* Vertical Thumbnail Rail (Horizontal on Mobile) */}
+          <div className="flex sm:flex-col gap-2.5 overflow-x-auto sm:overflow-y-auto max-h-none sm:max-h-[640px] pb-1 sm:pb-0 scrollbar-none">
             {galleryImages.map((img, idx) => (
               <button
                 key={idx}
                 type="button"
                 onClick={() => setActiveImageIndex(idx)}
-                aria-label={`Select image ${idx + 1}`}
-                className={`relative h-16 w-14 sm:h-24 sm:w-20 shrink-0 overflow-hidden rounded-lg border-2 transition-all ${
+                aria-label={`View photo ${idx + 1}`}
+                className={`relative h-18 w-14 sm:h-24 sm:w-18 shrink-0 overflow-hidden rounded-xl border-2 transition-all ${
                   idx === activeImageIndex
                     ? "border-foreground shadow-sm"
                     : "border-border/70 opacity-70 hover:opacity-100"
                 }`}
+                style={{ aspectRatio: "3 / 4" }}
               >
                 <Image
                   src={img.src}
                   alt={img.alt || product.name}
                   fill
-                  className="object-cover"
-                  sizes="(min-width: 640px) 80px, 56px"
+                  className="object-cover object-top"
+                  sizes="(min-width: 640px) 80px, 60px"
                   loading="lazy"
                 />
               </button>
             ))}
           </div>
 
-          {/* Unified Main Product Showcase Box (Single responsive element for all viewports) */}
+          {/* Main Large Showcase Box with 3:4 Aspect Ratio */}
           <div
             ref={mainImgRef}
-            className="relative aspect-[3/4] flex-1 overflow-hidden rounded-2xl bg-muted border border-border/80 group cursor-crosshair"
+            className="relative aspect-[3/4] flex-1 overflow-hidden rounded-2xl bg-muted/40 border border-border/80 group cursor-crosshair shadow-sm"
             onMouseMove={handleMainImgMouseMove}
             onMouseLeave={handleMainImgMouseLeave}
           >
@@ -225,101 +250,114 @@ export function ProductDetail({
               alt={product.name}
               fill
               priority
-              className="object-cover transition-transform duration-500 group-hover:scale-105"
+              className="object-cover object-top transition-transform duration-700 ease-out group-hover:scale-[1.03]"
               sizes="(min-width: 1024px) 45vw, (min-width: 640px) 60vw, 100vw"
             />
 
-            {/* PC Hover Zoom Lens */}
+            {/* Magnifier Hover Lens for Desktop */}
             {imgZoom && (
               <div
                 className="pointer-events-none hidden sm:block absolute rounded-full border-2 border-white/80 shadow-2xl overflow-hidden"
                 style={{
-                  width: 180,
-                  height: 180,
-                  left: `calc(${imgZoom.x}% - 90px)`,
-                  top: `calc(${imgZoom.y}% - 90px)`,
+                  width: 190,
+                  height: 190,
+                  left: `calc(${imgZoom.x}% - 95px)`,
+                  top: `calc(${imgZoom.y}% - 95px)`,
                   backgroundImage: `url(${galleryImages[activeImageIndex]?.src || "/elaris-women.jpg"})`,
                   backgroundSize: "400% 400%",
                   backgroundPosition: `${imgZoom.x}% ${imgZoom.y}%`,
                   backgroundRepeat: "no-repeat",
                   zIndex: 30,
-                  boxShadow: "0 8px 40px rgba(0,0,0,0.3), 0 0 0 3px rgba(255,255,255,0.6)",
+                  boxShadow: "0 8px 40px rgba(0,0,0,0.3), 0 0 0 3px rgba(255,255,255,0.7)"
                 }}
               />
             )}
 
-            {/* Expand / Lightbox button */}
+            {/* Expand Lightbox Button */}
             <button
               type="button"
               onClick={() => setIsLightboxOpen(true)}
-              className="absolute top-3.5 right-3.5 sm:top-4 sm:right-4 flex h-8 w-8 sm:h-9 sm:w-9 items-center justify-center rounded-full bg-white/90 text-foreground shadow-md hover:bg-white transition-colors"
-              aria-label="Expand image"
+              className="absolute top-3.5 right-3.5 sm:top-4 sm:right-4 flex h-9 w-9 items-center justify-center rounded-full bg-background/85 backdrop-blur-md text-foreground shadow-subtle hover:bg-background transition-colors"
+              aria-label="Expand image view"
             >
               <Maximize2 size={16} />
             </button>
 
-            {/* Prev / Next carousel controls */}
+            {/* Image Switcher Controls */}
             <button
               type="button"
               onClick={() =>
                 setActiveImageIndex((prev) => (prev > 0 ? prev - 1 : galleryImages.length - 1))
               }
-              className="absolute left-3 sm:left-4 top-1/2 -translate-y-1/2 flex h-8 w-8 sm:h-9 sm:w-9 items-center justify-center rounded-full bg-white/90 text-foreground shadow-md hover:bg-white transition-colors"
+              className="absolute left-3 top-1/2 -translate-y-1/2 flex h-9 w-9 items-center justify-center rounded-full bg-background/85 backdrop-blur-md text-foreground shadow-subtle hover:bg-background transition-colors opacity-90 sm:opacity-0 sm:group-hover:opacity-100"
               aria-label="Previous image"
             >
-              <ChevronLeft size={18} />
+              <ChevronLeft size={17} />
             </button>
             <button
               type="button"
               onClick={() =>
                 setActiveImageIndex((prev) => (prev < galleryImages.length - 1 ? prev + 1 : 0))
               }
-              className="absolute right-3 sm:right-4 top-1/2 -translate-y-1/2 flex h-8 w-8 sm:h-9 sm:w-9 items-center justify-center rounded-full bg-white/90 text-foreground shadow-md hover:bg-white transition-colors"
+              className="absolute right-3 top-1/2 -translate-y-1/2 flex h-9 w-9 items-center justify-center rounded-full bg-background/85 backdrop-blur-md text-foreground shadow-subtle hover:bg-background transition-colors opacity-90 sm:opacity-0 sm:group-hover:opacity-100"
               aria-label="Next image"
             >
-              <ChevronRight size={18} />
+              <ChevronRight size={17} />
             </button>
 
-            {/* Image counter indicator */}
-            <div className="absolute bottom-3 left-3 sm:bottom-4 sm:left-4 rounded-md bg-black/70 px-2.5 py-1 text-[10px] sm:text-[11px] font-bold text-white backdrop-blur-sm">
-              {activeImageIndex + 1}/{galleryImages.length}
+            {/* Image Counter Indicator */}
+            <div className="absolute bottom-3 left-3 sm:bottom-4 sm:left-4 rounded-full bg-black/60 px-3 py-1 text-[11px] font-semibold text-white backdrop-blur-md">
+              {activeImageIndex + 1} / {galleryImages.length}
             </div>
           </div>
         </div>
 
-        {/* Right: Buy Box & Product Info — sticky on desktop */}
-        <div className="space-y-6 pb-24 lg:pb-0 lg:sticky lg:top-20 lg:self-start">
-          <div className="space-y-2">
+        {/* Right: Buy Box & Editorial Information */}
+        <div className="space-y-6 lg:sticky lg:top-24 lg:self-start">
+          <div className="space-y-3">
+            {/* Badges & Wishlist Action */}
             <div className="flex items-center justify-between">
-              <span className="rounded-full bg-black px-3 py-0.5 text-[10px] font-bold uppercase tracking-wider text-white">
-                Best Seller
-              </span>
+              <div className="flex items-center gap-2">
+                <span className="rounded-full bg-stone-900 text-stone-100 px-3 py-0.5 text-[10px] font-semibold uppercase tracking-widest">
+                  Capsule Drop
+                </span>
+                {isSale && (
+                  <span className="rounded-full bg-amber-500/10 border border-amber-500/25 px-2.5 py-0.5 text-[10px] font-semibold text-amber-900 uppercase tracking-wider">
+                    {discountPct}% Off
+                  </span>
+                )}
+              </div>
+
               <button
                 type="button"
                 onClick={handleToggleWishlist}
-                className="flex h-9 w-9 items-center justify-center rounded-full border border-border bg-background hover:bg-muted transition-colors"
-                aria-label="Save to wishlist"
+                className="flex h-10 w-10 items-center justify-center rounded-full border border-border bg-background hover:bg-muted transition-colors shadow-xs"
+                aria-label={isProductSaved ? "Remove from wishlist" : "Save to wishlist"}
               >
-                <Heart size={18} className={isProductSaved ? "fill-rose-500 text-rose-500" : "text-foreground"} />
+                <Heart
+                  size={18}
+                  className={isProductSaved ? "fill-rose-500 text-rose-500" : "text-foreground"}
+                />
               </button>
             </div>
 
-            <h1 className="text-2xl sm:text-3xl font-extrabold tracking-tight text-foreground">
+            {/* Product Title in Editorial Serif */}
+            <h1 className="font-serif text-2xl sm:text-3xl lg:text-4xl font-bold tracking-tight text-foreground leading-[1.1]">
               {product.name}
             </h1>
 
-            {/* Ratings */}
+            {/* Ratings & Reviews */}
             <div className="flex items-center gap-2 text-xs">
               {reviewSummary && reviewSummary.totalCount > 0 ? (
                 <>
-                  <div className="flex items-center text-amber-400">
+                  <div className="flex items-center text-amber-500">
                     {[1, 2, 3, 4, 5].map((star) => (
                       <Star
                         key={star}
                         size={14}
                         className={
                           star <= Math.round(reviewSummary.averageRating)
-                            ? "fill-amber-400 text-amber-400"
+                            ? "fill-amber-500 text-amber-500"
                             : "text-muted-foreground/30"
                         }
                       />
@@ -352,7 +390,7 @@ export function ProductDetail({
               )}
             </div>
 
-            {/* Price */}
+            {/* Price Presentation */}
             <div className="flex items-center gap-3 pt-2">
               <span className="text-2xl sm:text-3xl font-black text-foreground">
                 {formatMoney(price)}
@@ -362,27 +400,23 @@ export function ProductDetail({
                   {formatMoney(comparePrice)}
                 </span>
               )}
-              {discountPct !== null && discountPct > 0 && (
-                <span className="rounded bg-black px-2 py-0.5 text-xs font-bold text-white uppercase">
-                  {discountPct}% OFF
-                </span>
-              )}
             </div>
 
-            <p className="pt-2 text-xs sm:text-sm text-muted-foreground leading-relaxed">
+            {/* Product Short Description */}
+            <p className="text-xs sm:text-sm text-muted-foreground leading-relaxed pt-1">
               {product.description ||
-                "A perfect blend of comfort and style. Made with premium cotton fleece, it offers the perfect blend of comfort, warmth and modern street style."}
+                "Engineered with architectural precision and breathable luxury textiles. Built for effortless transition from day to evening."}
             </p>
           </div>
 
           {/* Color Selector */}
-          <div className="space-y-2 border-t border-border/80 pt-4">
+          <div className="space-y-2.5 border-t border-border/80 pt-5">
             <div className="flex items-center justify-between text-xs">
-              <span className="font-bold text-foreground capitalize">
-                Color: <span className="font-normal text-muted-foreground">{selectedColor}</span>
+              <span className="font-bold uppercase tracking-wider text-foreground">
+                Color: <span className="font-normal capitalize text-muted-foreground">{selectedColor}</span>
               </span>
             </div>
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-2.5">
               {colors.map((c) => {
                 const isSelected = selectedColor.toLowerCase() === c.toLowerCase();
                 return (
@@ -390,13 +424,14 @@ export function ProductDetail({
                     key={c}
                     type="button"
                     onClick={() => setSelectedColor(c)}
-                    className={`relative h-7 w-7 rounded-full border transition-all ${
+                    className={`relative h-8 w-8 rounded-full border transition-all ${
                       isSelected
-                        ? "ring-2 ring-foreground ring-offset-2 scale-110"
+                        ? "ring-2 ring-foreground ring-offset-2 scale-105"
                         : "border-black/20 hover:scale-105"
                     }`}
-                    style={{ backgroundColor: colorHexMap[c] || "#111111" }}
+                    style={{ backgroundColor: colorHexMap[c] || "#1c1917" }}
                     title={c}
+                    aria-label={`Select color ${c}`}
                   />
                 );
               })}
@@ -404,15 +439,15 @@ export function ProductDetail({
           </div>
 
           {/* Size Selector */}
-          <div className="space-y-2 border-t border-border/80 pt-4">
+          <div className="space-y-2.5 border-t border-border/80 pt-5">
             <div className="flex items-center justify-between text-xs">
-              <span className="font-bold text-foreground uppercase">
+              <span className="font-bold uppercase tracking-wider text-foreground">
                 Size: <span className="font-normal text-muted-foreground">{selectedSize}</span>
               </span>
               <button
                 type="button"
                 onClick={() => setShowSizeGuide(!showSizeGuide)}
-                className="flex items-center gap-1 font-semibold text-foreground underline underline-offset-4"
+                className="flex items-center gap-1 font-semibold text-foreground underline underline-offset-4 hover:text-stone-600 transition-colors"
               >
                 <Ruler size={14} /> Size Guide
               </button>
@@ -420,13 +455,15 @@ export function ProductDetail({
             <div className="flex flex-wrap gap-2">
               {sizes.map((s) => {
                 const isSelected = selectedSize.toLowerCase() === s.toLowerCase();
-                // Find the variant matching this size + selected colour to get stock
-                const sizeVariant = product.variants.find(
-                  (v) => v.size.toLowerCase() === s.toLowerCase() &&
-                         v.color.toLowerCase() === selectedColor.toLowerCase()
-                ) ?? product.variants.find((v) => v.size.toLowerCase() === s.toLowerCase());
+                const sizeVariant =
+                  product.variants.find(
+                    (v) =>
+                      v.size.toLowerCase() === s.toLowerCase() &&
+                      v.color.toLowerCase() === selectedColor.toLowerCase()
+                  ) ?? product.variants.find((v) => v.size.toLowerCase() === s.toLowerCase());
                 const stock = (sizeVariant as { stock?: number })?.stock ?? null;
                 const outOfStock = stock !== null && stock === 0;
+
                 return (
                   <button
                     key={s}
@@ -434,9 +471,9 @@ export function ProductDetail({
                     disabled={outOfStock}
                     onClick={() => setSelectedSize(s)}
                     title={outOfStock ? "Out of stock" : undefined}
-                    className={`relative flex h-10 min-w-12 items-center justify-center rounded-md border text-xs font-bold uppercase transition-all ${
+                    className={`relative flex h-11 min-w-[50px] items-center justify-center rounded-lg border text-xs font-bold uppercase transition-all ${
                       outOfStock
-                        ? "border-border/40 bg-muted/40 text-muted-foreground/50 line-through cursor-not-allowed"
+                        ? "border-border/40 bg-muted/40 text-muted-foreground/40 line-through cursor-not-allowed"
                         : isSelected
                         ? "border-foreground bg-foreground text-background shadow-sm"
                         : "border-border bg-background text-foreground hover:border-foreground"
@@ -447,17 +484,21 @@ export function ProductDetail({
                 );
               })}
             </div>
-            {/* Low stock warning for selected size */}
+
+            {/* Low Stock Warning */}
             {(() => {
-              const selVariant = product.variants.find(
-                (v) => v.size.toLowerCase() === selectedSize.toLowerCase() &&
-                       v.color.toLowerCase() === selectedColor.toLowerCase()
-              ) ?? product.variants.find((v) => v.size.toLowerCase() === selectedSize.toLowerCase());
+              const selVariant =
+                product.variants.find(
+                  (v) =>
+                    v.size.toLowerCase() === selectedSize.toLowerCase() &&
+                    v.color.toLowerCase() === selectedColor.toLowerCase()
+                ) ?? product.variants.find((v) => v.size.toLowerCase() === selectedSize.toLowerCase());
               const stock = (selVariant as { stock?: number })?.stock ?? null;
               if (stock !== null && stock > 0 && stock <= 5) {
                 return (
-                  <p className="text-xs font-semibold text-amber-600">
-                    Only {stock} left in this size
+                  <p className="text-xs font-semibold text-amber-700 flex items-center gap-1.5 pt-1">
+                    <Sparkles size={12} className="text-amber-600" />
+                    <span>Only {stock} items left in this size · Order soon</span>
                   </p>
                 );
               }
@@ -466,22 +507,24 @@ export function ProductDetail({
           </div>
 
           {/* Quantity & CTA Buttons */}
-          <div className="space-y-3 border-t border-border/80 pt-5">
+          <div className="space-y-3.5 border-t border-border/80 pt-5">
             <div className="flex items-center gap-3">
-              {/* Stepper */}
-              <div className="inline-flex h-11 items-center rounded-md border border-border bg-background">
+              {/* Stepper with minimum 44px touch targets */}
+              <div className="inline-flex h-12 items-center rounded-lg border border-border bg-background shadow-xs">
                 <button
                   type="button"
+                  aria-label="Decrease quantity"
                   onClick={() => setQuantity((q) => Math.max(1, q - 1))}
-                  className="px-3 hover:bg-muted text-muted-foreground hover:text-foreground transition-colors"
+                  className="flex h-11 w-11 items-center justify-center hover:bg-muted text-muted-foreground hover:text-foreground transition-colors"
                 >
                   <Minus size={14} />
                 </button>
-                <span className="w-8 text-center text-xs font-bold">{quantity}</span>
+                <span className="w-9 text-center text-xs font-bold">{quantity}</span>
                 <button
                   type="button"
+                  aria-label="Increase quantity"
                   onClick={() => setQuantity((q) => q + 1)}
-                  className="px-3 hover:bg-muted text-muted-foreground hover:text-foreground transition-colors"
+                  className="flex h-11 w-11 items-center justify-center hover:bg-muted text-muted-foreground hover:text-foreground transition-colors"
                 >
                   <Plus size={14} />
                 </button>
@@ -491,19 +534,19 @@ export function ProductDetail({
               <button
                 type="button"
                 onClick={handleAddToCart}
-                className="flex h-11 flex-1 items-center justify-center gap-2 rounded-md bg-foreground text-xs font-bold uppercase tracking-widest text-background hover:bg-foreground/90 transition-colors shadow-md"
+                className="flex h-12 flex-1 items-center justify-center gap-2 rounded-lg bg-foreground text-xs font-bold uppercase tracking-[0.14em] text-background hover:bg-stone-800 transition-all shadow-md active:scale-[0.99]"
               >
-                <ShoppingBag size={15} /> Add to Cart
+                <ShoppingBag size={15} /> Add to Bag
               </button>
             </div>
 
-            {/* Buy Now Secondary Button */}
+            {/* Buy Now Direct Button */}
             <Link
               href="/checkout"
               onClick={handleAddToCart}
-              className="flex h-11 w-full items-center justify-center rounded-md border border-foreground bg-background text-xs font-bold uppercase tracking-widest text-foreground hover:bg-muted transition-colors"
+              className="flex h-12 w-full items-center justify-center rounded-lg border border-foreground bg-background text-xs font-bold uppercase tracking-[0.14em] text-foreground hover:bg-muted transition-colors shadow-xs"
             >
-              Buy Now
+              Express Checkout
             </Link>
 
             {/* Secondary Action Links */}
@@ -514,7 +557,7 @@ export function ProductDetail({
                 className="flex items-center gap-1.5 hover:text-foreground transition-colors"
               >
                 <Heart size={14} className={isProductSaved ? "fill-rose-500 text-rose-500" : ""} />
-                {isProductSaved ? "Saved in Wishlist" : "Add to Wishlist"}
+                {isProductSaved ? "Saved in Wishlist" : "Save to Wishlist"}
               </button>
               <span>|</span>
               <button
@@ -527,63 +570,63 @@ export function ProductDetail({
                 }}
                 className="flex items-center gap-1.5 hover:text-foreground transition-colors"
               >
-                <Share2 size={14} /> {copied ? "Copied!" : "Share Product"}
+                <Share2 size={14} /> {copied ? "Link Copied!" : "Share Piece"}
               </button>
             </div>
           </div>
 
-          {/* Value Propositions */}
+          {/* Luxury Service Trust Indicators */}
           <div className="border-t border-border/80 pt-5 grid grid-cols-2 gap-3 text-xs">
-            <div className="flex items-start gap-2.5 rounded-lg border border-border/60 bg-muted/20 p-3">
-              <Truck size={18} className="text-foreground shrink-0 mt-0.5" />
+            <div className="flex items-start gap-2.5 rounded-xl border border-border/70 bg-stone-50/60 dark:bg-stone-900/40 p-3.5">
+              <Truck size={17} className="text-foreground shrink-0 mt-0.5" />
               <div>
-                <p className="font-bold text-foreground">Free Delivery</p>
+                <p className="font-bold text-foreground">Complimentary Delivery</p>
                 <p className="text-[11px] text-muted-foreground">{storePolicies.shipping.freeDeliveryText}</p>
               </div>
             </div>
-            <div className="flex items-start gap-2.5 rounded-lg border border-border/60 bg-muted/20 p-3">
-              <RotateCcw size={18} className="text-foreground shrink-0 mt-0.5" />
+            <div className="flex items-start gap-2.5 rounded-xl border border-border/70 bg-stone-50/60 dark:bg-stone-900/40 p-3.5">
+              <RotateCcw size={17} className="text-foreground shrink-0 mt-0.5" />
               <div>
-                <p className="font-bold text-foreground">Easy Returns</p>
+                <p className="font-bold text-foreground">7-Day Free Exchange</p>
                 <p className="text-[11px] text-muted-foreground">{storePolicies.returns.description}</p>
               </div>
             </div>
-            <div className="flex items-start gap-2.5 rounded-lg border border-border/60 bg-muted/20 p-3">
-              <ShieldCheck size={18} className="text-foreground shrink-0 mt-0.5" />
+            <div className="flex items-start gap-2.5 rounded-xl border border-border/70 bg-stone-50/60 dark:bg-stone-900/40 p-3.5">
+              <ShieldCheck size={17} className="text-foreground shrink-0 mt-0.5" />
               <div>
                 <p className="font-bold text-foreground">Secure Payment</p>
-                <p className="text-[11px] text-muted-foreground">100% secure checkout</p>
+                <p className="text-[11px] text-muted-foreground">COD &amp; Encrypted Wallets</p>
               </div>
             </div>
-            <div className="flex items-start gap-2.5 rounded-lg border border-border/60 bg-muted/20 p-3">
-              <Headphones size={18} className="text-foreground shrink-0 mt-0.5" />
+            <div className="flex items-start gap-2.5 rounded-xl border border-border/70 bg-stone-50/60 dark:bg-stone-900/40 p-3.5">
+              <Headphones size={17} className="text-foreground shrink-0 mt-0.5" />
               <div>
-                <p className="font-bold text-foreground">24/7 Support</p>
-                <p className="text-[11px] text-muted-foreground">We&apos;re always here</p>
+                <p className="font-bold text-foreground">Client Care</p>
+                <p className="text-[11px] text-muted-foreground">Dedicated fashion advisory</p>
               </div>
             </div>
           </div>
         </div>
       </div>
 
-      {/* C1: Sticky mobile Add-to-Bag bar — hidden on lg+ */}
-      <div className="fixed bottom-0 left-0 right-0 z-40 flex h-16 items-center gap-3 border-t border-border bg-background px-4 shadow-lg lg:hidden">
-        <div className="flex flex-col leading-tight">
-          <span className="text-[11px] text-muted-foreground">{product.name.length > 18 ? product.name.slice(0, 18) + "…" : product.name}</span>
-          <span className="text-base font-black">{formatMoney(price)}</span>
+      {/* Sticky Mobile Add-to-Bag Bar */}
+      <div className="fixed bottom-0 left-0 right-0 z-40 flex h-16 items-center gap-3 border-t border-border bg-background/95 backdrop-blur-md px-4 shadow-luxury lg:hidden">
+        <div className="flex flex-col leading-tight min-w-0 flex-1">
+          <span className="text-[11px] font-medium text-muted-foreground truncate">{product.name}</span>
+          <span className="text-base font-black text-foreground">{formatMoney(price)}</span>
         </div>
         <button
           type="button"
           onClick={handleAddToCart}
-          className="flex h-11 flex-1 items-center justify-center gap-2 rounded-md bg-foreground text-xs font-bold uppercase tracking-widest text-background hover:bg-foreground/90 transition-colors"
+          className="flex h-11 px-5 items-center justify-center gap-2 rounded-lg bg-foreground text-xs font-bold uppercase tracking-widest text-background hover:bg-stone-800 transition-colors shadow-sm shrink-0"
         >
-          <ShoppingBag size={15} /> Add to Bag
+          <ShoppingBag size={14} /> Add to Bag
         </button>
       </div>
 
       {/* Tabbed Product Details Section */}
-      <section className="border-t border-border/80 pt-8 space-y-6">
-        <div className="flex flex-wrap border-b border-border/80 gap-6 text-xs font-bold uppercase tracking-wider">
+      <section className="border-t border-border/80 pt-10 space-y-6">
+        <div className="flex flex-wrap border-b border-border/80 gap-6 sm:gap-8 text-xs font-bold uppercase tracking-wider">
           <button
             type="button"
             onClick={() => setActiveTab("description")}
@@ -593,7 +636,7 @@ export function ProductDetail({
                 : "text-muted-foreground hover:text-foreground"
             }`}
           >
-            Description
+            Design &amp; Silhouette
           </button>
           <button
             type="button"
@@ -615,7 +658,7 @@ export function ProductDetail({
                 : "text-muted-foreground hover:text-foreground"
             }`}
           >
-            Material &amp; Care
+            Textile &amp; Care
           </button>
           <button
             type="button"
@@ -626,7 +669,7 @@ export function ProductDetail({
                 : "text-muted-foreground hover:text-foreground"
             }`}
           >
-            Shipping &amp; Returns
+            Dispatch &amp; Returns
           </button>
           <button
             type="button"
@@ -637,80 +680,105 @@ export function ProductDetail({
                 : "text-muted-foreground hover:text-foreground"
             }`}
           >
-            Reviews ({reviewSummary?.totalCount ?? 0})
+            Client Reviews ({reviewSummary?.totalCount ?? 0})
           </button>
         </div>
 
-        {/* Tab Content */}
+        {/* Tab Content Panels */}
         <div className="text-xs sm:text-sm leading-relaxed text-muted-foreground max-w-3xl space-y-4">
           {activeTab === "description" && (
             <div className="space-y-4">
               <p>
                 {product.description ||
-                  `Made from high-quality cotton blend fabric, this ${product.name.toLowerCase()} offers a relaxed fit with a minimalist design. Perfect for casual wear, layering, or everyday comfort.`}
+                  `Woven from carefully selected premium cotton blends, this ${product.name.toLowerCase()} offers an effortless drape with understated architectural lines. Crafted for timeless wear across all seasons.`}
               </p>
-              <ul className="list-disc pl-5 space-y-1 text-foreground/80">
-                <li>Premium tailored construction</li>
-                <li>Designed for versatile daily wear</li>
-                <li>Breathable, shape-retaining weave</li>
-                <li>Subtle ELARIS signature detailing</li>
-                <li>Preshrunk fabric with reinforced seams</li>
+              <ul className="list-disc pl-5 space-y-1.5 text-foreground/85">
+                <li>Artisanal tailoring with reinforced stress points</li>
+                <li>Breathable shape-retaining organic fibers</li>
+                <li>Minimalist hardware and clean profile</li>
+                <li>Preshrunk textile preventing shrinkage</li>
+                <li>Ethically produced under fair atelier standards</li>
               </ul>
             </div>
           )}
 
           {activeTab === "size" && (
-            <p>
-              Model is 5&apos;8&quot; wearing size M. Fits true to size with an intended relaxed, oversized silhouette. If you prefer a tailored fit, we recommend ordering one size down.
-            </p>
+            <div className="space-y-3">
+              <p>
+                Model is 5&apos;9&quot; wearing size Medium. Tailored to an effortless modern silhouette. For a more relaxed drape, select your standard size. For a fitted contour, we recommend ordering one size down.
+              </p>
+              <p className="text-xs">
+                Need specific guidance? Open the{" "}
+                <button
+                  type="button"
+                  onClick={() => setShowSizeGuide(true)}
+                  className="font-bold text-foreground underline underline-offset-2"
+                >
+                  Size &amp; Fit Guide
+                </button>{" "}
+                for exact garment measurements in inches and centimeters.
+              </p>
+            </div>
           )}
 
           {activeTab === "material" && (
-            <p>
-              80% Organic Combed Cotton, 20% Recycled Polyester. Machine wash cold with similar colors. Do not bleach. Tumble dry low or hang dry in shade. Warm iron if needed.
-            </p>
+            <div className="space-y-3">
+              <p>
+                80% Combed Long-Staple Organic Cotton, 20% Technical Recycled Fleece. Hand-finished for exceptional handfeel and longevity.
+              </p>
+              <p>
+                Care Instructions: Machine wash cold on delicate cycle with matching colors. Turn garment inside out before washing. Do not bleach. Hang dry in shaded breeze or tumble dry low. Low iron if desired.
+              </p>
+            </div>
           )}
 
           {activeTab === "shipping" && (
-            <p>
-              Orders placed before {storePolicies.shipping.dispatchCutoff} are dispatched the same business day. Delivery takes {storePolicies.shipping.dhakaDays} within Dhaka and {storePolicies.shipping.outsideDhakaDays} outside Dhaka. Returns and size exchanges are accepted within {storePolicies.returns.days} days of delivery.
-            </p>
+            <div className="space-y-3">
+              <p>
+                Orders confirmed before {storePolicies.shipping.dispatchCutoff} dispatch same day from our Dhaka fulfillment center. Standard delivery takes {storePolicies.shipping.dhakaDays} within Dhaka metropolitan and {storePolicies.shipping.outsideDhakaDays} across all other divisions.
+              </p>
+              <p>
+                We provide a 7-day complimentary return or size exchange guarantee on all unworn garments with original tags intact.
+              </p>
+            </div>
           )}
 
           {activeTab === "reviews" && (
             <div className="space-y-6">
               {reviewSummary && reviewSummary.totalCount > 0 ? (
                 <>
-                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 rounded-xl border border-border/70 bg-muted/20 p-5">
-                    <div className="space-y-1">
-                      <div className="flex items-center gap-3">
-                        <span className="text-3xl font-black text-foreground">
-                          {reviewSummary.averageRating.toFixed(1)}
-                        </span>
-                        <div>
-                          <div className="flex items-center text-amber-400">
-                            {[1, 2, 3, 4, 5].map((star) => (
-                              <Star
-                                key={star}
-                                size={15}
-                                className={
-                                  star <= Math.round(reviewSummary.averageRating)
-                                    ? "fill-amber-400 text-amber-400"
-                                    : "text-muted-foreground/30"
-                                }
-                              />
-                            ))}
-                          </div>
-                          <span className="text-xs text-muted-foreground">
-                            Based on {reviewSummary.totalCount} {reviewSummary.totalCount === 1 ? "review" : "reviews"}
-                          </span>
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 rounded-xl border border-border/70 bg-stone-50/60 dark:bg-stone-900/40 p-5">
+                    <div className="flex items-center gap-3">
+                      <span className="text-3xl font-black text-foreground">
+                        {reviewSummary.averageRating.toFixed(1)}
+                      </span>
+                      <div>
+                        <div className="flex items-center text-amber-500">
+                          {[1, 2, 3, 4, 5].map((star) => (
+                            <Star
+                              key={star}
+                              size={15}
+                              className={
+                                star <= Math.round(reviewSummary.averageRating)
+                                  ? "fill-amber-500 text-amber-500"
+                                  : "text-muted-foreground/30"
+                              }
+                            />
+                          ))}
                         </div>
+                        <span className="text-xs text-muted-foreground">
+                          Based on {reviewSummary.totalCount}{" "}
+                          {reviewSummary.totalCount === 1 ? "verified review" : "verified reviews"}
+                        </span>
                       </div>
                     </div>
                     {reviewSummary.verifiedCount > 0 && (
-                      <div className="flex items-center gap-1.5 text-xs text-emerald-600 dark:text-emerald-400 font-medium">
+                      <div className="flex items-center gap-1.5 text-xs text-emerald-700 dark:text-emerald-400 font-semibold">
                         <ShieldCheck size={16} />
-                        <span>{reviewSummary.verifiedCount} verified {reviewSummary.verifiedCount === 1 ? "purchase" : "purchases"}</span>
+                        <span>
+                          {reviewSummary.verifiedCount} verified{" "}
+                          {reviewSummary.verifiedCount === 1 ? "purchase" : "purchases"}
+                        </span>
                       </div>
                     )}
                   </div>
@@ -739,14 +807,14 @@ export function ProductDetail({
                           </time>
                         </div>
 
-                        <div className="flex items-center text-amber-400">
+                        <div className="flex items-center text-amber-500">
                           {[1, 2, 3, 4, 5].map((star) => (
                             <Star
                               key={star}
                               size={12}
                               className={
                                 star <= rev.rating
-                                  ? "fill-amber-400 text-amber-400"
+                                  ? "fill-amber-500 text-amber-500"
                                   : "text-muted-foreground/30"
                               }
                             />
@@ -754,15 +822,11 @@ export function ProductDetail({
                         </div>
 
                         {rev.title && (
-                          <h4 className="font-medium text-foreground text-sm">
-                            {rev.title}
-                          </h4>
+                          <h4 className="font-semibold text-foreground text-sm">{rev.title}</h4>
                         )}
 
                         {rev.body && (
-                          <p className="text-muted-foreground text-xs leading-relaxed">
-                            {rev.body}
-                          </p>
+                          <p className="text-muted-foreground text-xs leading-relaxed">{rev.body}</p>
                         )}
                       </div>
                     ))}
@@ -777,7 +841,7 @@ export function ProductDetail({
                   </div>
                   <h4 className="font-semibold text-foreground text-sm">No reviews yet</h4>
                   <p className="text-xs text-muted-foreground max-w-sm mx-auto">
-                    There are no reviews for this product yet. Verified buyers will be able to share their thoughts here.
+                    There are no reviews for this piece yet. Verified buyers will be able to share their thoughts here.
                   </p>
                 </div>
               )}
@@ -785,23 +849,23 @@ export function ProductDetail({
           )}
         </div>
 
-        {/* 4 Feature Cards */}
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 pt-4">
-          <div className="flex flex-col items-center justify-center rounded-xl border border-border/80 bg-muted/20 p-4 text-center space-y-2">
-            <Feather size={22} className="text-foreground" />
+        {/* 4 Atelier Quality Feature Cards */}
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 pt-6">
+          <div className="flex flex-col items-center justify-center rounded-xl border border-border/70 bg-stone-50/50 dark:bg-stone-900/30 p-4 text-center space-y-2">
+            <Feather size={20} className="text-foreground" />
             <p className="text-xs font-bold text-foreground">Soft &amp; Breathable Fabric</p>
           </div>
-          <div className="flex flex-col items-center justify-center rounded-xl border border-border/80 bg-muted/20 p-4 text-center space-y-2">
-            <Gem size={22} className="text-foreground" />
-            <p className="text-xs font-bold text-foreground">Premium Quality</p>
+          <div className="flex flex-col items-center justify-center rounded-xl border border-border/70 bg-stone-50/50 dark:bg-stone-900/30 p-4 text-center space-y-2">
+            <Gem size={20} className="text-foreground" />
+            <p className="text-xs font-bold text-foreground">Artisanal Quality</p>
           </div>
-          <div className="flex flex-col items-center justify-center rounded-xl border border-border/80 bg-muted/20 p-4 text-center space-y-2">
-            <Shirt size={22} className="text-foreground" />
-            <p className="text-xs font-bold text-foreground">Everyday Essential</p>
+          <div className="flex flex-col items-center justify-center rounded-xl border border-border/70 bg-stone-50/50 dark:bg-stone-900/30 p-4 text-center space-y-2">
+            <Shirt size={20} className="text-foreground" />
+            <p className="text-xs font-bold text-foreground">Capsule Essential</p>
           </div>
-          <div className="flex flex-col items-center justify-center rounded-xl border border-border/80 bg-muted/20 p-4 text-center space-y-2">
-            <Sparkles size={22} className="text-foreground" />
-            <p className="text-xs font-bold text-foreground">Timeless Design</p>
+          <div className="flex flex-col items-center justify-center rounded-xl border border-border/70 bg-stone-50/50 dark:bg-stone-900/30 p-4 text-center space-y-2">
+            <Sparkles size={20} className="text-foreground" />
+            <p className="text-xs font-bold text-foreground">Enduring Aesthetic</p>
           </div>
         </div>
       </section>
@@ -810,15 +874,16 @@ export function ProductDetail({
       {relatedProducts.length > 0 && (
         <section className="border-t border-border/80 pt-10 space-y-6">
           <div className="flex items-center justify-between">
-            <h2 className="text-xl font-bold tracking-tight text-foreground">Complete the Look</h2>
+            <h2 className="font-serif text-2xl sm:text-3xl font-bold tracking-tight text-foreground">
+              Complete the Look
+            </h2>
             <Link
               href={`/shop?category=${product.categorySlug}`}
-              className="text-xs font-semibold text-muted-foreground hover:text-foreground"
+              className="text-xs font-semibold text-muted-foreground hover:text-foreground transition-colors"
             >
-              View All →
+              Explore Collection →
             </Link>
           </div>
-          {/* Horizontally scrollable on mobile, grid on sm+ */}
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
             {relatedProducts.map((rel) => (
               <ProductCard key={rel.id} product={rel} />
@@ -827,26 +892,24 @@ export function ProductDetail({
         </section>
       )}
 
-      {/* ── Size Guide Modal ── */}
+      {/* Size Guide Modal */}
       {showSizeGuide && (
         <div
           role="dialog"
           aria-modal="true"
           aria-label="Size Guide"
-          className="fixed inset-0 z-50 flex items-center justify-center p-4"
+          className="fixed inset-0 z-50 flex items-center justify-center p-4 animate-in fade-in-0 duration-200"
         >
-          {/* Backdrop */}
           <div
             className="fixed inset-0 bg-black/60 backdrop-blur-sm transition-opacity"
             onClick={() => setShowSizeGuide(false)}
           />
 
-          {/* Modal Card */}
           <div className="relative w-full max-w-xl rounded-2xl border border-border bg-background p-6 shadow-2xl z-10 space-y-5 max-h-[90vh] overflow-y-auto">
             <div className="flex items-center justify-between border-b border-border/80 pb-4">
               <div className="flex items-center gap-2">
                 <Ruler size={18} className="text-foreground" />
-                <h3 className="text-base font-bold text-foreground">Size &amp; Fit Guide</h3>
+                <h3 className="font-serif text-lg font-bold text-foreground">Size &amp; Fit Guide</h3>
               </div>
               <button
                 type="button"
@@ -858,7 +921,6 @@ export function ProductDetail({
               </button>
             </div>
 
-            {/* Unit Switcher */}
             <div className="flex items-center justify-between">
               <p className="text-xs text-muted-foreground">
                 All measurements refer to garment dimensions.
@@ -889,8 +951,7 @@ export function ProductDetail({
               </div>
             </div>
 
-            {/* Measurement Table */}
-            <div className="overflow-x-auto rounded-lg border border-border">
+            <div className="overflow-x-auto rounded-xl border border-border">
               <table className="w-full text-left text-xs">
                 <thead className="bg-muted/50 font-bold uppercase tracking-wider text-[10px] text-muted-foreground border-b border-border">
                   <tr>
@@ -908,11 +969,15 @@ export function ProductDetail({
                     { size: "M", chestIn: "38-40", chestCm: "96-101", waistIn: "32-34", waistCm: "81-86", hipIn: "38-40", hipCm: "96-101", lenIn: "29", lenCm: "74" },
                     { size: "L", chestIn: "40-42", chestCm: "101-106", waistIn: "34-36", waistCm: "86-91", hipIn: "40-42", hipCm: "101-106", lenIn: "30", lenCm: "76" },
                     { size: "XL", chestIn: "42-44", chestCm: "106-111", waistIn: "36-38", waistCm: "91-96", hipIn: "42-44", hipCm: "106-111", lenIn: "31", lenCm: "79" },
-                    { size: "XXL", chestIn: "44-46", chestCm: "111-116", waistIn: "38-40", waistCm: "96-101", hipIn: "44-46", hipCm: "111-116", lenIn: "32", lenCm: "81" },
+                    { size: "XXL", chestIn: "44-46", chestCm: "111-116", waistIn: "38-40", waistCm: "96-101", hipIn: "44-46", hipCm: "111-116", lenIn: "32", lenCm: "81" }
                   ].map((row) => (
                     <tr
                       key={row.size}
-                      className={selectedSize.toUpperCase() === row.size ? "bg-muted/40 font-bold" : "hover:bg-muted/20"}
+                      className={
+                        selectedSize.toUpperCase() === row.size
+                          ? "bg-muted/40 font-bold"
+                          : "hover:bg-muted/20"
+                      }
                     >
                       <td className="px-3 py-2.5 font-bold">{row.size}</td>
                       <td className="px-3 py-2.5">{sizeGuideUnit === "in" ? row.chestIn : row.chestCm}</td>
@@ -925,8 +990,7 @@ export function ProductDetail({
               </table>
             </div>
 
-            {/* How to Measure Tip */}
-            <div className="rounded-xl bg-muted/40 p-4 text-[11px] leading-relaxed text-muted-foreground space-y-1 border border-border/60">
+            <div className="rounded-xl bg-stone-50/70 dark:bg-stone-900/40 p-4 text-[11px] leading-relaxed text-muted-foreground space-y-1 border border-border/70">
               <p className="font-bold text-foreground">How to Measure:</p>
               <p>• <strong>Chest:</strong> Measure around the fullest part of your chest, keeping tape horizontal.</p>
               <p>• <strong>Waist:</strong> Measure around the narrowest part of your natural waistline.</p>
@@ -936,13 +1000,13 @@ export function ProductDetail({
         </div>
       )}
 
-      {/* ── High-Res Image Lightbox Modal ── */}
+      {/* High-Res Image Lightbox Modal */}
       {isLightboxOpen && (
         <div
           role="dialog"
           aria-modal="true"
           aria-label="Image Zoom View"
-          className="fixed inset-0 z-50 flex items-center justify-center bg-black/90 backdrop-blur-md p-4"
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/95 backdrop-blur-md p-4 animate-in fade-in-0 duration-200"
         >
           <button
             type="button"
@@ -955,7 +1019,9 @@ export function ProductDetail({
 
           <button
             type="button"
-            onClick={() => setActiveImageIndex((prev) => (prev > 0 ? prev - 1 : galleryImages.length - 1))}
+            onClick={() =>
+              setActiveImageIndex((prev) => (prev > 0 ? prev - 1 : galleryImages.length - 1))
+            }
             className="absolute left-4 top-1/2 -translate-y-1/2 z-20 flex h-11 w-11 items-center justify-center rounded-full bg-white/20 text-white hover:bg-white/40 transition-colors"
             aria-label="Previous image"
           >
@@ -964,7 +1030,9 @@ export function ProductDetail({
 
           <button
             type="button"
-            onClick={() => setActiveImageIndex((prev) => (prev < galleryImages.length - 1 ? prev + 1 : 0))}
+            onClick={() =>
+              setActiveImageIndex((prev) => (prev < galleryImages.length - 1 ? prev + 1 : 0))
+            }
             className="absolute right-4 top-1/2 -translate-y-1/2 z-20 flex h-11 w-11 items-center justify-center rounded-full bg-white/20 text-white hover:bg-white/40 transition-colors"
             aria-label="Next image"
           >

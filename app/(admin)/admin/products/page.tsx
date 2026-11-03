@@ -1,32 +1,18 @@
 export const dynamic = "force-dynamic";
 
-import Link from "next/link";
-import Image from "next/image";
-import { Badge } from "@/components/ui/badge";
-import { formatMoney } from "@/lib/utils/money";
-import {
-  Plus,
-  PackageSearch,
-  Pencil,
-  Eye,
-  Download,
-  Filter,
-  Layers,
-  Sparkles
-} from "lucide-react";
-import { Button } from "@/components/ui/button";
 import { prisma } from "@/db/prisma";
-import { DeleteProductButton } from "@/components/admin/delete-product-button";
-import { AdminSearchInput } from "@/components/admin/admin-search-input";
-import { AdminCategoryFilter } from "@/components/admin/admin-category-filter";
+import { AdminProductsManager, type AdminProductRow } from "@/components/admin/admin-products-manager";
 import type { ProductStatus } from "@prisma/client";
 
 type PageProps = {
-  searchParams: Promise<{ q?: string; status?: string; category?: string }>;
+  searchParams: Promise<{ q?: string; status?: string; category?: string; page?: string }>;
 };
 
 export default async function AdminProductsPage({ searchParams }: PageProps) {
-  const { q, status, category } = (await searchParams) || {};
+  const { q, status, category, page: pageParam } = (await searchParams) || {};
+  const page = Math.max(1, Number(pageParam) || 1);
+  const pageSize = 25;
+  const skip = (page - 1) * pageSize;
 
   const whereClause: Record<string, unknown> = {
     deletedAt: null,
@@ -64,14 +50,17 @@ export default async function AdminProductsPage({ searchParams }: PageProps) {
     whereClause.AND = andConditions;
   }
 
-  const [dbProducts, totalCount, publishedCount, draftCount, allCategories] = await Promise.all([
+  const [dbProducts, filteredCount, totalCount, publishedCount, draftCount, allCategories] = await Promise.all([
     prisma.product.findMany({
       where: whereClause,
+      skip,
+      take: pageSize,
       include: {
         category: {
           select: {
+            id: true,
             name: true,
-            parent: { select: { name: true } }
+            parent: { select: { id: true, name: true } }
           }
         },
         images: { take: 1, orderBy: { position: "asc" }, select: { url: true } },
@@ -82,6 +71,7 @@ export default async function AdminProductsPage({ searchParams }: PageProps) {
       },
       orderBy: { createdAt: "desc" }
     }),
+    prisma.product.count({ where: whereClause }),
     prisma.product.count({ where: { deletedAt: null } }),
     prisma.product.count({ where: { status: "PUBLISHED", deletedAt: null } }),
     prisma.product.count({ where: { status: "DRAFT", deletedAt: null } }),
@@ -101,7 +91,7 @@ export default async function AdminProductsPage({ searchParams }: PageProps) {
     }),
   ]);
 
-  const products = dbProducts.map((p) => {
+  const products: AdminProductRow[] = dbProducts.map((p) => {
     const prices = p.variants.map((v) => v.priceOverride ?? p.basePrice);
     const minPrice = prices.length > 0 ? Math.min(...prices) : p.basePrice;
     const maxPrice = prices.length > 0 ? Math.max(...prices) : p.basePrice;
@@ -114,6 +104,7 @@ export default async function AdminProductsPage({ searchParams }: PageProps) {
       slug: p.slug,
       image,
       category: p.category?.name || "Uncategorized",
+      categoryId: p.category?.id,
       parentCategory: p.category?.parent?.name || null,
       variantsCount: p.variants.length,
       minPrice,
@@ -124,360 +115,21 @@ export default async function AdminProductsPage({ searchParams }: PageProps) {
   });
 
   const lowStockCount = products.filter((p) => p.totalStock <= 5).length;
+  const totalPages = Math.ceil(filteredCount / pageSize);
 
   return (
-    <div className="space-y-8">
-      {/* Top Header Bar */}
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-        <div>
-          <div className="flex items-center gap-2">
-            <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-foreground">
-              Products Catalog
-            </h1>
-            <span className="rounded-full bg-zinc-100 dark:bg-zinc-800 px-2.5 py-0.5 text-[11px] font-semibold text-foreground dark:text-white">
-              {totalCount} Total
-            </span>
-          </div>
-          <p className="mt-1 text-xs sm:text-sm text-muted-foreground">
-            Manage clothing collections, descriptions, variants, pricing, and live availability
-          </p>
-        </div>
-
-        <div className="flex items-center gap-2.5">
-          <a
-            href="/api/admin/export/products"
-            download
-            className="flex items-center gap-2 rounded-lg border border-border bg-background px-3 py-1.5 text-xs font-medium text-foreground shadow-sm hover:bg-muted/40 transition"
-          >
-            <Download size={14} />
-            <span>Export CSV</span>
-          </a>
-          <Button asChild className="text-xs h-8">
-            <Link href="/admin/products/new">
-              <Plus size={14} /> Add Product
-            </Link>
-          </Button>
-        </div>
-      </div>
-
-      {/* 4 KPI Cards */}
-      <div className="grid gap-4 grid-cols-2 xl:grid-cols-4">
-        <div className="rounded-xl border border-border bg-background p-5 shadow-sm">
-          <p className="text-xs font-medium text-muted-foreground">Total Catalog</p>
-          <p className="mt-2 text-2xl font-black text-foreground">{totalCount}</p>
-          <p className="mt-1 text-[11px] text-muted-foreground">All listed styles</p>
-        </div>
-        <div className="rounded-xl border border-border bg-background p-5 shadow-sm">
-          <p className="text-xs font-medium text-muted-foreground">Published &amp; Live</p>
-          <div className="mt-2 flex items-baseline gap-2">
-            <span className="text-2xl font-black text-emerald-600">{publishedCount}</span>
-            <span className="text-xs font-semibold text-emerald-700 bg-emerald-50 px-1.5 py-0.5 rounded">
-              Active
-            </span>
-          </div>
-          <p className="mt-1 text-[11px] text-muted-foreground">Visible on storefront</p>
-        </div>
-        <div className="rounded-xl border border-border bg-background p-5 shadow-sm">
-          <p className="text-xs font-medium text-muted-foreground">Draft Pieces</p>
-          <div className="mt-2 flex items-baseline gap-2">
-            <span className="text-2xl font-black text-amber-600">{draftCount}</span>
-            <span className="text-xs font-semibold text-amber-700 bg-amber-50 px-1.5 py-0.5 rounded">
-              Unpublished
-            </span>
-          </div>
-          <p className="mt-1 text-[11px] text-muted-foreground">In review or staging</p>
-        </div>
-        <div className="rounded-xl border border-border bg-background p-5 shadow-sm">
-          <p className="text-xs font-medium text-muted-foreground">Low / Zero Stock</p>
-          <div className="mt-2 flex items-baseline gap-2">
-            <span className="text-2xl font-black text-rose-600">{lowStockCount}</span>
-            {lowStockCount > 0 && (
-              <span className="text-xs font-semibold text-rose-700 bg-rose-50 px-1.5 py-0.5 rounded">
-                Warning
-              </span>
-            )}
-          </div>
-          <p className="mt-1 text-[11px] text-muted-foreground">Variants need restock</p>
-        </div>
-      </div>
-
-      {/* Filter Toolbar */}
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between rounded-xl border border-border bg-background p-4 shadow-sm">
-        <div className="flex flex-1 flex-col gap-2.5 sm:flex-row sm:items-center">
-          <div className="w-full sm:max-w-md">
-            <AdminSearchInput placeholder="Search product name, slug, SKU, category…" />
-          </div>
-          <AdminCategoryFilter categories={allCategories} />
-        </div>
-
-        <div className="flex items-center gap-1.5 overflow-x-auto pb-1 sm:pb-0">
-          {[
-            { label: "All", value: "" },
-            { label: "Published", value: "PUBLISHED" },
-            { label: "Drafts", value: "DRAFT" },
-            { label: "Archived", value: "ARCHIVED" },
-          ].map((tab) => {
-            const active = (status?.toUpperCase() || "") === tab.value;
-            const queryParams = new URLSearchParams();
-            if (q) queryParams.set("q", q);
-            if (category) queryParams.set("category", category);
-            if (tab.value) queryParams.set("status", tab.value);
-            const href = `/admin/products${queryParams.toString() ? `?${queryParams.toString()}` : ""}`;
-
-            return (
-              <Link
-                key={tab.label}
-                href={href}
-                className={`rounded-lg px-3 py-1.5 text-xs font-semibold transition ${
-                  active
-                    ? "bg-foreground text-background shadow-sm"
-                    : "border border-border text-muted-foreground hover:text-foreground"
-                }`}
-              >
-                {tab.label}
-              </Link>
-            );
-          })}
-        </div>
-      </div>
-
-      {/* Main Products Table */}
-      {products.length === 0 ? (
-        <div className="flex flex-col items-center justify-center rounded-xl border border-dashed border-border bg-background p-12 text-center shadow-sm">
-          <PackageSearch size={36} className="text-muted-foreground mb-3" />
-          <h2 className="text-base font-bold text-foreground">No products found</h2>
-          <p className="mt-1 max-w-sm text-xs text-muted-foreground">
-            Get started by adding your first clothing piece with custom sizes, colors, pricing, and stock.
-          </p>
-          <Button asChild className="mt-4 text-xs">
-            <Link href="/admin/products/new">
-              <Plus size={14} /> Add First Product
-            </Link>
-          </Button>
-        </div>
-      ) : (
-        <div className="overflow-hidden rounded-xl border border-border bg-background shadow-sm">
-          {/* Mobile: card list */}
-          <div className="sm:hidden divide-y divide-border/60">
-            {products.map((p) => {
-              const isPublished = p.status === "PUBLISHED";
-              const isDraft = p.status === "DRAFT";
-
-              return (
-                <div key={p.id} className="p-4 space-y-3">
-                  <div className="flex items-start justify-between gap-3">
-                    <div className="flex items-center gap-3 min-w-0">
-                      <div className="relative h-12 w-10 overflow-hidden rounded border border-border bg-muted shrink-0">
-                        <Image
-                          src={p.image}
-                          alt={p.name}
-                          fill
-                          className="object-cover"
-                          sizes="40px"
-                        />
-                      </div>
-                      <div className="min-w-0">
-                        <Link
-                          href={`/admin/products/${p.id}/edit`}
-                          className="font-bold text-sm text-foreground hover:underline truncate block"
-                        >
-                          {p.name}
-                        </Link>
-                        <p className="text-[11px] text-muted-foreground font-mono truncate">
-                          /{p.slug}
-                        </p>
-                      </div>
-                    </div>
-                    {isPublished ? (
-                      <span className="inline-block rounded border border-emerald-200 bg-emerald-50 px-2 py-0.5 text-[10px] font-bold text-emerald-700 shrink-0">
-                        PUBLISHED
-                      </span>
-                    ) : isDraft ? (
-                      <span className="inline-block rounded border border-amber-200 bg-amber-50 px-2 py-0.5 text-[10px] font-bold text-amber-700 shrink-0">
-                        DRAFT
-                      </span>
-                    ) : (
-                      <span className="inline-block rounded border border-zinc-200 bg-zinc-100 px-2 py-0.5 text-[10px] font-bold text-zinc-700 shrink-0">
-                        ARCHIVED
-                      </span>
-                    )}
-                  </div>
-
-                  <div className="flex items-center justify-between text-xs pt-1 border-t border-border/40">
-                    <div>
-                      <span className="text-muted-foreground">{p.parentCategory ? `${p.parentCategory} / ` : ""}{p.category}</span>
-                      <span className="ml-2 rounded bg-muted px-1.5 py-0.5 text-[10px] font-bold">
-                        {p.variantsCount} {p.variantsCount === 1 ? "var" : "vars"}
-                      </span>
-                    </div>
-                    <div className="text-right">
-                      <span className="font-extrabold text-foreground">
-                        {p.minPrice === p.maxPrice
-                          ? formatMoney(p.minPrice)
-                          : `${formatMoney(p.minPrice)} – ${formatMoney(p.maxPrice)}`}
-                      </span>
-                      <span className={`ml-2 text-[11px] font-bold ${
-                        p.totalStock === 0 ? "text-rose-600" : p.totalStock <= 5 ? "text-amber-600" : "text-muted-foreground"
-                      }`}>
-                        ({p.totalStock} in stock)
-                      </span>
-                    </div>
-                  </div>
-
-                  <div className="flex items-center justify-end gap-2 pt-2 border-t border-border/40">
-                    <Link
-                      href={`/shop`}
-                      target="_blank"
-                      aria-label={`View ${p.name} on storefront`}
-                      className="inline-flex items-center gap-1 rounded-md border border-border bg-background px-2.5 py-1.5 text-xs font-semibold text-muted-foreground hover:bg-muted hover:text-foreground transition"
-                      title="View on Storefront"
-                    >
-                      <Eye size={13} />
-                      <span>Storefront</span>
-                    </Link>
-                    <Link
-                      href={`/admin/products/${p.id}/edit`}
-                      aria-label={`Edit ${p.name}`}
-                      className="inline-flex items-center gap-1 rounded-md border border-border bg-background px-2.5 py-1.5 text-xs font-semibold text-foreground hover:bg-muted/40 transition"
-                      title="Edit Product"
-                    >
-                      <Pencil size={13} />
-                      <span>Edit</span>
-                    </Link>
-                    <DeleteProductButton productId={p.id} productName={p.name} />
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-
-          {/* Desktop: table */}
-          <div className="hidden sm:block overflow-x-auto">
-            <table className="w-full min-w-[600px] text-left text-xs">
-              <thead className="border-b border-border bg-muted/30 font-semibold text-muted-foreground">
-                <tr>
-                  <th className="py-3 px-4">Product</th>
-                  <th className="py-3 px-4">Category</th>
-                  <th className="py-3 px-4 text-center">Variants</th>
-                  <th className="py-3 px-4">Price Range</th>
-                  <th className="py-3 px-4 text-center">Stock</th>
-                  <th className="py-3 px-4 text-center">Status</th>
-                  <th className="py-3 px-4 text-right">Actions</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-border/60">
-                {products.map((p) => {
-                  const isPublished = p.status === "PUBLISHED";
-                  const isDraft = p.status === "DRAFT";
-
-                  return (
-                    <tr key={p.id} className="hover:bg-muted/20 transition">
-                      <td className="py-3.5 px-4">
-                        <div className="flex items-center gap-3">
-                          <div className="relative h-10 w-8 overflow-hidden rounded border border-border bg-muted shrink-0">
-                            <Image
-                              src={p.image}
-                              alt={p.name}
-                              fill
-                              className="object-cover"
-                              sizes="32px"
-                            />
-                          </div>
-                          <div>
-                            <Link
-                              href={`/admin/products/${p.id}/edit`}
-                              className="font-bold text-foreground hover:underline line-clamp-1"
-                            >
-                              {p.name}
-                            </Link>
-                            <p className="text-[11px] text-muted-foreground font-mono">
-                              /{p.slug}
-                            </p>
-                          </div>
-                        </div>
-                      </td>
-                      <td className="py-3.5 px-4">
-                        {p.parentCategory ? (
-                          <div className="flex flex-col gap-0.5">
-                            <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
-                              {p.parentCategory}
-                            </span>
-                            <span className="font-medium text-foreground">
-                              {p.category}
-                            </span>
-                          </div>
-                        ) : (
-                          <span className="font-medium text-foreground">{p.category}</span>
-                        )}
-                      </td>
-                      <td className="py-3.5 px-4 text-center">
-                        <span className="rounded bg-muted px-2 py-0.5 text-[11px] font-bold text-foreground">
-                          {p.variantsCount}
-                        </span>
-                      </td>
-                      <td className="py-3.5 px-4 font-extrabold text-foreground">
-                        {p.minPrice === p.maxPrice
-                          ? formatMoney(p.minPrice)
-                          : `${formatMoney(p.minPrice)} – ${formatMoney(p.maxPrice)}`}
-                      </td>
-                      <td className="py-3.5 px-4 text-center">
-                        <span
-                          className={`font-bold ${
-                            p.totalStock === 0
-                              ? "text-rose-600"
-                              : p.totalStock <= 5
-                              ? "text-amber-600"
-                              : "text-foreground"
-                          }`}
-                        >
-                          {p.totalStock}
-                        </span>
-                      </td>
-                      <td className="py-3.5 px-4 text-center">
-                        {isPublished ? (
-                          <span className="inline-block rounded border border-emerald-200 bg-emerald-50 px-2 py-0.5 text-[10px] font-bold text-emerald-700">
-                            PUBLISHED
-                          </span>
-                        ) : isDraft ? (
-                          <span className="inline-block rounded border border-amber-200 bg-amber-50 px-2 py-0.5 text-[10px] font-bold text-amber-700">
-                            DRAFT
-                          </span>
-                        ) : (
-                          <span className="inline-block rounded border border-zinc-200 bg-zinc-100 px-2 py-0.5 text-[10px] font-bold text-zinc-700">
-                            ARCHIVED
-                          </span>
-                        )}
-                      </td>
-                      <td className="py-3.5 px-4 text-right">
-                        <div className="flex items-center justify-end gap-1.5">
-                          <Link
-                            href={`/shop`}
-                            target="_blank"
-                            aria-label={`View ${p.name} on storefront`}
-                            className="rounded p-1.5 text-muted-foreground hover:bg-muted hover:text-foreground transition"
-                            title="View on Storefront"
-                          >
-                            <Eye size={14} />
-                          </Link>
-                          <Link
-                            href={`/admin/products/${p.id}/edit`}
-                            aria-label={`Edit ${p.name}`}
-                            className="rounded p-1.5 text-muted-foreground hover:bg-muted hover:text-foreground transition"
-                            title="Edit Product"
-                          >
-                            <Pencil size={14} />
-                          </Link>
-                          <DeleteProductButton productId={p.id} productName={p.name} />
-                        </div>
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          </div>
-        </div>
-      )}
-    </div>
+    <AdminProductsManager
+      products={products}
+      totalCount={totalCount}
+      publishedCount={publishedCount}
+      draftCount={draftCount}
+      lowStockCount={lowStockCount}
+      allCategories={allCategories}
+      currentStatus={status}
+      searchQuery={q}
+      currentCategory={category}
+      page={page}
+      totalPages={totalPages}
+    />
   );
 }

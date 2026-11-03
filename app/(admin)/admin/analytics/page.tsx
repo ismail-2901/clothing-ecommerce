@@ -3,22 +3,26 @@ export const dynamic = "force-dynamic";
 import { redirect } from "next/navigation";
 import {
   ShoppingCart,
-  ArrowUpRight,
   Users,
-  BarChart3,
   TrendingUp,
   Download,
   Calendar,
-  Smartphone,
-  Laptop,
   MapPin,
-  Sparkles
+  CheckCircle2,
+  Package,
+  Layers,
+  ArrowUpRight
 } from "lucide-react";
 import { formatMoney } from "@/lib/utils/money";
 import { getServerUser } from "@/lib/auth/server";
 import { prisma } from "@/db/prisma";
 import { AdminDashboardSalesChart } from "@/components/admin/admin-dashboard-sales-chart";
-import { analyticsCreatedAtFilter, analyticsSince, getAnalyticsStartAt } from "@/features/admin/analytics";
+import {
+  analyticsCreatedAtFilter,
+  analyticsSince,
+  getAnalyticsStartAt
+} from "@/features/admin/analytics";
+import Link from "next/link";
 
 function subDays(days: number) {
   return new Date(Date.now() - days * 86400000);
@@ -26,16 +30,17 @@ function subDays(days: number) {
 
 export default async function AdminAnalyticsPage() {
   const user = await getServerUser();
-  const isAdmin = user?.roles?.some(
-    (ur) => ur.role.name === "ADMIN" || ur.role.name === "SUPER_ADMIN"
-  ) ?? false;
+  const isAdmin =
+    user?.roles?.some(
+      (ur) => ur.role.name === "ADMIN" || ur.role.name === "SUPER_ADMIN"
+    ) ?? false;
   if (!isAdmin) redirect("/login");
 
   const analyticsStartAt = await getAnalyticsStartAt();
   const analyticsCreatedAt = analyticsCreatedAtFilter(analyticsStartAt);
   const newCustomersSince = analyticsSince(analyticsStartAt, subDays(30));
 
-  // Aggregations
+  // Comprehensive operational aggregations
   const [
     totalRevenueAgg,
     totalOrders,
@@ -74,10 +79,13 @@ export default async function AdminAnalyticsPage() {
   const totalRev = totalRevenueAgg._sum.grandTotal ?? 0;
   const orderCount = totalRevenueAgg._count.id;
   const aov = orderCount > 0 ? Math.round(totalRev / orderCount) : 0;
-  const conversionRate = totalCustomers > 0 ? `${((orderCount / totalCustomers) * 100).toFixed(1)}%` : "0.0%";
+  const conversionRate =
+    totalCustomers > 0 ? `${((orderCount / totalCustomers) * 100).toFixed(1)}%` : "0.0%";
 
   // Enrich top products
-  const productIds = topProductsDb.map((p) => p.productId).filter((id): id is string => id !== null);
+  const productIds = topProductsDb
+    .map((p) => p.productId)
+    .filter((id): id is string => id !== null);
   const products = await prisma.product.findMany({
     where: { id: { in: productIds } },
     select: { id: true, name: true, slug: true }
@@ -87,14 +95,14 @@ export default async function AdminAnalyticsPage() {
   const topProducts = topProductsDb.map((p) => ({
     product: p.productId ? productMap.get(p.productId) : null,
     units: p._sum?.quantity ?? 0,
-    revenue: p._sum?.lineTotal ?? 0,
+    revenue: p._sum?.lineTotal ?? 0
   }));
 
-  // Regional breakdown
+  // Regional breakdown across Bangladesh divisions
   const regionMap: Record<string, { count: number; total: number }> = {};
   for (const o of ordersWithAddress) {
-    const addr = o.deliveryAddress as any;
-    const city = (addr?.city || "").trim();
+    const addr = o.deliveryAddress as Record<string, unknown> | null;
+    const city = typeof addr?.city === "string" ? addr.city.trim() : "";
     const region = /chattogram|chittagong/i.test(city)
       ? "Chattogram Division"
       : /sylhet/i.test(city)
@@ -103,135 +111,174 @@ export default async function AdminAnalyticsPage() {
       ? "Rajshahi & Khulna"
       : /dhaka/i.test(city)
       ? "Dhaka Division"
-      : city ? "Other Regions" : "Dhaka Division";
+      : city
+      ? "Other Regions"
+      : "Dhaka Division";
 
     if (!regionMap[region]) regionMap[region] = { count: 0, total: 0 };
     regionMap[region].count++;
     regionMap[region].total += o.grandTotal;
   }
 
-  const regionalData = ordersWithAddress.length > 0
-    ? Object.entries(regionMap).map(([region, stats]) => ({
-        region,
-        percent: Math.round((stats.count / ordersWithAddress.length) * 100),
-        orders: `${stats.count} orders`,
-        amount: formatMoney(stats.total)
-      }))
-    : [];
+  const regionalData =
+    ordersWithAddress.length > 0
+      ? Object.entries(regionMap).map(([region, stats]) => ({
+          region,
+          percent: Math.round((stats.count / ordersWithAddress.length) * 100),
+          orders: `${stats.count} orders`,
+          amount: formatMoney(stats.total)
+        }))
+      : [];
+
+  // Fulfillment status shares
+  const totalStatusOrders = statusBreakdown.reduce((sum, s) => sum + s._count.id, 0);
+  const statusDistribution = statusBreakdown.map((s) => ({
+    status: s.status,
+    count: s._count.id,
+    percent: totalStatusOrders > 0 ? Math.round((s._count.id / totalStatusOrders) * 100) : 0
+  }));
 
   const metrics = [
     {
       label: "Total Sales Revenue",
       value: formatMoney(totalRev),
-      change: "Live",
+      statusBadge: "Audited",
       isPositive: true,
-      hint: "All confirmed & paid orders"
+      hint: "All confirmed & paid orders",
+      icon: TrendingUp
     },
     {
-      label: "Conversion Rate",
+      label: "Customer Conversion",
       value: conversionRate,
-      change: "Live",
+      statusBadge: "Active",
       isPositive: true,
-      hint: "Orders to registered customers"
+      hint: "Orders to registered shoppers",
+      icon: ShoppingCart
     },
     {
       label: "Average Order Value (AOV)",
       value: formatMoney(aov),
-      change: "Live",
+      statusBadge: "Realized",
       isPositive: true,
-      hint: "Per completed checkout"
+      hint: "Net revenue per checkout",
+      icon: Layers
     },
     {
-      label: "Active Shoppers",
+      label: "Active Customer Base",
       value: totalCustomers.toLocaleString(),
-      change: `+${newCustomers} new`,
+      statusBadge: `+${newCustomers} recent`,
       isPositive: true,
-      hint: "Registered customer base"
+      hint: "Registered shopper directory",
+      icon: Users
     }
   ];
 
   return (
-    <div className="space-y-8">
+    <div className="space-y-6 sm:space-y-8">
       {/* Top Header Bar */}
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between border-b border-border/80 pb-5">
         <div>
-          <div className="flex items-center gap-2">
-            <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-foreground">
-              Analytics &amp; Performance
+          <div className="flex items-center gap-2.5">
+            <h1 className="text-xl sm:text-2xl font-bold tracking-tight text-foreground">
+              Business Intelligence &amp; Analytics
             </h1>
-            <span className="rounded-full bg-emerald-500/10 px-2.5 py-0.5 text-[11px] font-semibold text-emerald-600">
-              Live Insights
+            <span className="inline-flex items-center gap-1 rounded-full bg-emerald-50 px-2.5 py-0.5 text-[11px] font-bold text-emerald-700 border border-emerald-200">
+              <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 animate-pulse" />
+              Live BI Engine
             </span>
           </div>
-          <p className="mt-1 text-xs sm:text-sm text-muted-foreground">
-            Monitor conversion rates, regional sales distribution, average order values, and top sellers
+          <p className="mt-1 text-xs text-muted-foreground">
+            Granular revenue trajectories, order fulfillment distribution and regional Bangladesh demand
           </p>
         </div>
 
-        <div className="flex items-center gap-2.5">
-          <div className="flex items-center gap-2 rounded-lg border border-border bg-background px-3 py-1.5 text-xs font-medium text-muted-foreground shadow-sm">
-            <Calendar size={14} />
+        <div className="flex items-center gap-2.5 self-start sm:self-auto">
+          <div className="flex items-center gap-2 rounded-lg border border-border bg-white px-3 py-1.5 text-xs font-semibold text-muted-foreground shadow-2xs">
+            <Calendar size={13} className="text-foreground" />
             <span>Last 30 Days</span>
           </div>
           <a
             href="/api/admin/export/orders"
             download
-            className="flex items-center gap-2 rounded-lg border border-border bg-background px-3 py-1.5 text-xs font-medium text-foreground shadow-sm hover:bg-muted/40 transition"
+            className="flex items-center gap-2 rounded-lg border border-border bg-white px-3 py-1.5 text-xs font-semibold text-foreground shadow-2xs hover:bg-stone-50 transition"
           >
-            <Download size={14} />
-            <span>Export Report</span>
+            <Download size={13} />
+            <span>Export Analytics</span>
           </a>
         </div>
       </div>
 
       {/* 4 Primary KPI Cards */}
-      <div className="grid gap-4 grid-cols-2 xl:grid-cols-4">
-        {metrics.map((m) => (
-          <div key={m.label} className="rounded-xl border border-border bg-background p-5 shadow-sm">
-            <p className="text-xs font-medium text-muted-foreground">{m.label}</p>
-            <p className="mt-2 text-2xl font-black text-foreground">{m.value}</p>
-            <div className="mt-2 flex items-center gap-2 text-xs">
-              <span className="inline-block rounded bg-emerald-50 px-1.5 py-0.5 text-[10px] font-bold text-emerald-700">
-                {m.change}
-              </span>
-              <span className="text-[11px] text-muted-foreground">{m.hint}</span>
+      <div className="grid gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-4">
+        {metrics.map((m) => {
+          const Icon = m.icon;
+          return (
+            <div
+              key={m.label}
+              className="rounded-xl border border-border bg-white p-5 shadow-2xs transition-all hover:border-foreground/30 hover:shadow-xs"
+            >
+              <div className="flex items-center justify-between">
+                <span className="text-xs font-semibold text-muted-foreground">{m.label}</span>
+                <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-stone-100 text-stone-700">
+                  <Icon size={16} />
+                </div>
+              </div>
+              <div className="mt-3">
+                <p className="text-2xl font-bold text-foreground tabular-nums tracking-tight">
+                  {m.value}
+                </p>
+              </div>
+              <div className="mt-2.5 flex items-center gap-2 text-xs">
+                <span className="inline-flex items-center font-bold px-1.5 py-0.5 rounded text-[10px] bg-emerald-50 text-emerald-700 border border-emerald-200">
+                  {m.statusBadge}
+                </span>
+                <span className="text-[11px] text-muted-foreground truncate">{m.hint}</span>
+              </div>
             </div>
-          </div>
-        ))}
+          );
+        })}
       </div>
 
       {/* Interactive Sales Chart */}
       <AdminDashboardSalesChart />
 
-      {/* Two Columns: Regional Performance & Conversion Funnel */}
-      <div className="grid gap-6 lg:grid-cols-2">
+      {/* Two Columns: Regional Performance & Order Fulfillment Distribution */}
+      <div className="grid gap-6 grid-cols-1 lg:grid-cols-2">
         {/* Regional Distribution */}
-        <div className="rounded-xl border border-border bg-background p-6 shadow-sm">
-          <div className="flex items-center justify-between mb-2">
+        <div className="rounded-xl border border-border bg-white p-5 sm:p-6 shadow-2xs">
+          <div className="flex items-center justify-between border-b border-border/60 pb-3 mb-2">
             <div className="flex items-center gap-2">
               <MapPin size={16} className="text-foreground" />
-              <h2 className="text-base font-bold text-foreground">Regional Sales Breakdown</h2>
+              <h2 className="text-base font-bold text-foreground tracking-tight">
+                Regional Sales Footprint
+              </h2>
             </div>
-            <span className="text-xs text-muted-foreground">Bangladesh</span>
+            <span className="text-xs font-semibold text-muted-foreground">Bangladesh</span>
           </div>
-          <p className="text-xs text-muted-foreground mb-6">Order volume and revenue by division</p>
+          <p className="text-xs text-muted-foreground mb-5">
+            Confirmed order volume and revenue by division
+          </p>
 
           <div className="space-y-4">
             {regionalData.length === 0 ? (
-              <p className="text-xs text-muted-foreground py-6">No regional order data recorded yet.</p>
+              <p className="text-xs text-muted-foreground py-8 text-center">
+                No delivery location records recorded yet.
+              </p>
             ) : (
               regionalData.map((reg) => (
                 <div key={reg.region} className="space-y-1.5">
                   <div className="flex items-center justify-between text-xs">
                     <span className="font-semibold text-foreground">{reg.region}</span>
-                    <div className="flex items-center gap-2">
+                    <div className="flex items-center gap-2 tabular-nums">
                       <span className="font-bold text-foreground">{reg.amount}</span>
-                      <span className="text-[11px] text-muted-foreground">({reg.percent}%)</span>
+                      <span className="text-[11px] text-muted-foreground font-medium">
+                        ({reg.percent}%)
+                      </span>
                     </div>
                   </div>
-                  <div className="h-2 w-full overflow-hidden rounded-full bg-muted">
+                  <div className="h-2 w-full overflow-hidden rounded-full bg-stone-100">
                     <div
-                      className="h-full rounded-full bg-foreground"
+                      className="h-full rounded-full bg-stone-900 transition-all duration-500"
                       style={{ width: `${reg.percent}%` }}
                     />
                   </div>
@@ -241,58 +288,85 @@ export default async function AdminAnalyticsPage() {
           </div>
         </div>
 
-        {/* Device & Traffic Sources */}
-        <div className="rounded-xl border border-border bg-background p-6 shadow-sm flex flex-col justify-between">
+        {/* Order Fulfillment Status Distribution */}
+        <div className="rounded-xl border border-border bg-white p-5 sm:p-6 shadow-2xs flex flex-col justify-between">
           <div>
-            <div className="flex items-center justify-between mb-2">
+            <div className="flex items-center justify-between border-b border-border/60 pb-3 mb-2">
               <div className="flex items-center gap-2">
-                <BarChart3 size={16} className="text-foreground" />
-                <h2 className="text-base font-bold text-foreground">Traffic &amp; Devices</h2>
+                <Package size={16} className="text-foreground" />
+                <h2 className="text-base font-bold text-foreground tracking-tight">
+                  Fulfillment Status Breakdown
+                </h2>
               </div>
-              <span className="text-xs text-muted-foreground">Store Sessions</span>
+              <span className="text-xs font-semibold text-muted-foreground tabular-nums">
+                {totalStatusOrders} Total
+              </span>
             </div>
-            <p className="text-xs text-muted-foreground mb-6">User device mix and checkout conversions</p>
+            <p className="text-xs text-muted-foreground mb-5">
+              Live status distribution of customer orders across the order pipeline
+            </p>
 
-            <div className="grid grid-cols-2 gap-4">
-              <div className="rounded-xl border border-border bg-muted/20 p-4 text-center">
-                <Smartphone size={24} className="mx-auto text-foreground mb-2" />
-                <p className="text-2xl font-black text-foreground">0%</p>
-                <p className="text-xs font-bold text-foreground mt-0.5">Mobile Traffic</p>
-                <p className="text-[11px] text-muted-foreground mt-1">0.0% Conversion</p>
-              </div>
-
-              <div className="rounded-xl border border-border bg-muted/20 p-4 text-center">
-                <Laptop size={24} className="mx-auto text-foreground mb-2" />
-                <p className="text-2xl font-black text-foreground">0%</p>
-                <p className="text-xs font-bold text-foreground mt-0.5">Desktop Traffic</p>
-                <p className="text-[11px] text-muted-foreground mt-1">0.0% Conversion</p>
-              </div>
-            </div>
-
-            <div className="mt-6 rounded-lg border border-dashed border-border p-3.5 text-xs text-muted-foreground flex items-center justify-between">
-              <span>Top Traffic Referrer:</span>
-              <span className="font-bold text-foreground">0 sessions</span>
+            <div className="space-y-3.5">
+              {statusDistribution.length === 0 ? (
+                <p className="text-xs text-muted-foreground py-8 text-center">
+                  No order status records recorded yet.
+                </p>
+              ) : (
+                statusDistribution.map((item) => (
+                  <div key={item.status} className="space-y-1.5">
+                    <div className="flex items-center justify-between text-xs">
+                      <span className="font-semibold text-foreground">{item.status}</span>
+                      <div className="flex items-center gap-2 tabular-nums">
+                        <span className="font-bold text-foreground">{item.count} orders</span>
+                        <span className="text-[11px] text-muted-foreground">
+                          ({item.percent}%)
+                        </span>
+                      </div>
+                    </div>
+                    <div className="h-2 w-full overflow-hidden rounded-full bg-stone-100">
+                      <div
+                        className="h-full rounded-full bg-stone-900 transition-all duration-500"
+                        style={{ width: `${item.percent}%` }}
+                      />
+                    </div>
+                  </div>
+                ))
+              )}
             </div>
           </div>
 
-          <div className="mt-6 pt-4 border-t border-border flex justify-between items-center text-xs">
-            <span className="text-muted-foreground">Speed Benchmark</span>
-            <span className="font-bold text-muted-foreground">0/100 Core Web Vitals</span>
+          <div className="mt-6 pt-3.5 border-t border-border/80 flex items-center justify-between text-xs">
+            <span className="text-muted-foreground font-medium">Order Velocity Status:</span>
+            <span className="font-bold text-emerald-700 flex items-center gap-1">
+              <CheckCircle2 size={13} />
+              Active Fulfillment
+            </span>
           </div>
         </div>
       </div>
 
       {/* Top Products Leaderboard */}
-      <div className="rounded-xl border border-border bg-background p-6 shadow-sm">
-        <div className="flex items-center justify-between mb-4">
+      <div className="rounded-xl border border-border bg-white p-5 sm:p-6 shadow-2xs">
+        <div className="flex items-center justify-between border-b border-border/60 pb-3 mb-4">
           <div>
-            <h2 className="text-base font-bold text-foreground">Top Performing Products</h2>
-            <p className="text-xs text-muted-foreground">Highest revenue items over the last 30 days</p>
+            <h2 className="text-base font-bold text-foreground tracking-tight">
+              Top Performing Products
+            </h2>
+            <p className="text-xs text-muted-foreground">
+              Highest velocity merchandise ranked by completed units sold
+            </p>
           </div>
+          <Link
+            href="/admin/products"
+            className="text-xs font-semibold text-stone-900 hover:underline inline-flex items-center gap-1"
+          >
+            <span>View all products</span>
+            <ArrowUpRight size={12} />
+          </Link>
         </div>
 
-        <div className="overflow-x-auto">
-          <table className="w-full min-w-[600px] text-left text-xs">
+        <div className="overflow-x-auto -mx-5 px-5 sm:mx-0 sm:px-0">
+          <table className="w-full min-w-[560px] text-left text-xs">
             <thead className="border-b border-border text-muted-foreground font-semibold">
               <tr>
                 <th className="pb-3 pr-4">Product Name</th>
@@ -303,14 +377,14 @@ export default async function AdminAnalyticsPage() {
             <tbody className="divide-y divide-border/60">
               {topProducts.length > 0 ? (
                 topProducts.map(({ product, units, revenue }) => (
-                  <tr key={product?.id || revenue} className="hover:bg-muted/20 transition">
-                    <td className="py-3.5 pr-4 font-bold text-foreground">
-                      {product?.name || "Elaris Signature Apparel"}
+                  <tr key={product?.id || revenue} className="hover:bg-stone-50/70 transition">
+                    <td className="py-3.5 pr-4 font-semibold text-foreground">
+                      {product?.name || "Elaris Apparel Collection"}
                     </td>
-                    <td className="py-3.5 px-4 text-center font-bold text-foreground">
+                    <td className="py-3.5 px-4 text-center font-bold text-foreground tabular-nums">
                       {units} units
                     </td>
-                    <td className="py-3.5 pl-4 text-right font-black text-foreground">
+                    <td className="py-3.5 pl-4 text-right font-bold text-foreground tabular-nums">
                       {formatMoney(revenue)}
                     </td>
                   </tr>
@@ -318,7 +392,7 @@ export default async function AdminAnalyticsPage() {
               ) : (
                 <tr>
                   <td colSpan={3} className="py-8 text-center text-xs text-muted-foreground">
-                    No sales data recorded yet.
+                    No sales item transactions recorded yet.
                   </td>
                 </tr>
               )}

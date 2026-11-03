@@ -1,13 +1,30 @@
 "use client";
 
-import { useState, useRef, type FormEvent, type ChangeEvent } from "react";
+import { useState, useRef, useEffect, type FormEvent, type ChangeEvent } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { Plus, Trash2, UploadCloud, X } from "lucide-react";
+import Image from "next/image";
+import {
+  Plus,
+  Trash2,
+  UploadCloud,
+  X,
+  Sparkles,
+  Layers,
+  Tag,
+  DollarSign,
+  AlertCircle,
+  CheckCircle2,
+  Image as ImageIcon,
+  ArrowLeft,
+  Info,
+  Check
+} from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Spinner } from "@/components/ui/spinner";
+import { formatMoney } from "@/lib/utils/money";
 
-type CategoryOption = {
+export type CategoryOption = {
   id: string;
   name: string;
   slug: string;
@@ -17,13 +34,13 @@ type CategoryOption = {
 };
 
 // One row = one color with multiple sizes
-type VariantGroup = {
+export type VariantGroup = {
   id: string;
   color: string;
   sizes: string[];        // multiple sizes toggled
   sku: string;            // prefix; auto-suffixed per size
   stockQuantity: number;  // stock applied per size
-  priceOverride?: number;
+  priceOverride?: number; // in Taka for admin form
 };
 
 export type ProductFormInitialData = {
@@ -40,22 +57,20 @@ export type ProductFormInitialData = {
   variantGroups: VariantGroup[];
 };
 
-const SIZE_GROUPS: Record<string, string[]> = {
-  Alpha: ["XS", "S", "M", "L", "XL", "2XL", "3XL", "4XL"],
-  "Numeric (Waist)": ["28", "30", "32", "34", "36", "38", "40", "42"],
-  Shoe: ["EU38", "EU39", "EU40", "EU41", "EU42", "EU43", "EU44", "EU45"],
-  Other: ["One Size", "Free Size"],
+const SIZE_CATEGORIES: Record<string, string[]> = {
+  "Alpha Sizing": ["XS", "S", "M", "L", "XL", "2XL", "3XL", "4XL"],
+  "Waist / Bottoms": ["28", "30", "32", "34", "36", "38", "40", "42"],
+  "Footwear": ["EU38", "EU39", "EU40", "EU41", "EU42", "EU43", "EU44", "EU45"],
+  "Universal": ["One Size", "Free Size"],
 };
-const ALL_SIZES = Object.values(SIZE_GROUPS).flat();
 
-function SizeToggle({
+function SizeToggleGroup({
   selected,
   onChange,
 }: {
   selected: string[];
   onChange: (sizes: string[]) => void;
 }) {
-  // Sanitize: split any legacy comma strings and remove duplicates
   const cleanSelected = [
     ...new Set(
       selected
@@ -73,24 +88,33 @@ function SizeToggle({
   }
 
   return (
-    <div className="flex flex-wrap gap-1.5">
-      {ALL_SIZES.map((s) => {
-        const active = cleanSelected.includes(s);
-        return (
-          <button
-            key={s}
-            type="button"
-            onClick={() => toggle(s)}
-            className={`rounded border px-2.5 py-1 text-xs font-medium transition-colors ${
-              active
-                ? "border-foreground bg-foreground text-background"
-                : "border-border bg-background text-muted-foreground hover:border-foreground hover:text-foreground"
-            }`}
-          >
-            {s}
-          </button>
-        );
-      })}
+    <div className="space-y-3">
+      {Object.entries(SIZE_CATEGORIES).map(([categoryName, sizes]) => (
+        <div key={categoryName} className="space-y-1">
+          <p className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
+            {categoryName}
+          </p>
+          <div className="flex flex-wrap gap-1.5">
+            {sizes.map((s) => {
+              const active = cleanSelected.includes(s);
+              return (
+                <button
+                  key={s}
+                  type="button"
+                  onClick={() => toggle(s)}
+                  className={`rounded-md border px-2.5 py-1 text-xs font-semibold transition ${
+                    active
+                      ? "border-foreground bg-foreground text-background shadow-xs"
+                      : "border-border bg-background text-muted-foreground hover:border-foreground/50 hover:text-foreground"
+                  }`}
+                >
+                  {s}
+                </button>
+              );
+            })}
+          </div>
+        </div>
+      ))}
     </div>
   );
 }
@@ -107,6 +131,7 @@ export function AdminProductForm({
 
   const [name, setName] = useState(initialData?.name ?? "");
   const [slug, setSlug] = useState(initialData?.slug ?? "");
+  const [isSlugManual, setIsSlugManual] = useState(isEdit);
   const [description, setDescription] = useState(initialData?.description ?? "");
 
   const topLevelCategories = categories.filter((c) => !c.parentId);
@@ -140,6 +165,7 @@ export function AdminProductForm({
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [isDirty, setIsDirty] = useState(false);
 
   const [groups, setGroups] = useState<VariantGroup[]>(
     initialData?.variantGroups?.map((g) => ({
@@ -152,21 +178,51 @@ export function AdminProductForm({
             .filter(Boolean)
         ),
       ],
+      priceOverride: g.priceOverride ? Math.round(g.priceOverride / 100) : undefined
     })) ?? [
-      { id: "1", color: "", sizes: [], sku: "", stockQuantity: 10 },
+      { id: "1", color: "Black", sizes: ["M", "L"], sku: "", stockQuantity: 10 },
     ]
   );
 
+  // Unsaved changes warning
+  useEffect(() => {
+    function handleBeforeUnload(e: BeforeUnloadEvent) {
+      if (isDirty && !loading) {
+        e.preventDefault();
+        e.returnValue = "";
+      }
+    }
+    window.addEventListener("beforeunload", handleBeforeUnload);
+    return () => window.removeEventListener("beforeunload", handleBeforeUnload);
+  }, [isDirty, loading]);
+
   function handleNameChange(val: string) {
     setName(val);
-    if (!isEdit) {
+    setIsDirty(true);
+    if (!isSlugManual) {
       setSlug(
         val.toLowerCase().trim().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "")
       );
     }
   }
 
+  function handleSlugChange(val: string) {
+    setIsSlugManual(true);
+    setIsDirty(true);
+    setSlug(val.toLowerCase().replace(/[^a-z0-9-]+/g, ""));
+  }
+
+  function handleParentCategoryChange(parentId: string) {
+    setParentCategoryId(parentId);
+    setSubcategoryId("");
+    setIsDirty(true);
+  }
+
+  const selectedParentCategory = categories.find((c) => c.id === parentCategoryId);
+  const availableSubcategories = categories.filter((c) => c.parentId === parentCategoryId);
+
   function addGroup() {
+    setIsDirty(true);
     setGroups((prev) => [
       ...prev,
       { id: String(Date.now()), color: "", sizes: [], sku: "", stockQuantity: 10 },
@@ -175,37 +231,62 @@ export function AdminProductForm({
 
   function removeGroup(id: string) {
     if (groups.length <= 1) return;
+    setIsDirty(true);
     setGroups((prev) => prev.filter((g) => g.id !== id));
   }
 
   function updateGroup(id: string, field: keyof VariantGroup, value: unknown) {
+    setIsDirty(true);
     setGroups((prev) => prev.map((g) => (g.id === id ? { ...g, [field]: value } : g)));
   }
 
   function handleFileChange(e: ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
     if (!file) return;
+    setIsDirty(true);
     setImageFile(file);
     setImagePreview(URL.createObjectURL(file));
     setExistingImageUrl(null);
   }
 
   function clearImage() {
+    setIsDirty(true);
     setImageFile(null);
     setImagePreview(null);
     setExistingImageUrl(null);
     if (fileInputRef.current) fileInputRef.current.value = "";
   }
 
+  // Computed generated matrix summary
+  const totalVariants = groups.reduce((acc, g) => acc + g.sizes.length, 0);
+  const totalStockUnits = groups.reduce(
+    (acc, g) => acc + (Number(g.stockQuantity) || 0) * g.sizes.length,
+    0
+  );
+
   async function handleSubmit(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
     setError(null);
 
     const effectiveCategoryId = subcategoryId || parentCategoryId;
-    if (!effectiveCategoryId) { setError("Please select a category."); return; }
-    if (!basePrice || Number(basePrice) <= 0) { setError("Please specify a valid base price."); return; }
-    if (groups.some((g) => g.sizes.length === 0)) {
-      setError("Each color variant must have at least one size selected.");
+    if (!name.trim()) {
+      setError("Please enter a product name.");
+      return;
+    }
+    if (!slug.trim()) {
+      setError("Please specify a URL slug.");
+      return;
+    }
+    if (!effectiveCategoryId) {
+      setError("Please select a primary category.");
+      return;
+    }
+    if (!basePrice || Number(basePrice) <= 0) {
+      setError("Please specify a valid base price in BDT.");
+      return;
+    }
+    if (groups.length === 0 || groups.some((g) => g.sizes.length === 0)) {
+      setError("Each color grouping must have at least one size variant selected.");
       return;
     }
 
@@ -220,14 +301,14 @@ export function AdminProductForm({
         const upRes = await fetch("/api/admin/upload", { method: "POST", body: fd });
         if (!upRes.ok) {
           const upErr = await upRes.json().catch(() => ({}));
-          setError(upErr.error || "Image upload failed.");
+          setError(upErr.error || "Image upload to Cloudinary failed.");
           setLoading(false);
           setImageUploading(false);
           return;
         }
         uploadedUrl = (await upRes.json()).url;
       } catch {
-        setError("Network error during image upload.");
+        setError("Network error during Cloudinary image upload.");
         setLoading(false);
         setImageUploading(false);
         return;
@@ -240,7 +321,7 @@ export function AdminProductForm({
       const basePricePoisha = Math.round(Number(basePrice) * 100);
       const cleanSlug = slug || name.toLowerCase().replace(/[^a-z0-9]+/g, "-");
 
-      // Expand each color group → one DB variant per size (strictly unique per color)
+      // Expand each color group → one DB variant per size
       const mappedVariants = groups.flatMap((g, gi) => {
         const cleanColor = g.color.trim() || "Default";
         const cleanSizes = [
@@ -263,14 +344,12 @@ export function AdminProductForm({
             size,
             stockQuantity: Number(g.stockQuantity) || 0,
             isAvailable: Number(g.stockQuantity) > 0,
-            ...(g.priceOverride
+            ...(g.priceOverride && Number(g.priceOverride) > 0
               ? { priceOverride: Math.round(Number(g.priceOverride) * 100) }
               : {}),
           };
         });
       });
-
-      const effectiveCategoryId = subcategoryId || parentCategoryId;
 
       const payload = {
         name: name.trim(),
@@ -300,373 +379,487 @@ export function AdminProductForm({
       setLoading(false);
 
       if (!res.ok) {
-        const data = await res.json().catch(() => ({}));
-        setError(data.error || "Failed to save product. Check slug and SKUs are unique.");
+        const errData = await res.json().catch(() => ({}));
+        setError(errData.error || `Failed to ${isEdit ? "update" : "create"} product.`);
         return;
       }
 
+      setIsDirty(false);
       router.push("/admin/products");
       router.refresh();
     } catch {
+      setError("An unexpected network error occurred.");
       setLoading(false);
-      setError("Network error occurred while saving product.");
     }
   }
 
-  const subcategoriesForSelectedParent = (() => {
-    if (!parentCategoryId) return [];
-    const directChildren = categories.find((c) => c.id === parentCategoryId)?.children || [];
-    const fromList = categories.filter((c) => c.parentId === parentCategoryId);
-    const map = new Map<string, { id: string; name: string }>();
-    for (const c of directChildren) map.set(c.id, { id: c.id, name: c.name });
-    for (const c of fromList) map.set(c.id, { id: c.id, name: c.name });
-    return Array.from(map.values());
-  })();
-
   return (
-    <form onSubmit={handleSubmit} className="mt-8 grid gap-6 lg:grid-cols-[1fr_360px]">
-      {/* Main fields */}
-      <div className="grid gap-6">
-        <div className="rounded-lg border border-border bg-background p-5">
-          <h2 className="font-semibold">Product details</h2>
-          <div className="mt-4 grid gap-4">
-            <div className="grid gap-1.5">
-              <label htmlFor="product-name" className="text-sm font-medium">Name *</label>
+    <form onSubmit={handleSubmit} className="mt-6 space-y-6 max-w-5xl">
+      {/* Top Banner Alert for Errors */}
+      {error && (
+        <div className="flex items-start gap-3 rounded-xl border border-rose-200 bg-rose-50 p-4 text-xs text-rose-800 shadow-xs">
+          <AlertCircle size={16} className="text-rose-600 shrink-0 mt-0.5" />
+          <div className="flex-1">
+            <p className="font-bold">Form Submission Error</p>
+            <p className="mt-0.5">{error}</p>
+          </div>
+          <button
+            type="button"
+            onClick={() => setError(null)}
+            className="text-rose-600 hover:text-rose-900"
+          >
+            <X size={14} />
+          </button>
+        </div>
+      )}
+
+      {/* Grid: 2 Columns for Sections */}
+      <div className="grid gap-6 grid-cols-1 lg:grid-cols-3">
+        {/* Left Column: Primary Content (2 cols) */}
+        <div className="lg:col-span-2 space-y-6">
+          {/* Section 1: Basic Information */}
+          <div className="rounded-xl border border-border bg-background p-6 shadow-xs space-y-4">
+            <div className="flex items-center gap-2 border-b border-border pb-3">
+              <Sparkles size={16} className="text-foreground" />
+              <h2 className="text-sm font-bold text-foreground">Basic Information</h2>
+            </div>
+
+            <div className="space-y-1.5">
+              <div className="flex items-center justify-between">
+                <label className="text-xs font-semibold text-foreground">Product Name *</label>
+                <span className="text-[11px] text-muted-foreground">{name.length}/200</span>
+              </div>
               <input
-                id="product-name"
                 type="text"
                 required
-                placeholder="e.g. Structured Cotton Blazer"
+                maxLength={200}
+                placeholder="e.g. Classic Linen Cuban Collar Shirt"
                 value={name}
                 onChange={(e) => handleNameChange(e.target.value)}
-                className="h-11 w-full rounded-md border border-border bg-background px-4 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-foreground focus-visible:ring-offset-1"
+                className="h-10 w-full rounded-lg border border-border bg-background px-3.5 text-xs text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-foreground"
               />
             </div>
 
-            <div className="grid gap-1.5">
-              <label htmlFor="product-slug" className="text-sm font-medium">Slug *</label>
-              <input
-                id="product-slug"
-                type="text"
-                required
-                placeholder="structured-cotton-blazer"
-                value={slug}
-                onChange={(e) =>
-                  setSlug(e.target.value.toLowerCase().replace(/[^a-z0-9-]+/g, ""))
-                }
-                className="h-11 w-full rounded-md border border-border bg-background px-4 text-sm font-mono focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-foreground focus-visible:ring-offset-1"
-              />
-              <p className="text-xs text-muted-foreground">
-                Store URL: /products/{slug || "[slug]"}
+            <div className="space-y-1.5">
+              <label className="text-xs font-semibold text-foreground">URL Slug *</label>
+              <div className="flex items-center rounded-lg border border-border bg-background overflow-hidden focus-within:ring-1 focus-within:ring-foreground">
+                <span className="bg-muted px-3 py-2 text-xs text-muted-foreground font-mono select-none">
+                  /products/
+                </span>
+                <input
+                  type="text"
+                  required
+                  placeholder="classic-linen-cuban-collar-shirt"
+                  value={slug}
+                  onChange={(e) => handleSlugChange(e.target.value)}
+                  className="h-10 w-full bg-transparent px-3 text-xs font-mono text-foreground placeholder:text-muted-foreground focus:outline-none"
+                />
+              </div>
+              <p className="text-[11px] text-muted-foreground">
+                Lowercase letters, numbers and hyphens only.
               </p>
             </div>
 
-            <div className="grid gap-1.5">
-              <label htmlFor="product-description" className="text-sm font-medium">Description *</label>
+            <div className="space-y-1.5">
+              <div className="flex items-center justify-between">
+                <label className="text-xs font-semibold text-foreground">Description *</label>
+                <span className="text-[11px] text-muted-foreground">{description.length} chars</span>
+              </div>
               <textarea
-                id="product-description"
-                rows={4}
                 required
-                placeholder="Crafted from premium heavy cotton with a relaxed silhouette."
+                rows={5}
+                placeholder="Describe fit, feel, fabric details, cut, tailoring and styling tips…"
                 value={description}
-                onChange={(e) => setDescription(e.target.value)}
-                className="w-full resize-y rounded-md border border-border bg-background px-4 py-3 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-foreground focus-visible:ring-offset-1"
+                onChange={(e) => {
+                  setDescription(e.target.value);
+                  setIsDirty(true);
+                }}
+                className="w-full rounded-lg border border-border bg-background p-3.5 text-xs text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-foreground"
               />
             </div>
+          </div>
 
-            <div className="grid gap-1.5 sm:grid-cols-2">
-              <div className="grid gap-1.5">
-                <label htmlFor="product-material" className="text-sm font-medium">Material</label>
+          {/* Section 2: Variant Matrix & Inventory */}
+          <div className="rounded-xl border border-border bg-background p-6 shadow-xs space-y-5">
+            <div className="flex items-center justify-between border-b border-border pb-3">
+              <div className="flex items-center gap-2">
+                <Layers size={16} className="text-foreground" />
+                <h2 className="text-sm font-bold text-foreground">Variants &amp; Inventory Matrix</h2>
+              </div>
+              <span className="rounded-full bg-muted px-2.5 py-0.5 text-[11px] font-bold text-foreground">
+                {totalVariants} Variants ({totalStockUnits} Units)
+              </span>
+            </div>
+
+            <p className="text-xs text-muted-foreground">
+              Define color groups and select sizes. An individual SKU is automatically generated for every size option.
+            </p>
+
+            <div className="space-y-4">
+              {groups.map((group, index) => (
+                <div
+                  key={group.id}
+                  className="rounded-xl border border-border bg-muted/20 p-4 space-y-4 relative"
+                >
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs font-bold text-foreground">
+                      Color Group #{index + 1}
+                    </span>
+                    {groups.length > 1 && (
+                      <button
+                        type="button"
+                        onClick={() => removeGroup(group.id)}
+                        className="rounded p-1 text-muted-foreground hover:text-rose-600 transition"
+                        title="Remove color group"
+                      >
+                        <Trash2 size={14} />
+                      </button>
+                    )}
+                  </div>
+
+                  <div className="grid gap-3 sm:grid-cols-3">
+                    <div className="space-y-1">
+                      <label className="text-xs font-semibold text-foreground">Color Name *</label>
+                      <input
+                        type="text"
+                        required
+                        placeholder="e.g. Olive Green"
+                        value={group.color}
+                        onChange={(e) => updateGroup(group.id, "color", e.target.value)}
+                        className="h-9 w-full rounded-lg border border-border bg-background px-3 text-xs text-foreground focus:outline-none focus:ring-1 focus:ring-foreground"
+                      />
+                    </div>
+
+                    <div className="space-y-1">
+                      <label className="text-xs font-semibold text-foreground">SKU Prefix (Optional)</label>
+                      <input
+                        type="text"
+                        placeholder="e.g. LINEN-OLV"
+                        value={group.sku}
+                        onChange={(e) => updateGroup(group.id, "sku", e.target.value.toUpperCase())}
+                        className="h-9 w-full rounded-lg border border-border bg-background px-3 font-mono text-xs text-foreground focus:outline-none focus:ring-1 focus:ring-foreground"
+                      />
+                    </div>
+
+                    <div className="space-y-1">
+                      <label className="text-xs font-semibold text-foreground">Stock per Size *</label>
+                      <input
+                        type="number"
+                        min={0}
+                        required
+                        value={group.stockQuantity}
+                        onChange={(e) => updateGroup(group.id, "stockQuantity", Number(e.target.value) || 0)}
+                        className="h-9 w-full rounded-lg border border-border bg-background px-3 text-xs text-foreground focus:outline-none focus:ring-1 focus:ring-foreground"
+                      />
+                    </div>
+                  </div>
+
+                  {/* Size toggles */}
+                  <div className="space-y-2 pt-2 border-t border-border/60">
+                    <label className="text-xs font-semibold text-foreground">
+                      Select Available Sizes *
+                    </label>
+                    <SizeToggleGroup
+                      selected={group.sizes}
+                      onChange={(sizes) => updateGroup(group.id, "sizes", sizes)}
+                    />
+                  </div>
+                </div>
+              ))}
+
+              <Button
+                type="button"
+                variant="outline"
+                onClick={addGroup}
+                className="w-full text-xs font-semibold h-9 border-dashed"
+              >
+                <Plus size={14} /> Add Another Color Group
+              </Button>
+            </div>
+          </div>
+
+          {/* Section 3: Attributes & Fabric Care */}
+          <div className="rounded-xl border border-border bg-background p-6 shadow-xs space-y-4">
+            <div className="flex items-center gap-2 border-b border-border pb-3">
+              <Tag size={16} className="text-foreground" />
+              <h2 className="text-sm font-bold text-foreground">Garment Specs &amp; Fabric Care</h2>
+            </div>
+
+            <div className="grid gap-4 sm:grid-cols-2">
+              <div className="space-y-1.5">
+                <label className="text-xs font-semibold text-foreground">Material Composition</label>
                 <input
-                  id="product-material"
                   type="text"
-                  placeholder="100% Organic Cotton"
+                  placeholder="e.g. 100% French Flax Linen, 180 GSM"
                   value={material}
-                  onChange={(e) => setMaterial(e.target.value)}
-                  className="h-11 w-full rounded-md border border-border bg-background px-4 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-foreground focus-visible:ring-offset-1"
+                  onChange={(e) => {
+                    setMaterial(e.target.value);
+                    setIsDirty(true);
+                  }}
+                  className="h-9 w-full rounded-lg border border-border bg-background px-3 text-xs text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-foreground"
                 />
               </div>
-              <div className="grid gap-1.5">
-                <label htmlFor="product-care" className="text-sm font-medium">Care instructions</label>
+
+              <div className="space-y-1.5">
+                <label className="text-xs font-semibold text-foreground">Care Instructions</label>
                 <input
-                  id="product-care"
                   type="text"
-                  placeholder="Dry clean only"
+                  placeholder="e.g. Machine wash cold, hang dry in shade"
                   value={careInstructions}
-                  onChange={(e) => setCareInstructions(e.target.value)}
-                  className="h-11 w-full rounded-md border border-border bg-background px-4 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-foreground focus-visible:ring-offset-1"
+                  onChange={(e) => {
+                    setCareInstructions(e.target.value);
+                    setIsDirty(true);
+                  }}
+                  className="h-9 w-full rounded-lg border border-border bg-background px-3 text-xs text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-foreground"
                 />
               </div>
             </div>
           </div>
         </div>
 
-        {/* Color variant groups */}
-        <div className="rounded-lg border border-border bg-background p-5">
-          <div className="flex items-center justify-between">
-            <div>
-              <h2 className="font-semibold">Color Variants & Sizes</h2>
-              <p className="mt-1 text-xs text-muted-foreground">
-                One row per color — click size buttons to toggle availability.
+        {/* Right Column: Sidebar Controls (Pricing, Category, Image, Status) */}
+        <div className="space-y-6">
+          {/* Section 4: Publishing & Status */}
+          <div className="rounded-xl border border-border bg-background p-6 shadow-xs space-y-4">
+            <h2 className="text-sm font-bold text-foreground border-b border-border pb-3">
+              Status &amp; Visibility
+            </h2>
+
+            <div className="space-y-2">
+              <label className="text-xs font-semibold text-foreground">Product Status</label>
+              <div className="grid grid-cols-2 gap-2">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setStatus("PUBLISHED");
+                    setIsDirty(true);
+                  }}
+                  className={`flex flex-col items-center justify-center rounded-lg border p-3 text-xs font-bold transition ${
+                    status === "PUBLISHED"
+                      ? "border-emerald-500 bg-emerald-50 text-emerald-800"
+                      : "border-border bg-background text-muted-foreground hover:bg-muted"
+                  }`}
+                >
+                  <span className="text-emerald-700">PUBLISHED</span>
+                  <span className="text-[10px] font-normal text-muted-foreground mt-0.5">
+                    Live on store
+                  </span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => {
+                    setStatus("DRAFT");
+                    setIsDirty(true);
+                  }}
+                  className={`flex flex-col items-center justify-center rounded-lg border p-3 text-xs font-bold transition ${
+                    status === "DRAFT"
+                      ? "border-amber-500 bg-amber-50 text-amber-800"
+                      : "border-border bg-background text-muted-foreground hover:bg-muted"
+                  }`}
+                >
+                  <span className="text-amber-700">DRAFT</span>
+                  <span className="text-[10px] font-normal text-muted-foreground mt-0.5">
+                    Internal review
+                  </span>
+                </button>
+              </div>
+            </div>
+          </div>
+
+          {/* Section 5: Pricing */}
+          <div className="rounded-xl border border-border bg-background p-6 shadow-xs space-y-4">
+            <div className="flex items-center gap-2 border-b border-border pb-3">
+              <DollarSign size={16} className="text-foreground" />
+              <h2 className="text-sm font-bold text-foreground">Base Price (BDT)</h2>
+            </div>
+
+            <div className="space-y-1.5">
+              <label className="text-xs font-semibold text-foreground">Base Retail Price (৳) *</label>
+              <div className="relative">
+                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground text-xs font-bold">
+                  ৳
+                </span>
+                <input
+                  type="number"
+                  required
+                  min={1}
+                  step={1}
+                  placeholder="3450"
+                  value={basePrice}
+                  onChange={(e) => {
+                    setBasePrice(e.target.value ? Number(e.target.value) : "");
+                    setIsDirty(true);
+                  }}
+                  className="h-10 w-full rounded-lg border border-border bg-background pl-8 pr-3 text-xs font-bold text-foreground placeholder:font-normal focus:outline-none focus:ring-1 focus:ring-foreground"
+                />
+              </div>
+              <p className="text-[11px] text-muted-foreground">
+                Stored in Poisha:{" "}
+                <strong className="text-foreground font-mono">
+                  {basePrice ? Math.round(Number(basePrice) * 100) : 0} poisha
+                </strong>
               </p>
             </div>
-            <Button type="button" variant="outline" size="sm" onClick={addGroup}>
-              <Plus size={14} /> Add color
-            </Button>
           </div>
 
-          <div className="mt-4 grid gap-4">
-            {groups.map((g) => (
-              <div
-                key={g.id}
-                className="grid gap-3 rounded-md border border-border p-4"
-              >
-                {/* Top inputs row */}
-                <div className="flex flex-wrap items-end gap-3">
-                  <div className="grid gap-1 min-w-[120px] flex-1">
-                    <label className="text-xs text-muted-foreground">Color</label>
-                    <input
-                      type="text"
-                      placeholder="e.g. Black"
-                      value={g.color}
-                      onChange={(e) => updateGroup(g.id, "color", e.target.value)}
-                      className="h-9 w-full rounded-md border border-border bg-background px-3 text-xs"
-                    />
-                  </div>
-                  <div className="grid gap-1 w-24">
-                    <label className="text-xs text-muted-foreground">Stock/size</label>
-                    <input
-                      type="number"
-                      min="0"
-                      placeholder="10"
-                      value={g.stockQuantity}
-                      onChange={(e) =>
-                        updateGroup(g.id, "stockQuantity", parseInt(e.target.value) || 0)
-                      }
-                      className="h-9 w-full rounded-md border border-border bg-background px-3 text-xs"
-                    />
-                  </div>
-                  <div className="grid gap-1 min-w-[120px] flex-1">
-                    <label className="text-xs text-muted-foreground">SKU prefix (optional)</label>
-                    <input
-                      type="text"
-                      placeholder="Auto-generated"
-                      value={g.sku}
-                      onChange={(e) => updateGroup(g.id, "sku", e.target.value)}
-                      className="h-9 w-full rounded-md border border-border bg-background px-3 font-mono text-xs"
-                    />
-                  </div>
-                  <button
-                    type="button"
-                    disabled={groups.length <= 1}
-                    onClick={() => removeGroup(g.id)}
-                    className="flex h-9 w-9 shrink-0 items-center justify-center rounded-md border border-border text-muted-foreground hover:text-danger disabled:opacity-40"
-                  >
-                    <Trash2 size={14} />
-                  </button>
-                </div>
+          {/* Section 6: Category Hierarchy Selection */}
+          <div className="rounded-xl border border-border bg-background p-6 shadow-xs space-y-4">
+            <h2 className="text-sm font-bold text-foreground border-b border-border pb-3">
+              Category Hierarchy
+            </h2>
 
-                {/* Size toggles */}
-                <div className="grid gap-1.5">
-                  <label className="text-xs text-muted-foreground">
-                    Sizes{" "}
-                    {g.sizes.length > 0 && (
-                      <span className="font-medium text-foreground">
-                        — {g.sizes.join(", ")}
-                      </span>
-                    )}
-                  </label>
-                  <SizeToggle
-                    selected={g.sizes}
-                    onChange={(sizes) => updateGroup(g.id, "sizes", sizes)}
-                  />
-                  {g.sizes.length === 0 && (
-                    <p className="text-xs text-danger">Select at least one size.</p>
-                  )}
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-
-        {error && (
-          <div className="rounded-md border border-danger/20 bg-danger/10 p-4 text-sm font-medium text-danger">
-            {error}
-          </div>
-        )}
-
-        <div className="flex gap-3">
-          <Button type="submit" size="lg" disabled={loading}>
-            {loading ? (
-              <Spinner size="sm" />
-            ) : isEdit ? (
-              "Save Changes"
-            ) : (
-              "Save & Publish Product"
-            )}
-          </Button>
-          <Button asChild type="button" variant="outline" size="lg">
-            <Link href="/admin/products">Cancel</Link>
-          </Button>
-        </div>
-      </div>
-
-      {/* Sidebar */}
-      <div className="grid gap-6 self-start lg:sticky lg:top-8">
-        <div className="rounded-lg border border-border bg-background p-5">
-          <h2 className="font-semibold">Status</h2>
-          <div className="mt-4">
-            <select
-              id="product-status"
-              value={status}
-              onChange={(e) => setStatus(e.target.value as "PUBLISHED" | "DRAFT")}
-              className="h-11 w-full rounded-md border border-border bg-background px-4 text-sm focus-visible:outline-none"
-            >
-              <option value="PUBLISHED">Published (Visible on storefront)</option>
-              <option value="DRAFT">Draft (Hidden from customers)</option>
-            </select>
-          </div>
-        </div>
-
-        <div className="rounded-lg border border-border bg-background p-5">
-          <h2 className="font-semibold">Category & Pricing</h2>
-          <div className="mt-4 grid gap-4">
-            <div className="grid gap-1.5">
-              <label htmlFor="primary-category" className="text-sm font-medium">Category *</label>
-              <select
-                id="primary-category"
-                required
-                value={parentCategoryId}
-                onChange={(e) => {
-                  setParentCategoryId(e.target.value);
-                  setSubcategoryId("");
-                }}
-                className="h-11 w-full rounded-md border border-border bg-background px-4 text-sm focus-visible:outline-none"
-              >
-                {topLevelCategories.length === 0 ? (
-                  <option value="">No categories available</option>
-                ) : (
-                  topLevelCategories.map((c) => (
+            <div className="space-y-3">
+              <div className="space-y-1.5">
+                <label className="text-xs font-semibold text-foreground">Top-Level Category *</label>
+                <select
+                  value={parentCategoryId}
+                  onChange={(e) => handleParentCategoryChange(e.target.value)}
+                  className="h-9 w-full rounded-lg border border-border bg-background px-3 text-xs text-foreground focus:outline-none focus:ring-1 focus:ring-foreground"
+                >
+                  <option value="">Select a category</option>
+                  {topLevelCategories.map((c) => (
                     <option key={c.id} value={c.id}>
                       {c.name}
                     </option>
-                  ))
-                )}
-              </select>
-            </div>
-
-            <div className="grid gap-1.5">
-              <div className="flex items-center justify-between">
-                <label htmlFor="sub-category" className="text-sm font-medium">Subcategory</label>
-                <span className="text-[11px] text-muted-foreground">Optional</span>
+                  ))}
+                </select>
               </div>
-              <select
-                id="sub-category"
-                value={subcategoryId}
-                onChange={(e) => setSubcategoryId(e.target.value)}
-                disabled={subcategoriesForSelectedParent.length === 0}
-                className="h-11 w-full rounded-md border border-border bg-background px-4 text-sm focus-visible:outline-none disabled:opacity-60 disabled:cursor-not-allowed"
-              >
-                {subcategoriesForSelectedParent.length === 0 ? (
-                  <option value="">No subcategories (Saved under main category)</option>
-                ) : (
-                  <>
-                    <option value="">General / All (No subcategory)</option>
-                    {subcategoriesForSelectedParent.map((sub) => (
-                      <option key={sub.id} value={sub.id}>
-                        {sub.name}
+
+              {availableSubcategories.length > 0 && (
+                <div className="space-y-1.5">
+                  <label className="text-xs font-semibold text-foreground">Subcategory (Optional)</label>
+                  <select
+                    value={subcategoryId}
+                    onChange={(e) => {
+                      setSubcategoryId(e.target.value);
+                      setIsDirty(true);
+                    }}
+                    className="h-9 w-full rounded-lg border border-border bg-background px-3 text-xs text-foreground focus:outline-none focus:ring-1 focus:ring-foreground"
+                  >
+                    <option value="">None (Use Top-Level &quot;{selectedParentCategory?.name}&quot;)</option>
+                    {availableSubcategories.map((c) => (
+                      <option key={c.id} value={c.id}>
+                        {c.name}
                       </option>
                     ))}
+                  </select>
+                </div>
+              )}
+
+              {/* Hierarchy path visual indicator */}
+              <div className="rounded-lg bg-muted/40 p-2.5 text-xs text-muted-foreground flex items-center gap-1.5 font-medium">
+                <span>Catalog:</span>
+                <span className="font-bold text-foreground">
+                  {selectedParentCategory?.name || "Unselected"}
+                </span>
+                {subcategoryId && (
+                  <>
+                    <span>&rarr;</span>
+                    <span className="font-bold text-foreground">
+                      {availableSubcategories.find((c) => c.id === subcategoryId)?.name}
+                    </span>
                   </>
                 )}
-              </select>
-            </div>
-
-            <div className="grid gap-1.5">
-              <label htmlFor="base-price" className="text-sm font-medium">Base Price (BDT) *</label>
-              <input
-                id="base-price"
-                type="number"
-                required
-                min="1"
-                step="1"
-                placeholder="2450"
-                value={basePrice}
-                onChange={(e) =>
-                  setBasePrice(e.target.value === "" ? "" : Number(e.target.value))
-                }
-                className="h-11 w-full rounded-md border border-border bg-background px-4 text-sm font-medium focus-visible:outline-none"
-              />
-              <p className="text-xs text-muted-foreground">Price in Taka (৳)</p>
+              </div>
             </div>
           </div>
-        </div>
 
-        <div className="rounded-lg border border-border bg-background p-5">
-          <h2 className="font-semibold">Product Image</h2>
-          <p className="mt-1 text-xs text-muted-foreground">
-            Upload a photo from your device — saved to Cloudinary automatically.
-          </p>
-          <div className="mt-3">
-            <input
-              ref={fileInputRef}
-              id="product-image-file"
-              type="file"
-              accept="image/*"
-              className="sr-only"
-              onChange={handleFileChange}
-            />
+          {/* Section 7: Cloudinary Image Upload */}
+          <div className="rounded-xl border border-border bg-background p-6 shadow-xs space-y-4">
+            <div className="flex items-center gap-2 border-b border-border pb-3">
+              <ImageIcon size={16} className="text-foreground" />
+              <h2 className="text-sm font-bold text-foreground">Product Image</h2>
+            </div>
+
             {imagePreview ? (
-              <div className="relative">
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img
-                  src={imagePreview}
-                  alt="Product preview"
-                  className="h-48 w-full rounded-md border border-border object-cover"
-                />
-                <button
-                  type="button"
-                  onClick={clearImage}
-                  className="absolute right-2 top-2 flex h-6 w-6 items-center justify-center rounded-full bg-background/80 border border-border text-muted-foreground hover:text-danger"
-                >
-                  <X size={12} />
-                </button>
-                {imageUploading && (
-                  <div className="absolute inset-0 flex items-center justify-center rounded-md bg-background/60">
-                    <Spinner size="sm" />
-                  </div>
-                )}
+              <div className="space-y-3">
+                <div className="relative aspect-3/4 w-full overflow-hidden rounded-lg border border-border bg-muted">
+                  <Image
+                    src={imagePreview}
+                    alt={name || "Product preview"}
+                    fill
+                    className="object-cover"
+                    sizes="300px"
+                  />
+                  {imageUploading && (
+                    <div className="absolute inset-0 flex items-center justify-center bg-black/50 text-white text-xs font-bold gap-2">
+                      <Spinner size="sm" />
+                      <span>Uploading to Cloudinary…</span>
+                    </div>
+                  )}
+                </div>
+
+                <div className="flex items-center gap-2">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={() => fileInputRef.current?.click()}
+                    className="flex-1 text-xs"
+                  >
+                    Replace Image
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={clearImage}
+                    className="text-xs text-rose-600 hover:text-rose-700"
+                  >
+                    Remove
+                  </Button>
+                </div>
               </div>
             ) : (
-              <button
-                type="button"
+              <div
                 onClick={() => fileInputRef.current?.click()}
-                className="flex h-36 w-full flex-col items-center justify-center gap-2 rounded-md border-2 border-dashed border-border text-muted-foreground transition-colors hover:border-foreground hover:text-foreground"
+                className="flex flex-col items-center justify-center rounded-xl border border-dashed border-border bg-muted/20 p-6 text-center cursor-pointer hover:bg-muted/40 transition"
               >
-                <UploadCloud size={22} />
-                <span className="text-xs font-medium">Click to upload image</span>
-                <span className="text-[11px]">PNG, JPG, WEBP up to 10 MB</span>
-              </button>
+                <UploadCloud size={28} className="text-muted-foreground mb-2" />
+                <p className="text-xs font-bold text-foreground">Upload Image</p>
+                <p className="text-[11px] text-muted-foreground mt-1">
+                  Drag &amp; drop or click to browse (JPEG, PNG, WebP up to 10MB)
+                </p>
+              </div>
             )}
 
-            <div className="mt-3 pt-3 border-t border-border">
-              <label htmlFor="product-image-url" className="text-xs text-muted-foreground">
-                Or paste image URL directly
-              </label>
-              <input
-                id="product-image-url"
-                type="text"
-                placeholder="https://... or /images/..."
-                value={existingImageUrl ?? ""}
-                onChange={(e) => {
-                  const val = e.target.value.trim();
-                  setExistingImageUrl(val || null);
-                  setImagePreview(val || null);
-                  setImageFile(null);
-                }}
-                className="mt-1 h-9 w-full rounded-md border border-border bg-background px-3 text-xs focus-visible:outline-none"
-              />
-            </div>
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept="image/jpeg,image/png,image/webp,image/gif,image/avif"
+              onChange={handleFileChange}
+              className="hidden"
+            />
+          </div>
+
+          {/* Form Submit & Cancel Controls */}
+          <div className="rounded-xl border border-border bg-background p-5 shadow-xs space-y-3">
+            <Button
+              type="submit"
+              disabled={loading || imageUploading}
+              className="w-full text-xs font-bold h-10 shadow-sm"
+            >
+              {loading ? (
+                <>
+                  <Spinner size="sm" />
+                  <span>{isEdit ? "Saving Changes…" : "Creating Product…"}</span>
+                </>
+              ) : (
+                <span>{isEdit ? "Save Product Changes" : "Publish New Product"}</span>
+              )}
+            </Button>
+
+            <Button
+              type="button"
+              variant="outline"
+              asChild
+              className="w-full text-xs h-9"
+            >
+              <Link href="/admin/products">
+                <ArrowLeft size={13} /> Return to Catalog
+              </Link>
+            </Button>
           </div>
         </div>
       </div>
