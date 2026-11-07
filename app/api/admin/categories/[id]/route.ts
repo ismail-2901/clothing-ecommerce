@@ -13,6 +13,8 @@ const updateCategorySchema = z.object({
   slug: z.string().min(1).max(100).regex(/^[a-z0-9-]+$/).optional(),
   description: z.string().max(500).nullable().optional(),
   imageUrl: z.string().nullable().optional(),
+  parentId: z.string().nullable().optional(),
+  position: z.number().int().optional(),
 });
 
 export async function PATCH(request: NextRequest, { params }: RouteParams) {

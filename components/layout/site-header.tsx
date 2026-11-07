@@ -11,6 +11,14 @@ import { useWishlist } from "@/components/wishlist/wishlist-provider";
 import { SearchAutocomplete } from "@/components/layout/search-autocomplete";
 import { AnnouncementBar } from "@/components/layout/announcement-bar";
 
+export type CategoryNavItem = {
+  id?: string;
+  name: string;
+  slug: string;
+  parentId?: string | null;
+  children?: Array<{ id?: string; name: string; slug: string }>;
+};
+
 const navItems = [
   ["New In", "/shop?sort=newest"],
   ["Women", "/shop?category=women"],
@@ -21,14 +29,13 @@ const navItems = [
 
 type NavLabel = (typeof navItems)[number][0];
 
-const megaMenuData: Record<
-  string,
-  {
-    title: string;
-    categories: { label: string; href: string }[];
-    featured: { title: string; subtitle: string; href: string; image: string };
-  }
-> = {
+type MegaMenuItem = {
+  title: string;
+  categories: { label: string; href: string }[];
+  featured: { title: string; subtitle: string; href: string; image: string };
+};
+
+const DEFAULT_MEGA_MENU_DATA: Record<string, MegaMenuItem> = {
   "New In": {
     title: "Latest Arrivals",
     categories: [
@@ -51,14 +58,12 @@ const megaMenuData: Record<
       { label: "View All Women's", href: "/shop?category=women" },
       { label: "Sarees", href: "/shop?category=women-saree" },
       { label: "Ethnic Wear", href: "/shop?category=women-single-ethnic" },
-      { label: "Tops", href: "/shop?category=women-tops" },
+      { label: "Shirts & Blouses", href: "/shop?category=women-shirts-blouses" },
+      { label: "T-Shirts & Tank Tops", href: "/shop?category=women-tshirts-tanks" },
       { label: "Dresses", href: "/shop?category=women-dresses" },
       { label: "Co-ord Sets", href: "/shop?category=women-cord-set" },
       { label: "Jeans & Bottoms", href: "/shop?category=women-baggy-jeans" },
-      { label: "Outerwear & Jackets", href: "/shop?category=women-jacket" },
-      { label: "Hoodies & Sweatshirts", href: "/shop?category=women-hoodie" },
-      { label: "Blazers", href: "/shop?category=women-blazer" },
-      { label: "Winter Collection", href: "/shop?category=women-winter-collection" }
+      { label: "Outerwear", href: "/shop?category=women-jacket" }
     ],
     featured: {
       title: "The Feminine Silhouette",
@@ -72,15 +77,13 @@ const megaMenuData: Record<
     categories: [
       { label: "View All Men's", href: "/shop?category=men" },
       { label: "Panjabi", href: "/shop?category=men-panjabi" },
+      { label: "Ethnic Wear", href: "/shop?category=men-waistcoat" },
       { label: "Shirts", href: "/shop?category=men-shirt" },
       { label: "Polo Shirts", href: "/shop?category=men-polo-shirt" },
       { label: "T-Shirts", href: "/shop?category=men-t-shirt" },
-      { label: "Bottoms & Pants", href: "/shop?category=men-pants" },
-      { label: "Outerwear & Jackets", href: "/shop?category=men-winter-wear" },
-      { label: "Blazers & Suits", href: "/shop?category=men-blazer-suit" },
-      { label: "Ethnic Wear & Waistcoats", href: "/shop?category=men-waistcoat" },
-      { label: "Pajama", href: "/shop?category=men-pajama" },
-      { label: "Accessories", href: "/shop?category=men-accessories" }
+      { label: "Bottoms", href: "/shop?category=men-pants" },
+      { label: "Outerwear", href: "/shop?category=men-winter-wear" },
+      { label: "Blazers & Suits", href: "/shop?category=men-blazer-suit" }
     ],
     featured: {
       title: "Urban Architecture",
@@ -93,9 +96,9 @@ const megaMenuData: Record<
     title: "Accessories Collection",
     categories: [
       { label: "View All Accessories", href: "/shop?category=accessories" },
-      { label: "Men's Accessories", href: "/shop?category=accessories-men" },
       { label: "Bags & Wallets", href: "/shop?category=accessories-bags-wallets" },
       { label: "Belts & Leather", href: "/shop?category=accessories-belts-leather" },
+      { label: "Men's Accessories", href: "/shop?category=accessories-men" },
       { label: "Scarves & Stoles", href: "/shop?category=accessories-scarves-stoles" }
     ],
     featured: {
@@ -121,6 +124,64 @@ const megaMenuData: Record<
     }
   }
 };
+
+function buildMegaMenuData(categories?: CategoryNavItem[]): Record<string, MegaMenuItem> {
+  if (!categories || categories.length === 0) {
+    return DEFAULT_MEGA_MENU_DATA;
+  }
+
+  const childMap = new Map<string, CategoryNavItem[]>();
+  for (const c of categories) {
+    if (c.parentId) {
+      const list = childMap.get(c.parentId) || [];
+      list.push(c);
+      childMap.set(c.parentId, list);
+    }
+  }
+
+  const getSubcategories = (parentSlug: string, defaultItems: { label: string; href: string }[]) => {
+    const parent = categories.find((c) => !c.parentId && c.slug === parentSlug);
+    if (!parent) return defaultItems;
+
+    const children = [
+      ...(parent.children || []),
+      ...(parent.id ? childMap.get(parent.id) || [] : [])
+    ];
+
+    const uniqueChildren: Array<{ name: string; slug: string }> = [];
+    for (const ch of children) {
+      if (!uniqueChildren.some((u) => u.slug === ch.slug)) {
+        uniqueChildren.push(ch);
+      }
+    }
+
+    if (uniqueChildren.length === 0) return defaultItems;
+
+    return [
+      defaultItems[0],
+      ...uniqueChildren.map((ch) => ({
+        label: ch.name,
+        href: `/shop?category=${ch.slug}`
+      }))
+    ];
+  };
+
+  return {
+    ...DEFAULT_MEGA_MENU_DATA,
+    Women: {
+      ...DEFAULT_MEGA_MENU_DATA.Women,
+      categories: getSubcategories("women", DEFAULT_MEGA_MENU_DATA.Women.categories)
+    },
+    Men: {
+      ...DEFAULT_MEGA_MENU_DATA.Men,
+      categories: getSubcategories("men", DEFAULT_MEGA_MENU_DATA.Men.categories)
+    },
+    Accessories: {
+      ...DEFAULT_MEGA_MENU_DATA.Accessories,
+      categories: getSubcategories("accessories", DEFAULT_MEGA_MENU_DATA.Accessories.categories)
+    }
+  };
+}
 
 function isNavItemActive(href: string, label: string, pathname: string, categoryParam: string | null) {
   if (href.includes("?category=")) {
@@ -150,11 +211,13 @@ function isNavItemActive(href: string, label: string, pathname: string, category
 function HeaderNavLinks({
   activeMega,
   onHoverItem,
-  onLeaveItem
+  onLeaveItem,
+  menuData
 }: {
   activeMega: string | null;
   onHoverItem: (label: string) => void;
   onLeaveItem: () => void;
+  menuData: Record<string, MegaMenuItem>;
 }) {
   const pathname = usePathname();
   const searchParams = useSearchParams();
@@ -167,7 +230,7 @@ function HeaderNavLinks({
     >
       {navItems.map(([label, href]) => {
         const isActive = isNavItemActive(href, label, pathname, categoryParam);
-        const hasMega = label in megaMenuData;
+        const hasMega = label in menuData;
 
         return (
           <div
@@ -199,7 +262,13 @@ function HeaderNavLinks({
   );
 }
 
-function MobileNavLinks({ onSelect }: { onSelect: () => void }) {
+function MobileNavLinks({
+  onSelect,
+  menuData
+}: {
+  onSelect: () => void;
+  menuData: Record<string, MegaMenuItem>;
+}) {
   const pathname = usePathname();
   const searchParams = useSearchParams();
   const categoryParam = searchParams.get("category");
@@ -209,7 +278,7 @@ function MobileNavLinks({ onSelect }: { onSelect: () => void }) {
     <nav className="flex flex-col gap-1.5" aria-label="Mobile Navigation">
       {navItems.map(([label, href]) => {
         const isActive = isNavItemActive(href, label, pathname, categoryParam);
-        const hasMega = label in megaMenuData;
+        const hasMega = label in menuData;
         const isOpen = openCategory === label;
 
         return (
@@ -250,7 +319,7 @@ function MobileNavLinks({ onSelect }: { onSelect: () => void }) {
 
             {hasMega && isOpen && (
               <div className="ml-3 pl-3 mt-1 mb-2 border-l border-border/80 grid grid-cols-2 gap-1 py-1">
-                {megaMenuData[label].categories.map((cat, idx) => (
+                {menuData[label].categories.map((cat, idx) => (
                   <Link
                     key={cat.label}
                     href={cat.href}
@@ -273,13 +342,27 @@ function MobileNavLinks({ onSelect }: { onSelect: () => void }) {
   );
 }
 
-export function SiteHeader() {
+export function SiteHeader({ initialCategories }: { initialCategories?: CategoryNavItem[] } = {}) {
   const { itemCount, openDrawer } = useCart();
   const { items: wishlistItems } = useWishlist();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
-
   const [activeMega, setActiveMega] = useState<string | null>(null);
+  const [categories, setCategories] = useState<CategoryNavItem[] | undefined>(initialCategories);
   const timeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  useEffect(() => {
+    if (!initialCategories || initialCategories.length === 0) {
+      fetch("/api/categories")
+        .then((r) => (r.ok ? r.json() : null))
+        .then((data) => {
+          const list = Array.isArray(data) ? data : data?.categories;
+          if (Array.isArray(list) && list.length > 0) setCategories(list);
+        })
+        .catch(() => {});
+    }
+  }, [initialCategories]);
+
+  const menuData = buildMegaMenuData(categories);
 
   const handleMouseEnter = (label: string) => {
     if (timeoutRef.current) clearTimeout(timeoutRef.current);
@@ -358,6 +441,7 @@ export function SiteHeader() {
             activeMega={activeMega}
             onHoverItem={handleMouseEnter}
             onLeaveItem={handleMouseLeave}
+            menuData={menuData}
           />
         </Suspense>
 
@@ -419,7 +503,7 @@ export function SiteHeader() {
       </div>
 
       {/* Desktop Mega-Menu Panel */}
-      {activeMega && megaMenuData[activeMega] && (
+      {activeMega && menuData[activeMega] && (
         <div
           className="absolute top-full left-0 right-0 z-50 border-b border-border bg-background/98 backdrop-blur-xl shadow-luxury animate-in fade-in-0 duration-200"
           onMouseEnter={() => handleMouseEnter(activeMega)}
@@ -430,20 +514,20 @@ export function SiteHeader() {
               {/* Category Quicklinks */}
               <div className="col-span-6 space-y-4 pr-6 border-r border-border/60">
                 <p className="text-[11px] font-bold uppercase tracking-[0.2em] text-muted-foreground">
-                  {megaMenuData[activeMega].title}
+                  {menuData[activeMega].title}
                 </p>
                 <ul
                   className={
-                    megaMenuData[activeMega].categories.length > 6
+                    menuData[activeMega].categories.length > 6
                       ? "grid grid-cols-2 gap-x-6 gap-y-2.5"
                       : "space-y-2.5"
                   }
                 >
-                  {megaMenuData[activeMega].categories.map((cat, idx) => (
+                  {menuData[activeMega].categories.map((cat, idx) => (
                     <li
                       key={cat.label}
                       className={
-                        idx === 0 && megaMenuData[activeMega].categories.length > 6
+                        idx === 0 && menuData[activeMega].categories.length > 6
                           ? "col-span-2 pb-1.5 mb-0.5 border-b border-border/40 font-bold"
                           : ""
                       }
@@ -452,7 +536,7 @@ export function SiteHeader() {
                         href={cat.href}
                         onClick={() => setActiveMega(null)}
                         className={`group flex items-center justify-between text-xs font-semibold uppercase tracking-wider transition-colors ${
-                          idx === 0 && megaMenuData[activeMega].categories.length > 6
+                          idx === 0 && menuData[activeMega].categories.length > 6
                             ? "text-amber-700 dark:text-amber-500 hover:text-foreground"
                             : "text-foreground/80 hover:text-foreground"
                         }`}
@@ -473,13 +557,13 @@ export function SiteHeader() {
               {/* Curated Editorial Teaser */}
               <div className="col-span-6">
                 <Link
-                  href={megaMenuData[activeMega].featured.href}
+                  href={menuData[activeMega].featured.href}
                   onClick={() => setActiveMega(null)}
                   className="group relative block aspect-[16/9] overflow-hidden rounded-xl bg-muted"
                 >
                   <Image
-                    src={megaMenuData[activeMega].featured.image}
-                    alt={megaMenuData[activeMega].featured.title}
+                    src={menuData[activeMega].featured.image}
+                    alt={menuData[activeMega].featured.title}
                     fill
                     className="object-cover object-center transition-transform duration-700 group-hover:scale-105"
                     sizes="(min-width: 1024px) 50vw, 100vw"
@@ -489,10 +573,10 @@ export function SiteHeader() {
                       Curated Editorial
                     </span>
                     <h3 className="font-serif text-xl font-bold tracking-tight">
-                      {megaMenuData[activeMega].featured.title}
+                      {menuData[activeMega].featured.title}
                     </h3>
                     <p className="text-xs text-white/80 max-w-md">
-                      {megaMenuData[activeMega].featured.subtitle}
+                      {menuData[activeMega].featured.subtitle}
                     </p>
                   </div>
                 </Link>
@@ -523,7 +607,7 @@ export function SiteHeader() {
               </nav>
             }
           >
-            <MobileNavLinks onSelect={() => setMobileMenuOpen(false)} />
+            <MobileNavLinks onSelect={() => setMobileMenuOpen(false)} menuData={menuData} />
           </Suspense>
 
           {/* Account quick-links in mobile drawer */}

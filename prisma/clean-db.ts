@@ -156,73 +156,77 @@ async function main() {
   });
   console.log("✓ User (non-admin customers deleted, admin preserved)");
 
-  // 8. Re-seed standard categories & Men/Women subcategories
+  // 8. Re-seed standardized categories (Women, Men, Accessories + subcategories)
   console.log("\n📦 Re-seeding base categories...");
   const standardCategories = [
     { name: "Women", slug: "women", position: 1 },
     { name: "Men", slug: "men", position: 2 },
-    { name: "Tops", slug: "tops", position: 3 },
-    { name: "Dresses", slug: "dresses", position: 4 },
-    { name: "Outerwear", slug: "outerwear", position: 5 },
-    { name: "Bottoms", slug: "bottoms", position: 6 },
-    { name: "Activewear", slug: "activewear", position: 7 },
-    { name: "Accessories", slug: "accessories", position: 8 },
-    { name: "Essentials", slug: "essentials", position: 9 },
+    { name: "Accessories", slug: "accessories", position: 3 },
   ];
   for (const cat of standardCategories) {
     await prisma.category.upsert({
       where: { slug: cat.slug },
-      update: { position: cat.position },
+      update: { position: cat.position, deletedAt: null },
       create: { name: cat.name, slug: cat.slug, position: cat.position },
     });
   }
 
   const men = await prisma.category.findUniqueOrThrow({ where: { slug: "men" } });
   const women = await prisma.category.findUniqueOrThrow({ where: { slug: "women" } });
+  const accessories = await prisma.category.findUniqueOrThrow({ where: { slug: "accessories" } });
 
   const menSubs = [
     { name: "Panjabi", slug: "men-panjabi", position: 1 },
-    { name: "Waistcoat", slug: "men-waistcoat", position: 2 },
-    { name: "Pajama", slug: "men-pajama", position: 3 },
-    { name: "Shirt", slug: "men-shirt", position: 4 },
-    { name: "Polo Shirt", slug: "men-polo-shirt", position: 5 },
-    { name: "T-Shirt", slug: "men-t-shirt", position: 6 },
-    { name: "Pants", slug: "men-pants", position: 7 },
-    { name: "Plus Size", slug: "men-plus-size", position: 8 },
-    { name: "Winter Wear", slug: "men-winter-wear", position: 9 },
-    { name: "Blazer & Suit", slug: "men-blazer-suit", position: 10 },
-    { name: "Men's Accessories", slug: "men-accessories", position: 11 },
+    { name: "Ethnic Wear", slug: "men-waistcoat", position: 2 },
+    { name: "Shirts", slug: "men-shirt", position: 3 },
+    { name: "Polo Shirts", slug: "men-polo-shirt", position: 4 },
+    { name: "T-Shirts", slug: "men-t-shirt", position: 5 },
+    { name: "Bottoms", slug: "men-pants", position: 6 },
+    { name: "Outerwear", slug: "men-winter-wear", position: 7 },
+    { name: "Blazers & Suits", slug: "men-blazer-suit", position: 8 },
   ];
   for (const sub of menSubs) {
     await prisma.category.upsert({
       where: { slug: sub.slug },
-      update: { position: sub.position },
+      update: { name: sub.name, position: sub.position, parentId: men.id, deletedAt: null },
       create: { name: sub.name, slug: sub.slug, position: sub.position, parentId: men.id },
     });
   }
   console.log("✓ Men subcategories");
 
   const womenSubs = [
-    { name: "Saree", slug: "women-saree", position: 1 },
-    { name: "Single Ethnic", slug: "women-single-ethnic", position: 2 },
-    { name: "Women Shirt", slug: "women-shirt", position: 3 },
-    { name: "Tees & Tank", slug: "women-tees-tank", position: 4 },
-    { name: "Women Jacket", slug: "women-jacket", position: 5 },
-    { name: "Hoodie", slug: "women-hoodie", position: 6 },
-    { name: "Blazer", slug: "women-blazer", position: 7 },
-    { name: "Winter Collection", slug: "women-winter-collection", position: 8 },
-    { name: "Tops", slug: "women-tops", position: 9 },
-    { name: "Baggy Jeans", slug: "women-baggy-jeans", position: 10 },
-    { name: "Cord Set", slug: "women-cord-set", position: 11 },
+    { name: "Sarees", slug: "women-saree", position: 1 },
+    { name: "Ethnic Wear", slug: "women-single-ethnic", position: 2 },
+    { name: "Shirts & Blouses", slug: "women-shirts-blouses", position: 3 },
+    { name: "T-Shirts & Tank Tops", slug: "women-tshirts-tanks", position: 4 },
+    { name: "Dresses", slug: "women-dresses", position: 5 },
+    { name: "Co-ord Sets", slug: "women-cord-set", position: 6 },
+    { name: "Jeans & Bottoms", slug: "women-baggy-jeans", position: 7 },
+    { name: "Outerwear", slug: "women-jacket", position: 8 },
   ];
   for (const sub of womenSubs) {
     await prisma.category.upsert({
       where: { slug: sub.slug },
-      update: { position: sub.position },
+      update: { name: sub.name, position: sub.position, parentId: women.id, deletedAt: null },
       create: { name: sub.name, slug: sub.slug, position: sub.position, parentId: women.id },
     });
   }
   console.log("✓ Women subcategories");
+
+  const accessoriesSubs = [
+    { name: "Bags & Wallets", slug: "accessories-bags-wallets", position: 1 },
+    { name: "Belts & Leather", slug: "accessories-belts-leather", position: 2 },
+    { name: "Men's Accessories", slug: "accessories-men", position: 3 },
+    { name: "Scarves & Stoles", slug: "accessories-scarves-stoles", position: 4 },
+  ];
+  for (const sub of accessoriesSubs) {
+    await prisma.category.upsert({
+      where: { slug: sub.slug },
+      update: { name: sub.name, position: sub.position, parentId: accessories.id, deletedAt: null },
+      create: { name: sub.name, slug: sub.slug, position: sub.position, parentId: accessories.id },
+    });
+  }
+  console.log("✓ Accessories subcategories");
 
   console.log("\n✅ Database fully cleaned. Categories re-seeded. Admin users preserved.");
 }

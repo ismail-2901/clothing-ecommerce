@@ -6,6 +6,7 @@ import { SiteHeader } from "@/components/layout/site-header";
 import { WishlistProvider } from "@/components/wishlist/wishlist-provider";
 import { getServerSession } from "@/lib/auth/server";
 import { prisma } from "@/db/prisma";
+import { getCachedCategories } from "@/lib/cache/db-cache";
 
 export const metadata: Metadata = {
   title: "My Account – Elaris",
@@ -26,7 +27,10 @@ async function getWishlistProductIds(userId: string): Promise<string[]> {
 export default async function AccountLayout({
   children
 }: Readonly<{ children: React.ReactNode }>) {
-  const session = await getServerSession();
+  const [session, categories] = await Promise.all([
+    getServerSession(),
+    getCachedCategories()
+  ]);
   const serverProductIds = session?.userId
     ? await getWishlistProductIds(session.userId)
     : undefined;
@@ -34,7 +38,7 @@ export default async function AccountLayout({
   return (
     <CartProvider>
       <WishlistProvider serverProductIds={serverProductIds}>
-        <SiteHeader />
+        <SiteHeader initialCategories={categories} />
         <main>{children}</main>
         <Footer />
         <FloatingAssistant />

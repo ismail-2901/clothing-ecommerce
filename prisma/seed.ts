@@ -147,15 +147,13 @@ async function main() {
 
   const menSubcategories = [
     { name: "Panjabi", slug: "men-panjabi", position: 1 },
-    { name: "Shirts", slug: "men-shirt", position: 2 },
-    { name: "Polo Shirts", slug: "men-polo-shirt", position: 3 },
-    { name: "T-Shirts", slug: "men-t-shirt", position: 4 },
-    { name: "Bottoms & Pants", slug: "men-pants", position: 5 },
-    { name: "Outerwear & Jackets", slug: "men-winter-wear", position: 6 },
-    { name: "Blazers & Suits", slug: "men-blazer-suit", position: 7 },
-    { name: "Ethnic Wear & Waistcoats", slug: "men-waistcoat", position: 8 },
-    { name: "Pajama", slug: "men-pajama", position: 9 },
-    { name: "Accessories", slug: "men-accessories", position: 10 },
+    { name: "Ethnic Wear", slug: "men-waistcoat", position: 2 },
+    { name: "Shirts", slug: "men-shirt", position: 3 },
+    { name: "Polo Shirts", slug: "men-polo-shirt", position: 4 },
+    { name: "T-Shirts", slug: "men-t-shirt", position: 5 },
+    { name: "Bottoms", slug: "men-pants", position: 6 },
+    { name: "Outerwear", slug: "men-winter-wear", position: 7 },
+    { name: "Blazers & Suits", slug: "men-blazer-suit", position: 8 },
   ];
 
   for (const sub of menSubcategories) {
@@ -169,14 +167,12 @@ async function main() {
   const womenSubcategories = [
     { name: "Sarees", slug: "women-saree", position: 1 },
     { name: "Ethnic Wear", slug: "women-single-ethnic", position: 2 },
-    { name: "Tops", slug: "women-tops", position: 3 },
-    { name: "Dresses", slug: "women-dresses", position: 4 },
-    { name: "Co-ord Sets", slug: "women-cord-set", position: 5 },
-    { name: "Jeans & Bottoms", slug: "women-baggy-jeans", position: 6 },
-    { name: "Outerwear & Jackets", slug: "women-jacket", position: 7 },
-    { name: "Hoodies & Sweatshirts", slug: "women-hoodie", position: 8 },
-    { name: "Blazers", slug: "women-blazer", position: 9 },
-    { name: "Winter Collection", slug: "women-winter-collection", position: 10 },
+    { name: "Shirts & Blouses", slug: "women-shirts-blouses", position: 3 },
+    { name: "T-Shirts & Tank Tops", slug: "women-tshirts-tanks", position: 4 },
+    { name: "Dresses", slug: "women-dresses", position: 5 },
+    { name: "Co-ord Sets", slug: "women-cord-set", position: 6 },
+    { name: "Jeans & Bottoms", slug: "women-baggy-jeans", position: 7 },
+    { name: "Outerwear", slug: "women-jacket", position: 8 },
   ];
 
   for (const sub of womenSubcategories) {
@@ -188,9 +184,9 @@ async function main() {
   }
 
   const accessoriesSubcategories = [
-    { name: "Men's Accessories", slug: "accessories-men", position: 1 },
-    { name: "Bags & Wallets", slug: "accessories-bags-wallets", position: 2 },
-    { name: "Belts & Leather", slug: "accessories-belts-leather", position: 3 },
+    { name: "Bags & Wallets", slug: "accessories-bags-wallets", position: 1 },
+    { name: "Belts & Leather", slug: "accessories-belts-leather", position: 2 },
+    { name: "Men's Accessories", slug: "accessories-men", position: 3 },
     { name: "Scarves & Stoles", slug: "accessories-scarves-stoles", position: 4 },
   ];
 

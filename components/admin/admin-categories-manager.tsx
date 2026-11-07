@@ -152,6 +152,7 @@ export function AdminCategoriesManager({
           slug: editSlug.trim(),
           description: editDescription.trim() || null,
           imageUrl: editImageUrl.trim() || null,
+          parentId: editParentId || null,
         }),
       });
 

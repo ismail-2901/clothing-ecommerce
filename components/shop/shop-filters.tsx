@@ -6,7 +6,7 @@ import Link from "next/link";
 import Image from "next/image";
 import { ArrowRight, X, SlidersHorizontal } from "lucide-react";
 
-const SIZES = ["XS", "S", "M", "L", "XL", "XXL"];
+const SIZES = ["XS", "S", "M", "L", "XL", "XXL", "Plus Size"];
 
 // Price breakpoints in paisa (BDT * 100). Display labels use ৳ + taka.
 const PRICE_STEPS = [
@@ -84,14 +84,12 @@ export function ShopFilters({
           children: [
             { name: "Sarees", slug: "women-saree" },
             { name: "Ethnic Wear", slug: "women-single-ethnic" },
-            { name: "Tops", slug: "women-tops" },
+            { name: "Shirts & Blouses", slug: "women-shirts-blouses" },
+            { name: "T-Shirts & Tank Tops", slug: "women-tshirts-tanks" },
             { name: "Dresses", slug: "women-dresses" },
             { name: "Co-ord Sets", slug: "women-cord-set" },
             { name: "Jeans & Bottoms", slug: "women-baggy-jeans" },
-            { name: "Outerwear & Jackets", slug: "women-jacket" },
-            { name: "Hoodies & Sweatshirts", slug: "women-hoodie" },
-            { name: "Blazers", slug: "women-blazer" },
-            { name: "Winter Collection", slug: "women-winter-collection" }
+            { name: "Outerwear", slug: "women-jacket" }
           ]
         },
         {
@@ -99,24 +97,22 @@ export function ShopFilters({
           slug: "men",
           children: [
             { name: "Panjabi", slug: "men-panjabi" },
+            { name: "Ethnic Wear", slug: "men-waistcoat" },
             { name: "Shirts", slug: "men-shirt" },
             { name: "Polo Shirts", slug: "men-polo-shirt" },
             { name: "T-Shirts", slug: "men-t-shirt" },
-            { name: "Bottoms & Pants", slug: "men-pants" },
-            { name: "Outerwear & Jackets", slug: "men-winter-wear" },
-            { name: "Blazers & Suits", slug: "men-blazer-suit" },
-            { name: "Ethnic Wear & Waistcoats", slug: "men-waistcoat" },
-            { name: "Pajama", slug: "men-pajama" },
-            { name: "Accessories", slug: "men-accessories" }
+            { name: "Bottoms", slug: "men-pants" },
+            { name: "Outerwear", slug: "men-winter-wear" },
+            { name: "Blazers & Suits", slug: "men-blazer-suit" }
           ]
         },
         {
           name: "Accessories",
           slug: "accessories",
           children: [
-            { name: "Men's Accessories", slug: "accessories-men" },
             { name: "Bags & Wallets", slug: "accessories-bags-wallets" },
             { name: "Belts & Leather", slug: "accessories-belts-leather" },
+            { name: "Men's Accessories", slug: "accessories-men" },
             { name: "Scarves & Stoles", slug: "accessories-scarves-stoles" }
           ]
         }
