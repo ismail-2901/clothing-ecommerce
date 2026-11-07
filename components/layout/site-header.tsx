@@ -52,7 +52,7 @@ const megaMenuData: Record<
       { label: "Sarees", href: "/shop?category=women-saree" },
       { label: "Ethnic Wear", href: "/shop?category=women-single-ethnic" },
       { label: "Tops", href: "/shop?category=women-tops" },
-      { label: "Dresses", href: "/shop?category=dresses" },
+      { label: "Dresses", href: "/shop?category=women-dresses" },
       { label: "Co-ord Sets", href: "/shop?category=women-cord-set" },
       { label: "Jeans & Bottoms", href: "/shop?category=women-baggy-jeans" },
       { label: "Outerwear & Jackets", href: "/shop?category=women-jacket" },
@@ -93,10 +93,10 @@ const megaMenuData: Record<
     title: "Accessories Collection",
     categories: [
       { label: "View All Accessories", href: "/shop?category=accessories" },
-      { label: "Men's Accessories", href: "/shop?category=men-accessories" },
-      { label: "Bags & Wallets", href: "/shop?category=accessories" },
-      { label: "Belts & Leather", href: "/shop?category=accessories" },
-      { label: "Scarves & Stoles", href: "/shop?category=accessories" }
+      { label: "Men's Accessories", href: "/shop?category=accessories-men" },
+      { label: "Bags & Wallets", href: "/shop?category=accessories-bags-wallets" },
+      { label: "Belts & Leather", href: "/shop?category=accessories-belts-leather" },
+      { label: "Scarves & Stoles", href: "/shop?category=accessories-scarves-stoles" }
     ],
     featured: {
       title: "Finishing Accents",

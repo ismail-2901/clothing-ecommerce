@@ -82,28 +82,42 @@ export function ShopFilters({
           name: "Women",
           slug: "women",
           children: [
-            { name: "Dresses", slug: "dresses" },
+            { name: "Sarees", slug: "women-saree" },
+            { name: "Ethnic Wear", slug: "women-single-ethnic" },
             { name: "Tops", slug: "women-tops" },
-            { name: "Bottoms", slug: "women-bottoms" },
-            { name: "Outerwear", slug: "women-outerwear" }
+            { name: "Dresses", slug: "women-dresses" },
+            { name: "Co-ord Sets", slug: "women-cord-set" },
+            { name: "Jeans & Bottoms", slug: "women-baggy-jeans" },
+            { name: "Outerwear & Jackets", slug: "women-jacket" },
+            { name: "Hoodies & Sweatshirts", slug: "women-hoodie" },
+            { name: "Blazers", slug: "women-blazer" },
+            { name: "Winter Collection", slug: "women-winter-collection" }
           ]
         },
         {
           name: "Men",
           slug: "men",
           children: [
-            { name: "Tops", slug: "tops" },
-            { name: "Bottoms", slug: "bottoms" },
-            { name: "Outerwear", slug: "outerwear" },
-            { name: "Activewear", slug: "activewear" },
-            { name: "Essentials", slug: "essentials" }
+            { name: "Panjabi", slug: "men-panjabi" },
+            { name: "Shirts", slug: "men-shirt" },
+            { name: "Polo Shirts", slug: "men-polo-shirt" },
+            { name: "T-Shirts", slug: "men-t-shirt" },
+            { name: "Bottoms & Pants", slug: "men-pants" },
+            { name: "Outerwear & Jackets", slug: "men-winter-wear" },
+            { name: "Blazers & Suits", slug: "men-blazer-suit" },
+            { name: "Ethnic Wear & Waistcoats", slug: "men-waistcoat" },
+            { name: "Pajama", slug: "men-pajama" },
+            { name: "Accessories", slug: "men-accessories" }
           ]
         },
         {
           name: "Accessories",
           slug: "accessories",
           children: [
-            { name: "Luxury", slug: "accessories-luxury-1790697878314" }
+            { name: "Men's Accessories", slug: "accessories-men" },
+            { name: "Bags & Wallets", slug: "accessories-bags-wallets" },
+            { name: "Belts & Leather", slug: "accessories-belts-leather" },
+            { name: "Scarves & Stoles", slug: "accessories-scarves-stoles" }
           ]
         }
       ];
