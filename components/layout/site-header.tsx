@@ -4,7 +4,7 @@ import { Suspense, useState, useRef, useEffect } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { usePathname, useSearchParams } from "next/navigation";
-import { Search, UserRound, Heart, ShoppingBag, Menu, X, ArrowRight } from "lucide-react";
+import { Search, UserRound, Heart, ShoppingBag, Menu, X, ArrowRight, ChevronDown } from "lucide-react";
 
 import { useCart } from "@/components/cart/cart-provider";
 import { useWishlist } from "@/components/wishlist/wishlist-provider";
@@ -12,11 +12,11 @@ import { SearchAutocomplete } from "@/components/layout/search-autocomplete";
 import { AnnouncementBar } from "@/components/layout/announcement-bar";
 
 const navItems = [
-  ["Shop", "/shop"],
+  ["New In", "/shop?sort=newest"],
   ["Women", "/shop?category=women"],
   ["Men", "/shop?category=men"],
-  ["Offers", "/offers"],
-  ["About", "/about"]
+  ["Accessories", "/shop?category=accessories"],
+  ["Sale", "/offers"]
 ] as const;
 
 type NavLabel = (typeof navItems)[number][0];
@@ -29,30 +29,36 @@ const megaMenuData: Record<
     featured: { title: string; subtitle: string; href: string; image: string };
   }
 > = {
-  Shop: {
-    title: "All Collections",
+  "New In": {
+    title: "Latest Arrivals",
     categories: [
-      { label: "New Arrivals '25", href: "/shop" },
-      { label: "Women's Capsule", href: "/shop?category=women" },
-      { label: "Men's Essentials", href: "/shop?category=men" },
-      { label: "Tactile Knitwear", href: "/shop" },
-      { label: "Promotional Offers", href: "/offers" }
+      { label: "View All New Arrivals", href: "/shop?sort=newest" },
+      { label: "Women's New Arrivals", href: "/shop?category=women&sort=newest" },
+      { label: "Men's New Arrivals", href: "/shop?category=men&sort=newest" },
+      { label: "New Sarees & Ethnic", href: "/shop?category=women-saree&sort=newest" },
+      { label: "New Panjabi & Kurtas", href: "/shop?category=men-panjabi&sort=newest" }
     ],
     featured: {
       title: "Capsule '25",
-      subtitle: "Form, Function & Fluidity",
-      href: "/shop",
+      subtitle: "Fresh cuts, elevated textures & contemporary forms",
+      href: "/shop?sort=newest",
       image: "/elaris-hero.jpg"
     }
   },
   Women: {
-    title: "Women's Capsule",
+    title: "Women's Collection",
     categories: [
       { label: "View All Women's", href: "/shop?category=women" },
-      { label: "Dresses & Silhouettes", href: "/shop?category=women" },
-      { label: "Minimalist Knitwear", href: "/shop?category=women" },
-      { label: "Architectural Outerwear", href: "/shop?category=women" },
-      { label: "Relaxed Trousers", href: "/shop?category=women" }
+      { label: "Sarees", href: "/shop?category=women-saree" },
+      { label: "Ethnic Wear", href: "/shop?category=women-single-ethnic" },
+      { label: "Tops", href: "/shop?category=women-tops" },
+      { label: "Dresses", href: "/shop?category=dresses" },
+      { label: "Co-ord Sets", href: "/shop?category=women-cord-set" },
+      { label: "Jeans & Bottoms", href: "/shop?category=women-baggy-jeans" },
+      { label: "Outerwear & Jackets", href: "/shop?category=women-jacket" },
+      { label: "Hoodies & Sweatshirts", href: "/shop?category=women-hoodie" },
+      { label: "Blazers", href: "/shop?category=women-blazer" },
+      { label: "Winter Collection", href: "/shop?category=women-winter-collection" }
     ],
     featured: {
       title: "The Feminine Silhouette",
@@ -62,13 +68,19 @@ const megaMenuData: Record<
     }
   },
   Men: {
-    title: "Men's Capsule",
+    title: "Men's Collection",
     categories: [
       { label: "View All Men's", href: "/shop?category=men" },
-      { label: "Heavyweight Fleece", href: "/shop?category=men" },
-      { label: "Boxy Relaxed Tees", href: "/shop?category=men" },
-      { label: "Structured Overshirts", href: "/shop?category=men" },
-      { label: "Everyday Tailoring", href: "/shop?category=men" }
+      { label: "Panjabi", href: "/shop?category=men-panjabi" },
+      { label: "Shirts", href: "/shop?category=men-shirt" },
+      { label: "Polo Shirts", href: "/shop?category=men-polo-shirt" },
+      { label: "T-Shirts", href: "/shop?category=men-t-shirt" },
+      { label: "Bottoms & Pants", href: "/shop?category=men-pants" },
+      { label: "Outerwear & Jackets", href: "/shop?category=men-winter-wear" },
+      { label: "Blazers & Suits", href: "/shop?category=men-blazer-suit" },
+      { label: "Ethnic Wear & Waistcoats", href: "/shop?category=men-waistcoat" },
+      { label: "Pajama", href: "/shop?category=men-pajama" },
+      { label: "Accessories", href: "/shop?category=men-accessories" }
     ],
     featured: {
       title: "Urban Architecture",
@@ -76,17 +88,56 @@ const megaMenuData: Record<
       href: "/shop?category=men",
       image: "/elaris-men.jpg"
     }
+  },
+  Accessories: {
+    title: "Accessories Collection",
+    categories: [
+      { label: "View All Accessories", href: "/shop?category=accessories" },
+      { label: "Men's Accessories", href: "/shop?category=men-accessories" },
+      { label: "Bags & Wallets", href: "/shop?category=accessories" },
+      { label: "Belts & Leather", href: "/shop?category=accessories" },
+      { label: "Scarves & Stoles", href: "/shop?category=accessories" }
+    ],
+    featured: {
+      title: "Finishing Accents",
+      subtitle: "Functional leather goods and handcrafted essentials",
+      href: "/shop?category=accessories",
+      image: "/elaris-hero.jpg"
+    }
+  },
+  Sale: {
+    title: "Special Offers & Sale",
+    categories: [
+      { label: "All Special Offers", href: "/offers" },
+      { label: "Women's Promotional Offers", href: "/shop?category=women" },
+      { label: "Men's Promotional Offers", href: "/shop?category=men" },
+      { label: "Seasonal Clearance", href: "/offers" }
+    ],
+    featured: {
+      title: "Curated Privileges",
+      subtitle: "Limited release archival and seasonal markdowns",
+      href: "/offers",
+      image: "/elaris-hero.jpg"
+    }
   }
 };
 
 function isNavItemActive(href: string, label: string, pathname: string, categoryParam: string | null) {
   if (href.includes("?category=")) {
-    const targetCategory = href.split("?category=")[1];
-    return pathname === "/shop" && categoryParam?.toLowerCase() === targetCategory.toLowerCase();
+    const targetCategory = href.split("?category=")[1]?.split("&")[0];
+    return (
+      pathname === "/shop" &&
+      (categoryParam?.toLowerCase() === targetCategory.toLowerCase() ||
+        categoryParam?.toLowerCase().startsWith(targetCategory.toLowerCase() + "-"))
+    );
   }
 
-  if (href === "/shop" && label === "Shop") {
-    return (pathname === "/shop" && (!categoryParam || categoryParam === "all")) || pathname.startsWith("/products");
+  if (label === "New In") {
+    return pathname === "/shop" && (!categoryParam || categoryParam === "all");
+  }
+
+  if (href === "/offers" || label === "Sale") {
+    return pathname === "/offers";
   }
 
   if (href !== "/" && href !== "/shop") {
@@ -152,25 +203,70 @@ function MobileNavLinks({ onSelect }: { onSelect: () => void }) {
   const pathname = usePathname();
   const searchParams = useSearchParams();
   const categoryParam = searchParams.get("category");
+  const [openCategory, setOpenCategory] = useState<string | null>(null);
 
   return (
     <nav className="flex flex-col gap-1.5" aria-label="Mobile Navigation">
       {navItems.map(([label, href]) => {
         const isActive = isNavItemActive(href, label, pathname, categoryParam);
+        const hasMega = label in megaMenuData;
+        const isOpen = openCategory === label;
+
         return (
-          <Link
-            key={label}
-            href={href}
-            onClick={onSelect}
-            className={`flex items-center justify-between rounded-lg px-3.5 py-2.5 text-sm font-semibold tracking-wide transition-colors ${
-              isActive
-                ? "bg-muted text-foreground font-bold border-l-2 border-foreground"
-                : "text-foreground/80 hover:bg-muted/70 hover:text-foreground"
-            }`}
-          >
-            <span>{label}</span>
-            <ArrowRight size={14} className="text-muted-foreground/60" />
-          </Link>
+          <div key={label} className="flex flex-col">
+            <div
+              className={`flex items-center justify-between rounded-lg transition-colors ${
+                isActive
+                  ? "bg-muted text-foreground font-bold border-l-2 border-foreground"
+                  : "text-foreground/80 hover:bg-muted/70 hover:text-foreground"
+              }`}
+            >
+              <Link
+                href={href}
+                onClick={onSelect}
+                className="flex-1 px-3.5 py-2.5 text-sm font-semibold tracking-wide"
+              >
+                {label}
+              </Link>
+              {hasMega ? (
+                <button
+                  type="button"
+                  aria-label={`Toggle ${label} subcategories`}
+                  aria-expanded={isOpen}
+                  onClick={() => setOpenCategory(isOpen ? null : label)}
+                  className="px-3.5 py-2.5 text-muted-foreground hover:text-foreground transition-colors"
+                >
+                  <ChevronDown
+                    size={16}
+                    className={`transition-transform duration-200 ${isOpen ? "rotate-180 text-foreground" : ""}`}
+                  />
+                </button>
+              ) : (
+                <span className="pr-3.5 text-muted-foreground/60">
+                  <ArrowRight size={14} />
+                </span>
+              )}
+            </div>
+
+            {hasMega && isOpen && (
+              <div className="ml-3 pl-3 mt-1 mb-2 border-l border-border/80 grid grid-cols-2 gap-1 py-1">
+                {megaMenuData[label].categories.map((cat, idx) => (
+                  <Link
+                    key={cat.label}
+                    href={cat.href}
+                    onClick={onSelect}
+                    className={`text-xs py-1.5 px-2 rounded-md transition-colors ${
+                      idx === 0
+                        ? "col-span-2 font-bold text-amber-700 dark:text-amber-500 hover:text-foreground"
+                        : "text-foreground/75 hover:text-foreground hover:bg-muted/50"
+                    }`}
+                  >
+                    {cat.label}
+                  </Link>
+                ))}
+              </div>
+            )}
+          </div>
         );
       })}
     </nav>
@@ -332,17 +428,34 @@ export function SiteHeader() {
           <div className="container-shell py-8">
             <div className="grid grid-cols-12 gap-8 items-center">
               {/* Category Quicklinks */}
-              <div className="col-span-4 space-y-4 pr-6 border-r border-border/60">
+              <div className="col-span-6 space-y-4 pr-6 border-r border-border/60">
                 <p className="text-[11px] font-bold uppercase tracking-[0.2em] text-muted-foreground">
                   {megaMenuData[activeMega].title}
                 </p>
-                <ul className="space-y-2.5">
-                  {megaMenuData[activeMega].categories.map((cat) => (
-                    <li key={cat.label}>
+                <ul
+                  className={
+                    megaMenuData[activeMega].categories.length > 6
+                      ? "grid grid-cols-2 gap-x-6 gap-y-2.5"
+                      : "space-y-2.5"
+                  }
+                >
+                  {megaMenuData[activeMega].categories.map((cat, idx) => (
+                    <li
+                      key={cat.label}
+                      className={
+                        idx === 0 && megaMenuData[activeMega].categories.length > 6
+                          ? "col-span-2 pb-1.5 mb-0.5 border-b border-border/40 font-bold"
+                          : ""
+                      }
+                    >
                       <Link
                         href={cat.href}
                         onClick={() => setActiveMega(null)}
-                        className="group flex items-center justify-between text-xs font-semibold uppercase tracking-wider text-foreground/80 hover:text-foreground transition-colors"
+                        className={`group flex items-center justify-between text-xs font-semibold uppercase tracking-wider transition-colors ${
+                          idx === 0 && megaMenuData[activeMega].categories.length > 6
+                            ? "text-amber-700 dark:text-amber-500 hover:text-foreground"
+                            : "text-foreground/80 hover:text-foreground"
+                        }`}
                       >
                         <span className="group-hover:translate-x-1 transition-transform duration-150">
                           {cat.label}
@@ -358,18 +471,18 @@ export function SiteHeader() {
               </div>
 
               {/* Curated Editorial Teaser */}
-              <div className="col-span-8">
+              <div className="col-span-6">
                 <Link
                   href={megaMenuData[activeMega].featured.href}
                   onClick={() => setActiveMega(null)}
-                  className="group relative block aspect-[21/9] overflow-hidden rounded-xl bg-muted"
+                  className="group relative block aspect-[16/9] overflow-hidden rounded-xl bg-muted"
                 >
                   <Image
                     src={megaMenuData[activeMega].featured.image}
                     alt={megaMenuData[activeMega].featured.title}
                     fill
                     className="object-cover object-center transition-transform duration-700 group-hover:scale-105"
-                    sizes="(min-width: 1024px) 60vw, 100vw"
+                    sizes="(min-width: 1024px) 50vw, 100vw"
                   />
                   <div className="absolute inset-0 bg-gradient-to-t from-black/85 via-black/30 to-transparent flex flex-col justify-end p-6 text-white space-y-1">
                     <span className="text-[10px] font-bold uppercase tracking-widest text-amber-300">
