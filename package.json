@@ -17,6 +17,7 @@
     "db:generate": "prisma generate",
     "db:migrate": "prisma migrate dev",
     "db:seed": "tsx prisma/seed.ts",
+    "db:seed:catalog": "tsx scripts/seed-full-catalog.ts",
     "quality": "npm run typecheck && npm run lint && npm run test && npm run build"
   },
   "dependencies": {
