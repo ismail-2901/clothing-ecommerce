@@ -40,7 +40,7 @@ const getCategories = unstable_cache(
     return [
       { slug: "men", updatedAt: new Date() },
       { slug: "women", updatedAt: new Date() },
-      { slug: "essentials", updatedAt: new Date() }
+      { slug: "accessories", updatedAt: new Date() }
     ];
   },
   ["sitemap-category-slugs"],

@@ -77,8 +77,8 @@ const defaultCategories = [
     image: "https://images.unsplash.com/photo-1485968579580-b6d095142e6e?auto=format&fit=crop&w=1200&q=80"
   },
   {
-    name: "Essentials",
-    slug: "essentials",
+    name: "Accessories",
+    slug: "accessories",
     image: "https://images.unsplash.com/photo-1520975954732-35dd22299614?auto=format&fit=crop&w=1200&q=80"
   }
 ];
